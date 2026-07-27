@@ -1,0 +1,13 @@
+[project]
+name = "kbo-travel-backend"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi[standard]>=0.128.8",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.0.0",
+    "pytest>=8.4.2",
+]

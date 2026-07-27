@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Firebase and secret files
+secrets/
+firebase-service-account.json
+firebase-service-account-*.json
+serviceAccountKey.json
+
+# Test and analysis cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
