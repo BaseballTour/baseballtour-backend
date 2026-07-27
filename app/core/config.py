@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
+    tour_api_key: str = ""
     firebase_credentials_path: str = (
         "secrets/firebase-service-account.json"
     )
