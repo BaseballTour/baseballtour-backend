@@ -1,38 +1,48 @@
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from app.schemas.base import ApiModel
 
 
 DataT = TypeVar("DataT")
 
 
-class SuccessResponse(BaseModel, Generic[DataT]):
-    model_config = ConfigDict(extra="forbid")
-
-    success: Literal[True] = Field(
-        default=True,
-        description="요청 성공 여부",
-    )
-    message: str = Field(
-        description="응답 메시지",
-    )
+class SuccessResponse(ApiModel, Generic[DataT]):
+    success: Literal[True] = True
     data: DataT
 
 
-class ErrorResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    success: Literal[False] = Field(
-        default=False,
-        description="요청 성공 여부",
+class ListMeta(ApiModel):
+    count: int = Field(
+        ge=0,
+        description="현재 응답에 포함된 데이터 개수",
     )
-    code: str = Field(
-        description="애플리케이션 오류 코드",
-    )
-    message: str = Field(
-        description="사용자에게 제공할 오류 메시지",
-    )
-    details: Any | None = Field(
+    next_page_token: str | None = Field(
         default=None,
-        description="추가 오류 정보",
+        description="다음 페이지 조회 토큰",
     )
+
+
+class ListSuccessResponse(ApiModel, Generic[DataT]):
+    success: Literal[True] = True
+    data: list[DataT]
+    meta: ListMeta
+
+
+class ErrorDetail(ApiModel):
+    field: str
+    reason: str
+
+
+class ErrorBody(ApiModel):
+    code: str
+    message: str
+    details: list[ErrorDetail] | list[Any] = Field(
+        default_factory=list,
+    )
+
+
+class ErrorResponse(ApiModel):
+    success: Literal[False] = False
+    error: ErrorBody

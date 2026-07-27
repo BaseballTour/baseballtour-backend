@@ -30,7 +30,6 @@ app.include_router(
 )
 async def root() -> SuccessResponse[RootData]:
     return SuccessResponse(
-        message="API가 정상적으로 실행 중입니다.",
         data=RootData(
             name=settings.app_name,
             environment=settings.app_env,

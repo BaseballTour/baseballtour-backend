@@ -28,8 +28,8 @@ def create_error_test_app() -> FastAPI:
     async def custom_error_endpoint() -> None:
         raise AppException(
             status_code=404,
-            code="TEST_RESOURCE_NOT_FOUND",
-            message="테스트 리소스를 찾을 수 없습니다.",
+            code="TRIP_NOT_FOUND",
+            message="여행 정보를 찾을 수 없습니다.",
         )
 
     @test_app.get("/unexpected-error")
@@ -51,7 +51,6 @@ def test_health_success_response() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "서버가 정상적으로 실행 중입니다.",
         "data": {
             "status": "healthy",
         },
@@ -64,8 +63,11 @@ def test_not_found_response() -> None:
     assert response.status_code == 404
     assert response.json() == {
         "success": False,
-        "code": "NOT_FOUND",
-        "message": "요청한 리소스를 찾을 수 없습니다.",
+        "error": {
+            "code": "NOT_FOUND",
+            "message": "요청한 리소스를 찾을 수 없습니다.",
+            "details": [],
+        },
     }
 
 
@@ -76,13 +78,21 @@ def test_validation_error_response() -> None:
             "count": 0,
         },
     )
-    body = response.json()
 
     assert response.status_code == 422
-    assert body["success"] is False
-    assert body["code"] == "VALIDATION_ERROR"
-    assert body["message"] == "요청값이 올바르지 않습니다."
-    assert body["details"][0]["field"] == "query.count"
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "입력값을 확인해 주세요.",
+            "details": [
+                {
+                    "field": "count",
+                    "reason": "Input should be greater than or equal to 1",
+                }
+            ],
+        },
+    }
 
 
 def test_custom_exception_response() -> None:
@@ -91,8 +101,11 @@ def test_custom_exception_response() -> None:
     assert response.status_code == 404
     assert response.json() == {
         "success": False,
-        "code": "TEST_RESOURCE_NOT_FOUND",
-        "message": "테스트 리소스를 찾을 수 없습니다.",
+        "error": {
+            "code": "TRIP_NOT_FOUND",
+            "message": "여행 정보를 찾을 수 없습니다.",
+            "details": [],
+        },
     }
 
 
@@ -102,6 +115,9 @@ def test_unexpected_exception_response() -> None:
     assert response.status_code == 500
     assert response.json() == {
         "success": False,
-        "code": "INTERNAL_SERVER_ERROR",
-        "message": "서버 내부 오류가 발생했습니다.",
+        "error": {
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "서버 내부 오류가 발생했습니다.",
+            "details": [],
+        },
     }

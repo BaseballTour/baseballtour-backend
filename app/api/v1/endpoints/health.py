@@ -15,6 +15,5 @@ router = APIRouter()
 )
 async def health_check() -> SuccessResponse[HealthData]:
     return SuccessResponse(
-        message="서버가 정상적으로 실행 중입니다.",
         data=HealthData(),
     )

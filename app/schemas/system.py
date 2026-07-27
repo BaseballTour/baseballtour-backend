@@ -1,9 +1,11 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import ApiModel
 
 
-class RootData(BaseModel):
+class RootData(ApiModel):
     name: str = Field(
         description="애플리케이션 이름",
     )
@@ -16,7 +18,7 @@ class RootData(BaseModel):
     )
 
 
-class HealthData(BaseModel):
+class HealthData(ApiModel):
     status: Literal["healthy"] = Field(
         default="healthy",
         description="서버 상태",
