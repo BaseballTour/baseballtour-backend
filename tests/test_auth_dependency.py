@@ -1,0 +1,195 @@
+from typing import Annotated
+
+import pytest
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
+from firebase_admin import auth as firebase_auth
+
+from app.api.dependencies import auth as auth_dependency
+from app.core.exception_handlers import register_exception_handlers
+
+
+@pytest.fixture
+def client() -> TestClient:
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/protected")
+    async def protected_endpoint(
+        user_id: Annotated[
+            str,
+            Depends(auth_dependency.get_current_user_id),
+        ],
+    ) -> dict[str, str]:
+        return {
+            "userId": user_id,
+        }
+
+    return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def mock_firebase_app(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        auth_dependency,
+        "initialize_firebase",
+        lambda: object(),
+    )
+
+
+def test_missing_authorization_header_returns_401(
+    client: TestClient,
+) -> None:
+    response = client.get("/protected")
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "AUTH_TOKEN_MISSING",
+            "message": "인증 토큰이 필요합니다.",
+            "details": [],
+        },
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_invalid_authorization_scheme_returns_401(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/protected",
+        headers={"Authorization": "Basic test-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
+
+
+def test_invalid_firebase_token_returns_401(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_invalid_token(*args: object, **kwargs: object) -> None:
+        raise firebase_auth.InvalidIdTokenError("invalid token")
+
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        raise_invalid_token,
+    )
+
+    response = client.get(
+        "/protected",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
+
+
+def test_expired_firebase_token_returns_401(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_expired_token(*args: object, **kwargs: object) -> None:
+        raise firebase_auth.ExpiredIdTokenError(
+            "expired token",
+            None,
+        )
+
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        raise_expired_token,
+    )
+
+    response = client.get(
+        "/protected",
+        headers={"Authorization": "Bearer expired-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_TOKEN_EXPIRED"
+
+
+def test_revoked_firebase_token_returns_401(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_revoked_token(*args: object, **kwargs: object) -> None:
+        raise firebase_auth.RevokedIdTokenError(
+            "revoked token",
+        )
+
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        raise_revoked_token,
+    )
+
+    response = client.get(
+        "/protected",
+        headers={"Authorization": "Bearer revoked-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_TOKEN_REVOKED"
+
+
+def test_token_without_uid_returns_401(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {"email": "fan@example.com"},
+    )
+
+    response = client.get(
+        "/protected",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
+
+
+def test_valid_token_returns_user_uid(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: dict[str, object] = {}
+
+    def verify_token(
+        token: str,
+        *,
+        app: object,
+        check_revoked: bool,
+    ) -> dict[str, str]:
+        received["token"] = token
+        received["app"] = app
+        received["check_revoked"] = check_revoked
+
+        return {
+            "uid": "firebase-user-123",
+        }
+
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        verify_token,
+    )
+
+    response = client.get(
+        "/protected",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "userId": "firebase-user-123",
+    }
+    assert received["token"] == "valid-token"
+    assert received["check_revoked"] is True
