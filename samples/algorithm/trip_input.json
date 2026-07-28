@@ -1,0 +1,31 @@
+{
+  "tripId": "trip_001",
+  "tripStartAt": "2026-08-14T10:30:00+09:00",
+  "tripEndAt": "2026-08-16T19:00:00+09:00",
+  "arrivalPoint": {
+    "name": "부산역",
+    "latitude": 35.1151,
+    "longitude": 129.0414
+  },
+  "departurePoint": {
+    "name": "부산역",
+    "latitude": 35.1151,
+    "longitude": 129.0414
+  },
+  "accommodation": {
+    "name": "서면 숙소",
+    "latitude": 35.1577,
+    "longitude": 129.0592
+  },
+  "gameAnchor": {
+    "gameId": "game_20260815_lotte_doosan",
+    "name": "사직야구장",
+    "latitude": 35.194,
+    "longitude": 129.0615,
+    "gameStartAt": "2026-08-15T18:30:00+09:00",
+    "requiredArrivalMinutes": 40
+  },
+  "selectedPlaceIds": [
+    "tour_123456"
+  ]
+}

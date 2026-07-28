@@ -5,9 +5,9 @@ from app.models.place import Place, PlaceCategory, PlaceSource
 
 TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
     "12": PlaceCategory.TOURIST_SPOT,
-    "14": PlaceCategory.CULTURE,
+    "14": PlaceCategory.CULTURAL_FACILITY,
     "15": PlaceCategory.FESTIVAL,
-    "28": PlaceCategory.ACTIVITY,
+    "28": PlaceCategory.OTHER,
     "32": PlaceCategory.ACCOMMODATION,
     "38": PlaceCategory.SHOPPING,
     "39": PlaceCategory.RESTAURANT,
@@ -16,11 +16,11 @@ TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
 
 def get_place_category(content_type_id: str | None) -> PlaceCategory:
     if not content_type_id:
-        return PlaceCategory.UNKNOWN
+        return PlaceCategory.OTHER
 
     return TOUR_API_CATEGORY_MAP.get(
         content_type_id,
-        PlaceCategory.UNKNOWN,
+        PlaceCategory.OTHER,
     )
 
 
@@ -56,7 +56,7 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
     )
 
     return Place(
-        id=f"tour-api-{content_id}",
+        place_id=f"tour_{content_id}",
         name=str(item.get("title", "")).strip(),
         category=get_place_category(content_type_id),
         latitude=float(item.get("mapy")),
@@ -65,36 +65,36 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
             item.get("addr1"),
             item.get("addr2"),
         ),
-        postalCode=empty_string_to_none(
+        postal_code=empty_string_to_none(
             item.get("zipcode")
         ),
         telephone=empty_string_to_none(
             item.get("tel")
         ),
-        thumbnailUrl=empty_string_to_none(
+        thumbnail_url=empty_string_to_none(
             item.get("firstimage")
         ),
-        distanceMeters=(
+        distance_meters=(
             float(item["dist"])
             if empty_string_to_none(item.get("dist"))
             else None
         ),
         source=PlaceSource.TOUR_API,
-        sourceContentId=content_id,
-        contentTypeId=content_type_id,
-        areaCode=empty_string_to_none(
+        source_content_id=content_id,
+        content_type_id=content_type_id,
+        area_code=empty_string_to_none(
             item.get("areacode")
         ),
-        sigunguCode=empty_string_to_none(
+        sigungu_code=empty_string_to_none(
             item.get("sigungucode")
         ),
-        categoryCode1=empty_string_to_none(
+        category_code1=empty_string_to_none(
             item.get("cat1")
         ),
-        categoryCode2=empty_string_to_none(
+        category_code2=empty_string_to_none(
             item.get("cat2")
         ),
-        categoryCode3=empty_string_to_none(
+        category_code3=empty_string_to_none(
             item.get("cat3")
         ),
     )
