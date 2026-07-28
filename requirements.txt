@@ -933,6 +933,7 @@ httpx==0.28.1 \
     #   fastapi
     #   fastapi-cloud-cli
     #   firebase-admin
+    #   kbo-travel-backend
 hyperframe==6.1.0 \
     --hash=sha256:b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5 \
     --hash=sha256:f630908a00854a7adeabd6382b43923a4c4cd4b821fcb527e6ab9e15382a3b08
@@ -1381,11 +1382,15 @@ pydantic-extra-types==2.11.1 \
 pydantic-settings==2.11.0 ; python_full_version < '3.10' \
     --hash=sha256:d0e87a1c7d33593beb7194adb8470fc426e95ba02af83a0f23474a04c9a08180 \
     --hash=sha256:fe2cea3413b9530d10f3a5875adffb17ada5c1e1bab0b2885546d7310415207c
-    # via fastapi
+    # via
+    #   fastapi
+    #   kbo-travel-backend
 pydantic-settings==2.14.2 ; python_full_version >= '3.10' \
     --hash=sha256:a20c97b37910b6550d5ea50fbcc2d4187defe58cd57070b73863d069419c9440 \
     --hash=sha256:c19dd64b19097f1de80184f0cc7b0272a13ae6e170cbf240a3e27e381ed14a5f
-    # via fastapi
+    # via
+    #   fastapi
+    #   kbo-travel-backend
 pygments==2.20.0 \
     --hash=sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f \
     --hash=sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176
