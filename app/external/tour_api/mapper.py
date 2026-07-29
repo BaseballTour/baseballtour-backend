@@ -1,7 +1,10 @@
 from typing import Any
+import logging
+from typing import Any
 
 from app.models.place import Place, PlaceCategory, PlaceSource
 
+logger = logging.getLogger(__name__)
 
 TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
     "12": PlaceCategory.TOURIST_SPOT,
@@ -50,17 +53,40 @@ def empty_string_to_none(value: Any) -> str | None:
 
 
 def tour_api_item_to_place(item: dict[str, Any]) -> Place:
-    content_id = str(item.get("contentid", "")).strip()
+    content_id = get_required_text(
+        item,
+        "contentid",
+    )
+
+    name = get_required_text(
+        item,
+        "title",
+    )
+
+    latitude = get_required_coordinate(
+        item,
+        "mapy",
+        minimum=-90,
+        maximum=90,
+    )
+
+    longitude = get_required_coordinate(
+        item,
+        "mapx",
+        minimum=-180,
+        maximum=180,
+    )
+
     content_type_id = empty_string_to_none(
         item.get("contenttypeid")
     )
 
     return Place(
         place_id=f"tour_{content_id}",
-        name=str(item.get("title", "")).strip(),
+        name=name,
         category=get_place_category(content_type_id),
-        latitude=float(item.get("mapy")),
-        longitude=float(item.get("mapx")),
+        latitude=latitude,
+        longitude=longitude,
         address=combine_address(
             item.get("addr1"),
             item.get("addr2"),
@@ -103,7 +129,59 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
 def tour_api_items_to_places(
     items: list[dict[str, Any]],
 ) -> list[Place]:
-    return [
-        tour_api_item_to_place(item)
-        for item in items
-    ]
+    places: list[Place] = []
+
+    for item in items:
+        try:
+            place = tour_api_item_to_place(item)
+        except (TypeError, ValueError) as exc:
+            logger.warning(
+                "유효하지 않은 TourAPI 장소를 제외합니다: "
+                "contentid=%r reason=%s",
+                item.get("contentid"),
+                exc,
+            )
+            continue
+
+        places.append(place)
+
+    return places
+
+
+def get_required_text(
+    item: dict[str, Any],
+    field: str,
+) -> str:
+    value = empty_string_to_none(item.get(field))
+
+    if value is None:
+        raise ValueError(
+            f"TourAPI 장소의 {field} 값이 없습니다."
+        )
+
+    return value
+
+
+def get_required_coordinate(
+    item: dict[str, Any],
+    field: str,
+    *,
+    minimum: float,
+    maximum: float,
+) -> float:
+    raw_value = get_required_text(item, field)
+
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"TourAPI 장소의 {field} 값이 숫자가 아닙니다."
+        ) from exc
+
+    if not minimum <= value <= maximum:
+        raise ValueError(
+            f"TourAPI 장소의 {field} 값이 "
+            f"허용 범위를 벗어났습니다."
+        )
+
+    return value

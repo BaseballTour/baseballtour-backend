@@ -11,6 +11,14 @@ from app.models.place import Place
 TOUR_API_BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 TOUR_API_SUCCESS_CODE = "0000"
 
+TOUR_API_RATE_LIMIT_CODES = {
+    "22",
+}
+
+TOUR_API_RATE_LIMIT_MESSAGES = {
+    "LIMITED NUMBER OF SERVICE REQUESTS EXCEEDS",
+}
+
 
 def _common_params() -> dict[str, Any]:
     service_key = get_settings().tour_api_key.strip()
@@ -54,7 +62,35 @@ def _validate_tour_api_response(data: Any) -> dict[str, Any]:
             message="TourAPI 응답 헤더가 올바르지 않습니다.",
         )
 
-    result_code = str(header.get("resultCode", "")).strip()
+    result_code = str(
+    header.get("resultCode", "")
+    ).strip()
+
+    result_message = str(
+        header.get("resultMsg", "")
+    ).strip()
+
+    normalized_message = result_message.upper()
+
+    is_rate_limited = (
+        result_code in TOUR_API_RATE_LIMIT_CODES
+        or any(
+            message in normalized_message
+            for message in TOUR_API_RATE_LIMIT_MESSAGES
+        )
+    )
+
+    if is_rate_limited:
+        raise AppException(
+            status_code=429,
+            code="EXTERNAL_API_RATE_LIMITED",
+            message="TourAPI 호출 제한을 초과했습니다.",
+            details={
+                "resultCode": result_code,
+                "resultMessage": result_message,
+            },
+        )
+
     if result_code != TOUR_API_SUCCESS_CODE:
         raise AppException(
             status_code=502,
@@ -62,7 +98,7 @@ def _validate_tour_api_response(data: Any) -> dict[str, Any]:
             message="TourAPI 요청 처리에 실패했습니다.",
             details={
                 "resultCode": result_code,
-                "resultMessage": str(header.get("resultMsg", "")).strip(),
+                "resultMessage": result_message,
             },
         )
 
