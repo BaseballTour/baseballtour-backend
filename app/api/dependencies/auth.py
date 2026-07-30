@@ -1,6 +1,7 @@
+from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Header, status
+from fastapi import Depends, Header, status
 from firebase_admin import auth as firebase_auth
 
 from app.core.exceptions import AppException
@@ -10,6 +11,14 @@ from app.core.firebase import initialize_firebase
 AUTHENTICATE_HEADERS = {
     "WWW-Authenticate": "Bearer",
 }
+
+
+@dataclass(frozen=True)
+class AuthenticatedUser:
+    """Firebase 인증 토큰에서 추출한 사용자 정보."""
+
+    uid: str
+    email: str | None
 
 
 def create_auth_exception(
@@ -25,13 +34,13 @@ def create_auth_exception(
     )
 
 
-async def get_current_user_id(
+async def get_current_user(
     authorization: Annotated[
         str | None,
         Header(alias="Authorization"),
     ] = None,
-) -> str:
-    """Firebase ID Token을 검증하고 사용자 UID를 반환한다."""
+) -> AuthenticatedUser:
+    """Firebase ID Token을 검증하고 인증 사용자 정보를 반환한다."""
 
     if authorization is None:
         raise create_auth_exception(
@@ -100,4 +109,26 @@ async def get_current_user_id(
             message="인증 토큰에 사용자 정보가 없습니다.",
         )
 
-    return uid
+    email = decoded_token.get("email")
+
+    normalized_email = (
+        email.strip()
+        if isinstance(email, str) and email.strip()
+        else None
+    )
+
+    return AuthenticatedUser(
+        uid=uid.strip(),
+        email=normalized_email,
+    )
+
+
+async def get_current_user_id(
+    current_user: Annotated[
+        AuthenticatedUser,
+        Depends(get_current_user),
+    ],
+) -> str:
+    """인증된 사용자의 Firebase UID만 반환한다."""
+
+    return current_user.uid

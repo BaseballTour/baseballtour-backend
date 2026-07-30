@@ -193,3 +193,72 @@ def test_valid_token_returns_user_uid(
     }
     assert received["token"] == "valid-token"
     assert received["check_revoked"] is True
+
+
+@pytest.fixture
+def authenticated_user_client() -> TestClient:
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/protected-user")
+    async def protected_user_endpoint(
+        current_user: Annotated[
+            auth_dependency.AuthenticatedUser,
+            Depends(auth_dependency.get_current_user),
+        ],
+    ) -> dict[str, str | None]:
+        return {
+            "userId": current_user.uid,
+            "email": current_user.email,
+        }
+
+    return TestClient(app)
+
+
+def test_valid_token_returns_authenticated_user(
+    authenticated_user_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {
+            "uid": "firebase-user-123",
+            "email": "fan@example.com",
+        },
+    )
+
+    response = authenticated_user_client.get(
+        "/protected-user",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "userId": "firebase-user-123",
+        "email": "fan@example.com",
+    }
+
+
+def test_valid_token_without_email_returns_none(
+    authenticated_user_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {
+            "uid": "firebase-user-123",
+        },
+    )
+
+    response = authenticated_user_client.get(
+        "/protected-user",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "userId": "firebase-user-123",
+        "email": None,
+    }
