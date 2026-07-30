@@ -25,6 +25,14 @@ class DayType(str, Enum):
     DEPARTURE_DAY = "DEPARTURE_DAY"
 
 
+class ItineraryItemType(str, Enum):
+    ARRIVAL_POINT = "ARRIVAL_POINT"
+    DEPARTURE_POINT = "DEPARTURE_POINT"
+    ACCOMMODATION = "ACCOMMODATION"
+    PLACE = "PLACE"
+    STADIUM = "STADIUM"
+
+
 class GeoPoint(AlgorithmModel):
     name: str
     latitude: float = Field(ge=-90, le=90)
@@ -37,6 +45,11 @@ class GameAnchor(GeoPoint):
     required_arrival_minutes: int = Field(default=40, ge=0)
 
 
+class SelectedPlaceInput(AlgorithmModel):
+    place_id: str
+    is_required: bool = False
+
+
 class TripInput(AlgorithmModel):
     trip_id: str
     trip_start_at: datetime
@@ -45,7 +58,9 @@ class TripInput(AlgorithmModel):
     departure_point: GeoPoint
     accommodation: GeoPoint | None = None
     game_anchor: GameAnchor
-    selected_place_ids: list[str] = Field(default_factory=list)
+    selected_places: list[SelectedPlaceInput] = Field(
+        default_factory=list
+    )
 
     @model_validator(mode="after")
     def validate_period_and_timezone(self) -> "TripInput":
@@ -70,6 +85,10 @@ class ExcludedPlace(AlgorithmModel):
 
 
 class ItineraryItem(AlgorithmModel):
+    item_type: ItineraryItemType = Field(
+        alias="type",
+        serialization_alias="type",
+    )
     sequence: int = Field(ge=1)
     place_id: str | None = None
     name: str

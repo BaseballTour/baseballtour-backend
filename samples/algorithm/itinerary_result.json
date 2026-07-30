@@ -1,0 +1,50 @@
+{
+  "tripId": "trip_001",
+  "algorithmVersion": "draft-v0.1",
+  "totalTravelMinutes": 75,
+  "days": [
+    {
+      "date": "2026-08-14",
+      "dayType": "ARRIVAL_DAY",
+      "items": [
+        {
+          "type": "ARRIVAL_POINT",
+          "sequence": 1,
+          "placeId": null,
+          "name": "부산역",
+          "scheduledStartAt": "2026-08-14T10:30:00+09:00",
+          "scheduledEndAt": "2026-08-14T10:50:00+09:00",
+          "travelMinutesFromPrevious": 0,
+          "isRequired": true
+        },
+        {
+          "type": "PLACE",
+          "sequence": 2,
+          "placeId": "tour_123456",
+          "name": "광안리해수욕장",
+          "scheduledStartAt": "2026-08-14T11:30:00+09:00",
+          "scheduledEndAt": "2026-08-14T13:00:00+09:00",
+          "travelMinutesFromPrevious": 40,
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "date": "2026-08-15",
+      "dayType": "GAME_DAY",
+      "items": [
+        {
+          "type": "STADIUM",
+          "sequence": 1,
+          "placeId": null,
+          "name": "사직야구장",
+          "scheduledStartAt": "2026-08-15T17:50:00+09:00",
+          "scheduledEndAt": "2026-08-15T22:00:00+09:00",
+          "travelMinutesFromPrevious": 35,
+          "isRequired": true
+        }
+      ]
+    }
+  ],
+  "excludedPlaces": []
+}

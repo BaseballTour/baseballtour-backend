@@ -25,7 +25,10 @@
     "gameStartAt": "2026-08-15T18:30:00+09:00",
     "requiredArrivalMinutes": 40
   },
-  "selectedPlaceIds": [
-    "tour_123456"
+  "selectedPlaces": [
+    {
+      "placeId": "tour_123456",
+      "isRequired": true
+    }
   ]
 }
