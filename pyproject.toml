@@ -5,6 +5,8 @@ requires-python = ">=3.9"
 dependencies = [
     "fastapi[standard]>=0.128.8",
     "firebase-admin>=7.5.0",
+    "httpx>=0.28.1",
+    "pydantic-settings>=2.11.0",
 ]
 
 [dependency-groups]
@@ -12,3 +14,7 @@ dev = [
     "httpx2>=2.0.0",
     "pytest>=8.4.2",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

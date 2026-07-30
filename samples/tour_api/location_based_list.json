@@ -1,0 +1,35 @@
+{
+  "response": {
+    "header": {
+      "resultCode": "0000",
+      "resultMsg": "OK"
+    },
+    "body": {
+      "items": {
+        "item": [
+          {
+            "contentid": "123456",
+            "contenttypeid": "39",
+            "title": "샘플 음식점",
+            "addr1": "서울특별시 송파구",
+            "addr2": "올림픽로 25",
+            "zipcode": "05500",
+            "tel": "02-000-0000",
+            "firstimage": "https://example.com/place.jpg",
+            "mapx": "127.0719",
+            "mapy": "37.5122",
+            "dist": "350.5",
+            "areacode": "1",
+            "sigungucode": "18",
+            "cat1": "A05",
+            "cat2": "A0502",
+            "cat3": "A05020100"
+          }
+        ]
+      },
+      "numOfRows": 20,
+      "pageNo": 1,
+      "totalCount": 1
+    }
+  }
+}

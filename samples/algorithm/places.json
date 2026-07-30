@@ -1,0 +1,19 @@
+[
+  {
+    "placeId": "tour_123456",
+    "name": "광안리해수욕장",
+    "category": "TOURIST_SPOT",
+    "address": "부산광역시 수영구 광안해변로",
+    "latitude": 35.1532,
+    "longitude": 129.1187,
+    "thumbnailUrl": "https://example.com/gwangalli.jpg",
+    "overview": null,
+    "openTime": null,
+    "closeTime": null,
+    "closedDaysText": null,
+    "defaultStayMinutes": 90,
+    "distanceMeters": 5300,
+    "source": "TOUR_API",
+    "sourceContentId": "123456"
+  }
+]
