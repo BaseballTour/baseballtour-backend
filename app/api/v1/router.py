@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.endpoints.games import router as games_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.teams import router as teams_router
 from app.api.v1.endpoints.tour import router as tour_router
@@ -11,6 +12,11 @@ api_router = APIRouter()
 api_router.include_router(
     health_router,
     tags=["Health"],
+)
+
+api_router.include_router(
+    games_router,
+    tags=["Games"],
 )
 
 api_router.include_router(
