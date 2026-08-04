@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PlaceCategory(str, Enum):
@@ -11,11 +11,13 @@ class PlaceCategory(str, Enum):
     CULTURAL_FACILITY = "CULTURAL_FACILITY"
     SHOPPING = "SHOPPING"
     FESTIVAL = "FESTIVAL"
+    ACTIVITY = "ACTIVITY"
     OTHER = "OTHER"
 
 
 class PlaceSource(str, Enum):
     TOUR_API = "TOUR_API"
+    KAKAO = "KAKAO"
     LOCAL_DATA = "LOCAL_DATA"
     USER_PICK = "USER_PICK"
 
@@ -148,4 +150,16 @@ class Place(BaseModel):
         default=None,
         description="TourAPI 소분류 코드 cat3"
     )
+
+    @model_validator(mode="after")
+    def validate_source_content_id(self) -> "Place":
+        if (
+            self.source in {PlaceSource.TOUR_API, PlaceSource.KAKAO}
+            and not self.source_content_id
+        ):
+            raise ValueError(
+                "TOUR_API 또는 KAKAO 장소에는 "
+                "sourceContentId가 필요합니다."
+            )
+        return self
 

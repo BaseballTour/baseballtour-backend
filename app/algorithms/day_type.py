@@ -41,5 +41,5 @@ def classify_day(
     if is_departure_day(target, trip_end):
         return DayType.DEPARTURE_DAY
     if is_free_day(target, trip_start, trip_end, game_date):
-        return DayType.FREE_DAY
+        return DayType.NON_GAME_DAY
     raise ValueError("여행 기간 밖의 날짜입니다.")

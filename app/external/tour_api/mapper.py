@@ -10,7 +10,7 @@ TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
     "12": PlaceCategory.TOURIST_SPOT,
     "14": PlaceCategory.CULTURAL_FACILITY,
     "15": PlaceCategory.FESTIVAL,
-    "28": PlaceCategory.OTHER,
+    "28": PlaceCategory.ACTIVITY,
     "32": PlaceCategory.ACCOMMODATION,
     "38": PlaceCategory.SHOPPING,
     "39": PlaceCategory.RESTAURANT,

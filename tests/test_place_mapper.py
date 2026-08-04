@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import pytest
+from pydantic import ValidationError
 
 from app.external.tour_api.mapper import (
     tour_api_item_to_place,
@@ -8,7 +9,7 @@ from app.external.tour_api.mapper import (
 )
 from app.external.tour_api.client import extract_items
 from app.external.tour_api.mapper import tour_api_item_to_place
-from app.models.place import PlaceCategory
+from app.models.place import Place, PlaceCategory, PlaceSource
 
 
 SAMPLE_PATH = (
@@ -105,3 +106,39 @@ def test_invalid_item_is_skipped_from_list() -> None:
 
     assert len(places) == 1
     assert places[0].place_id == "tour_123456"
+
+
+def test_activity_content_type_maps_to_activity() -> None:
+    item = make_valid_item()
+    item["contenttypeid"] = "28"
+
+    place = tour_api_item_to_place(item)
+
+    assert place.category == PlaceCategory.ACTIVITY
+
+
+def test_external_source_requires_source_content_id() -> None:
+    with pytest.raises(ValidationError):
+        Place(
+            placeId="kakao_unknown",
+            name="테스트 장소",
+            category=PlaceCategory.OTHER,
+            latitude=37.5,
+            longitude=127.0,
+            address="서울특별시",
+            source=PlaceSource.KAKAO,
+        )
+
+
+def test_user_pick_allows_missing_source_content_id() -> None:
+    place = Place(
+        placeId="user_pick_001",
+        name="지도에서 선택한 위치",
+        category=PlaceCategory.OTHER,
+        latitude=37.5,
+        longitude=127.0,
+        address="서울특별시",
+        source=PlaceSource.USER_PICK,
+    )
+
+    assert place.source_content_id is None
