@@ -33,6 +33,15 @@ class ItineraryItemType(str, Enum):
     STADIUM = "STADIUM"
 
 
+class ExcludedReasonCode(str, Enum):
+    INSUFFICIENT_TIME = "INSUFFICIENT_TIME"
+    OUTSIDE_BUSINESS_HOURS = "OUTSIDE_BUSINESS_HOURS"
+    CLOSED_DAY = "CLOSED_DAY"
+    ROUTE_INEFFICIENT = "ROUTE_INEFFICIENT"
+    DUPLICATE_PLACE = "DUPLICATE_PLACE"
+    INVALID_PLACE = "INVALID_PLACE"
+
+
 class GeoPoint(AlgorithmModel):
     name: str
     latitude: float = Field(ge=-90, le=90)
@@ -80,7 +89,7 @@ class TripInput(AlgorithmModel):
 
 class ExcludedPlace(AlgorithmModel):
     place_id: str
-    reason_code: str
+    reason_code: ExcludedReasonCode
     message: str
 
 
@@ -124,3 +133,17 @@ class ItineraryResult(AlgorithmModel):
     total_travel_minutes: int = Field(default=0, ge=0)
     days: list[ItineraryDay] = Field(default_factory=list)
     excluded_places: list[ExcludedPlace] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_total_travel_minutes(self) -> "ItineraryResult":
+        calculated_total = sum(
+            item.travel_minutes_from_previous
+            for day in self.days
+            for item in day.items
+        )
+        if self.total_travel_minutes != calculated_total:
+            raise ValueError(
+                "totalTravelMinutes는 모든 일정 항목의 "
+                "travelMinutesFromPrevious 합계여야 합니다."
+            )
+        return self

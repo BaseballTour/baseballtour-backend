@@ -25,12 +25,29 @@ def create_plan_document() -> ItineraryPlanDocument:
         RESULT_SAMPLE_PATH.read_text(encoding="utf-8")
     )
 
+    stored_days = [
+        {
+            **day.model_dump(by_alias=True),
+            "items": [
+                {
+                    **item.model_dump(by_alias=True),
+                    "itemId": f"item_{day_index}_{item_index}",
+                }
+                for item_index, item in enumerate(
+                    day.items,
+                    start=1,
+                )
+            ],
+        }
+        for day_index, day in enumerate(result.days, start=1)
+    ]
+
     return ItineraryPlanDocument(
         trip_id=result.trip_id,
         user_id="firebase-user-123",
         algorithm_version=result.algorithm_version,
         total_travel_minutes=result.total_travel_minutes,
-        days=result.days,
+        days=stored_days,
         excluded_places=result.excluded_places,
         created_at=datetime.fromisoformat(
             "2026-08-05T09:00:00+09:00"
@@ -55,6 +72,9 @@ def test_plan_document_serializes_storage_metadata() -> None:
     assert data["status"] == "ACTIVE"
     assert data["tripId"] == "trip_001"
     assert data["userId"] == "firebase-user-123"
+    assert data["days"][0]["items"][0]["itemId"] == (
+        "item_1_1"
+    )
     assert "planId" not in data
 
 

@@ -101,3 +101,29 @@ def test_itinerary_item_rejects_invalid_schedule() -> None:
                 ],
             }
         )
+
+
+def test_itinerary_result_rejects_incorrect_travel_total() -> None:
+    data = json.loads(
+        RESULT_SAMPLE_PATH.read_text(encoding="utf-8")
+    )
+    data["totalTravelMinutes"] += 1
+
+    with pytest.raises(ValidationError):
+        ItineraryResult.model_validate(data)
+
+
+def test_itinerary_result_rejects_unknown_exclusion_reason() -> None:
+    data = json.loads(
+        RESULT_SAMPLE_PATH.read_text(encoding="utf-8")
+    )
+    data["excludedPlaces"] = [
+        {
+            "placeId": "tour_999999",
+            "reasonCode": "UNKNOWN_REASON",
+            "message": "알 수 없는 제외 사유",
+        }
+    ]
+
+    with pytest.raises(ValidationError):
+        ItineraryResult.model_validate(data)
