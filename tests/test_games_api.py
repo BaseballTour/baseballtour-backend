@@ -54,9 +54,9 @@ def test_get_games_returns_list_response() -> None:
     game = create_game_response()
 
     with patch(
-        "app.api.v1.endpoints.games.GameService.get_games",
-        return_value=[game],
-    ):
+        "app.api.v1.endpoints.games.GameService"
+    ) as service_class:
+        service_class.return_value.get_games.return_value = [game]
         response = client.get("/api/v1/games")
 
     assert response.status_code == 200
@@ -84,9 +84,10 @@ def test_get_games_returns_list_response() -> None:
 
 def test_get_games_forwards_query_filters() -> None:
     with patch(
-        "app.api.v1.endpoints.games.GameService.get_games",
-        return_value=[],
-    ) as get_games:
+        "app.api.v1.endpoints.games.GameService"
+    ) as service_class:
+        get_games = service_class.return_value.get_games
+        get_games.return_value = []
         response = client.get(
             "/api/v1/games",
             params={
@@ -120,9 +121,10 @@ def test_get_game_returns_detail_response() -> None:
     game = create_game_response()
 
     with patch(
-        "app.api.v1.endpoints.games.GameService.get_game",
-        return_value=game,
-    ) as get_game:
+        "app.api.v1.endpoints.games.GameService"
+    ) as service_class:
+        get_game = service_class.return_value.get_game
+        get_game.return_value = game
         response = client.get(
             "/api/v1/games/game_20260815_lotte_doosan"
         )
