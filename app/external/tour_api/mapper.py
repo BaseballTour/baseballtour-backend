@@ -100,6 +100,12 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         thumbnail_url=empty_string_to_none(
             item.get("firstimage")
         ),
+        overview=empty_string_to_none(item.get("overview")),
+        open_time=empty_string_to_none(item.get("openTime")),
+        close_time=empty_string_to_none(item.get("closeTime")),
+        closed_days_text=empty_string_to_none(
+            item.get("closedDaysText")
+        ),
         distance_meters=(
             float(item["dist"])
             if empty_string_to_none(item.get("dist"))
@@ -146,6 +152,34 @@ def tour_api_items_to_places(
         places.append(place)
 
     return places
+
+
+def deduplicate_places(places: list[Place]) -> list[Place]:
+    """같은 내부 장소 ID는 거리와 정보가 더 좋은 항목 하나만 유지한다."""
+    unique: dict[str, Place] = {}
+
+    for place in places:
+        current = unique.get(place.place_id)
+        if current is None:
+            unique[place.place_id] = place
+            continue
+
+        current_distance = (
+            current.distance_meters
+            if current.distance_meters is not None
+            else float("inf")
+        )
+        candidate_distance = (
+            place.distance_meters
+            if place.distance_meters is not None
+            else float("inf")
+        )
+        if candidate_distance < current_distance:
+            unique[place.place_id] = place
+        elif current.thumbnail_url is None and place.thumbnail_url:
+            unique[place.place_id] = place
+
+    return list(unique.values())
 
 
 def get_required_text(

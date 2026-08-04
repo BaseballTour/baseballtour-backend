@@ -44,12 +44,14 @@ class ExcludedReasonCode(str, Enum):
 
 class GeoPoint(AlgorithmModel):
     name: str
+    address: str = ""
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
 
 
 class GameAnchor(GeoPoint):
     game_id: str
+    stadium_id: str
     game_start_at: datetime
     required_arrival_minutes: int = Field(default=40, ge=0)
 

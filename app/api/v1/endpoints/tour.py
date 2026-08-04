@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Query
 
 from app.models.place import Place
-from app.external.tour_api.client import get_nearby_place_list
-from app.schemas.response import ListMeta, ListSuccessResponse
+from app.external.tour_api.adapter import tour_api_adapter
+from app.schemas.response import (
+    ListMeta,
+    ListSuccessResponse,
+    SuccessResponse,
+)
 
 router = APIRouter(
     prefix="/tour",
@@ -34,7 +38,7 @@ async def read_nearby_places(
         description="검색 반경, 미터 단위",
     ),
 ) -> ListSuccessResponse[Place]:
-    places = await get_nearby_place_list(
+    places = await tour_api_adapter.get_nearby_place_list(
         longitude=longitude,
         latitude=latitude,
         radius=radius,
@@ -47,3 +51,18 @@ async def read_nearby_places(
             next_page_token=None,
         ),
     )
+
+
+@router.get(
+    "/places/{content_id}",
+    response_model=SuccessResponse[Place],
+)
+async def read_place_detail(
+    content_id: str,
+    content_type_id: str = Query(alias="contentTypeId"),
+) -> SuccessResponse[Place]:
+    place = await tour_api_adapter.get_place_detail(
+        content_id=content_id,
+        content_type_id=content_type_id,
+    )
+    return SuccessResponse(data=place)

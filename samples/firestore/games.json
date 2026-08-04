@@ -1,0 +1,7 @@
+{
+  "dev_game_20260801_hanwha_kt": {"homeTeamId":"hanwha","awayTeamId":"kt","stadiumId":"daejeon","gameStartAt":"2026-08-01T18:00:00+09:00","status":"COMPLETED","homeScore":4,"awayScore":2,"resultText":"한화 이글스 승"},
+  "dev_game_20260815_lotte_doosan": {"homeTeamId":"lotte","awayTeamId":"doosan","stadiumId":"sajik","gameStartAt":"2026-08-15T18:00:00+09:00","status":"SCHEDULED","homeScore":null,"awayScore":null,"resultText":null},
+  "dev_game_20260815_nc_lg": {"homeTeamId":"nc","awayTeamId":"lg","stadiumId":"changwon","gameStartAt":"2026-08-15T18:00:00+09:00","status":"SCHEDULED","homeScore":null,"awayScore":null,"resultText":null},
+  "dev_game_20260816_kia_samsung": {"homeTeamId":"kia","awayTeamId":"samsung","stadiumId":"gwangju","gameStartAt":"2026-08-16T17:00:00+09:00","status":"SCHEDULED","homeScore":null,"awayScore":null,"resultText":null},
+  "dev_game_20260816_kiwoom_ssg": {"homeTeamId":"kiwoom","awayTeamId":"ssg","stadiumId":"gocheok","gameStartAt":"2026-08-16T17:00:00+09:00","status":"POSTPONED","homeScore":null,"awayScore":null,"resultText":"경기 연기"}
+}

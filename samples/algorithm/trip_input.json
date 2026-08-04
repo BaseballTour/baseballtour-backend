@@ -4,22 +4,27 @@
   "tripEndAt": "2026-08-16T19:00:00+09:00",
   "arrivalPoint": {
     "name": "부산역",
+    "address": "부산광역시 동구 중앙대로 206",
     "latitude": 35.1151,
     "longitude": 129.0414
   },
   "departurePoint": {
     "name": "부산역",
+    "address": "부산광역시 동구 중앙대로 206",
     "latitude": 35.1151,
     "longitude": 129.0414
   },
   "accommodation": {
     "name": "서면 숙소",
+    "address": "부산광역시 부산진구 서면로 1",
     "latitude": 35.1577,
     "longitude": 129.0592
   },
   "gameAnchor": {
     "gameId": "game_20260815_lotte_doosan",
+    "stadiumId": "sajik",
     "name": "사직야구장",
+    "address": "부산광역시 동래구 사직로 45",
     "latitude": 35.194,
     "longitude": 129.0615,
     "gameStartAt": "2026-08-15T18:30:00+09:00",

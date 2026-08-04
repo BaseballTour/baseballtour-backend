@@ -1,0 +1,30 @@
+# 지도·이동시간 API 결정
+
+## 결정
+
+- 장소·주소 보강: Kakao Local API 후보
+- 전국 대중교통 이동시간: ODsay 대중교통 길찾기 API
+- 외부 API 실패 또는 키 미설정: Haversine 직선거리 기반 예상시간
+- 개발·단위 테스트: 가짜 `TravelTimeMatrix`
+
+카카오모빌리티 공개 길찾기는 자동차 경로 중심이고 도보·지오코딩은 제휴 범위다. 야구 원정 여행의 핵심인 전국 대중교통 경로는 ODsay가 직접 제공한다.
+
+ODsay Basic은 호출량이 제한되므로 동일 좌표 쌍을 Matrix 안에서 한 번만 요청하고 결과 캐시를 적용한다. 실제 운영 전 이용약관, 저장 가능 기간, 호출량을 다시 확인한다.
+
+```env
+ODSAY_API_KEY=
+```
+
+API Key는 Git에 올리지 않는다. 실패 시 직선거리를 평균 20km/h로 환산하고 대기시간 10분을 더하며 최소 5분을 사용한다. 이 값은 알고리즘 중단을 막기 위한 추정치다.
+
+## 실호출 검증
+
+- Server Key 인증 성공
+- 잠실야구장 → 고척스카이돔: 48분 응답 파싱 확인
+- 부산 일정 5개 node의 실제 Matrix 생성 성공
+- 실제 Matrix 기반 일정 총 이동시간: 126분
+
+```powershell
+uv run python -m scripts.check_odsay
+uv run python -m scripts.demo_itinerary --live
+```
