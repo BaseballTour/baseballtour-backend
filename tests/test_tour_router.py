@@ -37,7 +37,7 @@ def test_nearby_returns_place_and_meta(
         return [make_place()]
 
     monkeypatch.setattr(
-        tour_endpoint,
+        tour_endpoint.tour_api_adapter,
         "get_nearby_place_list",
         fake_get_nearby_place_list,
     )
@@ -96,7 +96,7 @@ def test_nearby_propagates_tour_api_error(
         )
 
     monkeypatch.setattr(
-        tour_endpoint,
+        tour_endpoint.tour_api_adapter,
         "get_nearby_place_list",
         fake_get_nearby_place_list,
     )

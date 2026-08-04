@@ -1,0 +1,32 @@
+{
+  "tripId": "trip_001",
+  "algorithmVersion": "greedy-anchor-v0.1",
+  "totalTravelMinutes": 75,
+  "days": [
+    {
+      "date": "2026-08-14",
+      "dayType": "ARRIVAL_DAY",
+      "items": [
+        {"type":"ARRIVAL_POINT","sequence":1,"placeId":null,"name":"부산역","address":"부산광역시 동구 중앙대로 206","latitude":35.1151,"longitude":129.0414,"scheduledStartAt":"2026-08-14T10:30:00+09:00","scheduledEndAt":"2026-08-14T10:50:00+09:00","travelMinutesFromPrevious":0,"isRequired":true},
+        {"type":"PLACE","sequence":2,"placeId":"tour_123456","name":"광안리해수욕장","address":"부산광역시 수영구 광안해변로","latitude":35.1532,"longitude":129.1187,"scheduledStartAt":"2026-08-14T11:05:00+09:00","scheduledEndAt":"2026-08-14T12:35:00+09:00","travelMinutesFromPrevious":15,"isRequired":true},
+        {"type":"ACCOMMODATION","sequence":3,"placeId":null,"name":"서면 숙소","address":"부산광역시 부산진구 서면로 1","latitude":35.1577,"longitude":129.0592,"scheduledStartAt":"2026-08-14T21:00:00+09:00","scheduledEndAt":"2026-08-14T21:20:00+09:00","travelMinutesFromPrevious":15,"isRequired":true}
+      ]
+    },
+    {
+      "date": "2026-08-15",
+      "dayType": "GAME_DAY",
+      "items": [
+        {"type":"STADIUM","sequence":1,"placeId":"sajik","name":"사직야구장","address":"부산광역시 동래구 사직로 45","latitude":35.194,"longitude":129.0615,"scheduledStartAt":"2026-08-15T17:50:00+09:00","scheduledEndAt":"2026-08-15T21:30:00+09:00","travelMinutesFromPrevious":15,"isRequired":true},
+        {"type":"ACCOMMODATION","sequence":2,"placeId":null,"name":"서면 숙소","address":"부산광역시 부산진구 서면로 1","latitude":35.1577,"longitude":129.0592,"scheduledStartAt":"2026-08-15T21:45:00+09:00","scheduledEndAt":"2026-08-15T22:05:00+09:00","travelMinutesFromPrevious":15,"isRequired":true}
+      ]
+    },
+    {
+      "date": "2026-08-16",
+      "dayType": "DEPARTURE_DAY",
+      "items": [
+        {"type":"DEPARTURE_POINT","sequence":1,"placeId":null,"name":"부산역","address":"부산광역시 동구 중앙대로 206","latitude":35.1151,"longitude":129.0414,"scheduledStartAt":"2026-08-16T18:00:00+09:00","scheduledEndAt":"2026-08-16T19:00:00+09:00","travelMinutesFromPrevious":15,"isRequired":true}
+      ]
+    }
+  ],
+  "excludedPlaces": []
+}
