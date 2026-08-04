@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 from typing import Awaitable, Callable, Protocol
 
+from app.models.itinerary import TripInput
+from app.models.place import Place
+
 
 class Coordinate(Protocol):
     latitude: float
@@ -89,3 +92,44 @@ async def build_travel_time_matrix(
             )
 
     return TravelTimeMatrix(minutes=minutes)
+
+
+async def build_itinerary_travel_time_matrix(
+    trip: TripInput,
+    places: list[Place],
+    provider: TravelTimeProvider | None = None,
+) -> TravelTimeMatrix:
+    nodes = [
+        MatrixNode(
+            "arrival",
+            trip.arrival_point.latitude,
+            trip.arrival_point.longitude,
+        ),
+        MatrixNode(
+            "departure",
+            trip.departure_point.latitude,
+            trip.departure_point.longitude,
+        ),
+        MatrixNode(
+            "stadium",
+            trip.game_anchor.latitude,
+            trip.game_anchor.longitude,
+        ),
+    ]
+    if trip.accommodation is not None:
+        nodes.append(
+            MatrixNode(
+                "accommodation",
+                trip.accommodation.latitude,
+                trip.accommodation.longitude,
+            )
+        )
+    nodes.extend(
+        MatrixNode(
+            place.place_id,
+            place.latitude,
+            place.longitude,
+        )
+        for place in places
+    )
+    return await build_travel_time_matrix(nodes, provider)

@@ -17,7 +17,8 @@
 ## 부분 완료
 
 - KBO 경기 확보: 개발 Seed 완료, 실제 확정 일정 수집원 미정
-- TourAPI·ODsay: 구현 완료, 실제 키를 이용한 다양한 실호출 검증 필요
+- ODsay Server Key 실호출 및 실제 대중교통 Matrix 일정 생성 검증 완료
+- TourAPI 상세 Adapter는 다양한 contentType의 추가 실데이터 검증 필요
 - 캐시: 단일 프로세스 방식, 운영 다중 인스턴스에서는 Redis 검토
 - 알고리즘: 규칙 기반 v0.1, 실제 교통시간과 다양한 여행 조건 검증 필요
 
@@ -31,5 +32,5 @@
 
 ## 외부 작업 필요
 
-- ODsay 및 Kakao 애플리케이션 등록과 API Key 발급
+- Kakao 애플리케이션 등록과 Local API Key 발급
 - 실제 KBO 확정 경기 데이터의 공식 제공처·갱신 주기 결정

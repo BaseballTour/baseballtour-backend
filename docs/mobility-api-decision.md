@@ -16,3 +16,15 @@ ODSAY_API_KEY=
 ```
 
 API Key는 Git에 올리지 않는다. 실패 시 직선거리를 평균 20km/h로 환산하고 대기시간 10분을 더하며 최소 5분을 사용한다. 이 값은 알고리즘 중단을 막기 위한 추정치다.
+
+## 실호출 검증
+
+- Server Key 인증 성공
+- 잠실야구장 → 고척스카이돔: 48분 응답 파싱 확인
+- 부산 일정 5개 node의 실제 Matrix 생성 성공
+- 실제 Matrix 기반 일정 총 이동시간: 126분
+
+```powershell
+uv run python -m scripts.check_odsay
+uv run python -m scripts.demo_itinerary --live
+```
