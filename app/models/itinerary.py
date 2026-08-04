@@ -21,7 +21,7 @@ class AlgorithmModel(BaseModel):
 class DayType(str, Enum):
     ARRIVAL_DAY = "ARRIVAL_DAY"
     GAME_DAY = "GAME_DAY"
-    FREE_DAY = "FREE_DAY"
+    NON_GAME_DAY = "NON_GAME_DAY"
     DEPARTURE_DAY = "DEPARTURE_DAY"
 
 
@@ -92,10 +92,24 @@ class ItineraryItem(AlgorithmModel):
     sequence: int = Field(ge=1)
     place_id: str | None = None
     name: str
+    address: str = Field(min_length=1)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     travel_minutes_from_previous: int = Field(default=0, ge=0)
     is_required: bool = False
+
+    @model_validator(mode="after")
+    def validate_schedule(self) -> "ItineraryItem":
+        if (
+            self.scheduled_start_at.tzinfo is None
+            or self.scheduled_end_at.tzinfo is None
+        ):
+            raise ValueError("일정 시간에는 timezone 정보가 필요합니다.")
+        if self.scheduled_end_at <= self.scheduled_start_at:
+            raise ValueError("일정 종료 시간은 시작 시간보다 늦어야 합니다.")
+        return self
 
 
 class ItineraryDay(AlgorithmModel):

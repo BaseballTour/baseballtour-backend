@@ -78,5 +78,26 @@ def test_classify_each_day_type() -> None:
 
     assert classify_day(trip_start, trip_start, trip_end, game_date) == DayType.ARRIVAL_DAY
     assert classify_day(game_date, trip_start, trip_end, game_date) == DayType.GAME_DAY
-    assert classify_day(date(2026, 8, 16), trip_start, trip_end, game_date) == DayType.FREE_DAY
+    assert classify_day(date(2026, 8, 16), trip_start, trip_end, game_date) == DayType.NON_GAME_DAY
     assert classify_day(trip_end, trip_start, trip_end, game_date) == DayType.DEPARTURE_DAY
+
+
+def test_itinerary_item_rejects_invalid_schedule() -> None:
+    data = json.loads(
+        RESULT_SAMPLE_PATH.read_text(encoding="utf-8")
+    )["days"][0]["items"][0]
+    data["scheduledEndAt"] = data["scheduledStartAt"]
+
+    with pytest.raises(ValidationError):
+        ItineraryResult.model_validate(
+            {
+                "tripId": "trip_001",
+                "days": [
+                    {
+                        "date": "2026-08-14",
+                        "dayType": "ARRIVAL_DAY",
+                        "items": [data],
+                    }
+                ],
+            }
+        )
