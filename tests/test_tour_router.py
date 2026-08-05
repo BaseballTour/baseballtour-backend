@@ -119,3 +119,30 @@ def test_nearby_propagates_tour_api_error(
         body["error"]["code"]
         == "EXTERNAL_API_RATE_LIMITED"
     )
+
+
+def test_detail_requires_only_place_id(monkeypatch) -> None:
+    received: dict[str, str] = {}
+
+    async def fake_get_place_detail(content_id: str) -> Place:
+        received["content_id"] = content_id
+        return make_place()
+
+    monkeypatch.setattr(
+        tour_endpoint.tour_api_adapter,
+        "get_place_detail",
+        fake_get_place_detail,
+    )
+
+    response = client.get("/api/v1/tour/places/tour_123456")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["placeId"] == "tour_123456"
+    assert received["content_id"] == "123456"
+
+
+def test_detail_rejects_raw_content_id() -> None:
+    response = client.get("/api/v1/tour/places/123456")
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_PLACE_ID"

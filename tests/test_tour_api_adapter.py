@@ -16,7 +16,7 @@ def response_with(item):
 
 @pytest.mark.anyio
 async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
-    calls = {"common": 0}
+    calls = {"common": 0, "intro_content_type_id": None}
 
     async def common(*args, **kwargs):
         calls["common"] += 1
@@ -34,6 +34,7 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
         )
 
     async def intro(*args, **kwargs):
+        calls["intro_content_type_id"] = args[1]
         return response_with(
             {
                 "opentimefood": "10:00~22:00",
@@ -51,8 +52,8 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
     monkeypatch.setattr(adapter_module, "get_place_images", images)
 
     adapter = TourApiAdapter(cache_ttl_seconds=60)
-    first = await adapter.get_place_detail("123", "39")
-    second = await adapter.get_place_detail("123", "39")
+    first = await adapter.get_place_detail("123")
+    second = await adapter.get_place_detail("123")
 
     assert first.overview == "상세 소개"
     assert first.open_time == "10:00"
@@ -61,6 +62,7 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
     assert first.thumbnail_url == "https://example.com/detail.jpg"
     assert second == first
     assert calls["common"] == 1
+    assert calls["intro_content_type_id"] == "39"
 
 
 @pytest.mark.anyio
@@ -84,7 +86,7 @@ async def test_detail_keeps_unknown_hours_and_image_as_none(monkeypatch) -> None
     monkeypatch.setattr(adapter_module, "get_place_intro_info", empty)
     monkeypatch.setattr(adapter_module, "get_place_images", empty)
 
-    place = await TourApiAdapter().get_place_detail("123", "12")
+    place = await TourApiAdapter().get_place_detail("123")
 
     assert place.open_time is None
     assert place.close_time is None

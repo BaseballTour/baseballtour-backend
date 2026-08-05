@@ -84,30 +84,42 @@ class TourApiAdapter:
     async def get_place_detail(
         self,
         content_id: str,
-        content_type_id: str,
         *,
         client: httpx.AsyncClient | None = None,
     ) -> Place:
-        key = ("detail", content_id, content_type_id)
+        key = ("detail", content_id)
 
         async def load() -> Place:
-            common, intro, images = await asyncio.gather(
-                get_place_common_info(content_id, client=client),
-                get_place_intro_info(
-                    content_id,
-                    content_type_id,
-                    client=client,
-                ),
-                get_place_images(content_id, client=client),
+            common = await get_place_common_info(
+                content_id,
+                client=client,
             )
             common_items = extract_items(common)
             if not common_items:
                 raise ValueError("TourAPI 장소 상세정보가 없습니다.")
 
             merged = dict(common_items[0])
-            intro_items = extract_items(intro)
-            if intro_items:
-                merged.update(_normalize_intro(intro_items[0]))
+            content_type_id = empty_string_to_none(
+                merged.get("contenttypeid")
+            )
+
+            if content_type_id is not None:
+                intro, images = await asyncio.gather(
+                    get_place_intro_info(
+                        content_id,
+                        content_type_id,
+                        client=client,
+                    ),
+                    get_place_images(content_id, client=client),
+                )
+                intro_items = extract_items(intro)
+                if intro_items:
+                    merged.update(_normalize_intro(intro_items[0]))
+            else:
+                images = await get_place_images(
+                    content_id,
+                    client=client,
+                )
 
             if not empty_string_to_none(merged.get("firstimage")):
                 image_items = extract_items(images)

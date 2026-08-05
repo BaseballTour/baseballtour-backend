@@ -19,7 +19,7 @@
 ### TourAPI 상세 조회
 
 ```http
-GET /api/v1/tour/places/123456?contentTypeId=39
+GET /api/v1/tour/places/123456
 ```
 
 성공 응답의 `data`는 내부 `Place` 모델이며 이미지·영업시간이 없으면 `null`이다.
