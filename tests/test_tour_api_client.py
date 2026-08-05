@@ -34,6 +34,39 @@ def test_invalid_response_shape_is_rejected() -> None:
     assert exc_info.value.code == "EXTERNAL_API_INVALID_RESPONSE"
 
 
+def test_root_business_error_is_mapped() -> None:
+    data = {
+        "resultCode": "10",
+        "resultMsg": "INVALID_REQUEST_PARAMETER_ERROR",
+    }
+
+    with pytest.raises(AppException) as exc_info:
+        _validate_tour_api_response(data)
+
+    assert exc_info.value.code == "TOUR_API_FAILED"
+    assert exc_info.value.details == {
+        "resultCode": "10",
+        "resultMessage": "INVALID_REQUEST_PARAMETER_ERROR",
+    }
+
+
+def test_gateway_service_error_is_mapped() -> None:
+    data = {
+        "OpenAPI_ServiceResponse": {
+            "cmmMsgHeader": {
+                "returnReasonCode": "30",
+                "returnAuthMsg": "SERVICE_KEY_IS_NOT_REGISTERED_ERROR",
+            }
+        }
+    }
+
+    with pytest.raises(AppException) as exc_info:
+        _validate_tour_api_response(data)
+
+    assert exc_info.value.code == "TOUR_API_FAILED"
+    assert exc_info.value.details["resultCode"] == "30"
+
+
 def test_tour_api_business_error_is_rejected() -> None:
     data = {
         "response": {

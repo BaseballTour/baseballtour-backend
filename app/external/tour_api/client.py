@@ -20,6 +20,34 @@ TOUR_API_RATE_LIMIT_MESSAGES = {
 }
 
 
+def _extract_root_error(data: dict[str, Any]) -> tuple[str, str] | None:
+    """공공데이터포털 게이트웨이의 response 없는 오류를 추출한다."""
+    result_code = data.get("resultCode")
+    result_message = data.get("resultMsg") or data.get("resultMessage")
+    if result_code is not None or result_message is not None:
+        return (
+            str(result_code or "").strip(),
+            str(result_message or "").strip(),
+        )
+
+    service_response = data.get("OpenAPI_ServiceResponse")
+    if not isinstance(service_response, dict):
+        return None
+
+    header = service_response.get("cmmMsgHeader")
+    if not isinstance(header, dict):
+        return None
+
+    return (
+        str(header.get("returnReasonCode", "")).strip(),
+        str(
+            header.get("returnAuthMsg")
+            or header.get("errMsg")
+            or ""
+        ).strip(),
+    )
+
+
 def _common_params() -> dict[str, Any]:
     service_key = get_settings().tour_api_key.strip()
 
@@ -48,6 +76,34 @@ def _validate_tour_api_response(data: Any) -> dict[str, Any]:
 
     response = data.get("response")
     if not isinstance(response, dict):
+        root_error = _extract_root_error(data)
+        if root_error is not None:
+            result_code, result_message = root_error
+            normalized_message = result_message.upper()
+            is_rate_limited = (
+                result_code in TOUR_API_RATE_LIMIT_CODES
+                or any(
+                    message in normalized_message
+                    for message in TOUR_API_RATE_LIMIT_MESSAGES
+                )
+            )
+            raise AppException(
+                status_code=429 if is_rate_limited else 502,
+                code=(
+                    "EXTERNAL_API_RATE_LIMITED"
+                    if is_rate_limited
+                    else "TOUR_API_FAILED"
+                ),
+                message=(
+                    "TourAPI 호출 제한을 초과했습니다."
+                    if is_rate_limited
+                    else "TourAPI 요청 처리에 실패했습니다."
+                ),
+                details={
+                    "resultCode": result_code,
+                    "resultMessage": result_message,
+                },
+            )
         raise AppException(
             status_code=502,
             code="EXTERNAL_API_INVALID_RESPONSE",
@@ -212,13 +268,6 @@ async def get_place_common_info(
         "detailCommon2",
         {
             "contentId": content_id,
-            "defaultYN": "Y",
-            "firstImageYN": "Y",
-            "areacodeYN": "Y",
-            "catcodeYN": "Y",
-            "addrinfoYN": "Y",
-            "mapinfoYN": "Y",
-            "overviewYN": "Y",
         },
         client=client,
     )
@@ -250,7 +299,6 @@ async def get_place_images(
         {
             "contentId": content_id,
             "imageYN": "Y",
-            "subImageYN": "Y",
             "numOfRows": 20,
             "pageNo": 1,
         },
