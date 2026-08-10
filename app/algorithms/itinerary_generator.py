@@ -12,6 +12,7 @@ from app.models.itinerary import (
     ItineraryItem,
     ItineraryItemType,
     ItineraryResult,
+    TravelTimeSource,
     TripInput,
 )
 from app.models.place import Place
@@ -172,6 +173,10 @@ def _schedule_day(
             if _is_closed(place, target_date):
                 continue
             travel = matrix.get(previous_id, place.place_id)
+            travel_source = matrix.get_source(
+                previous_id,
+                place.place_id,
+            )
             start = cursor + timedelta(minutes=travel)
             start = _apply_open_time(start, place.open_time)
             end = start + timedelta(minutes=place.default_stay_minutes)
@@ -197,6 +202,7 @@ def _schedule_day(
                     scheduled_start_at=start,
                     scheduled_end_at=end,
                     travel_minutes_from_previous=travel,
+                    travel_time_source=travel_source,
                     is_required=selections[place.place_id].is_required,
                 )
             )
@@ -210,6 +216,7 @@ def _schedule_day(
 
     if day_type == DayType.GAME_DAY:
         travel = matrix.get(previous_id, "stadium")
+        travel_source = matrix.get_source(previous_id, "stadium")
         stadium_start = trip.game_anchor.game_start_at - timedelta(
             minutes=trip.game_anchor.required_arrival_minutes
         )
@@ -223,12 +230,17 @@ def _schedule_day(
                 sequence=len(items) + 1,
                 place_id=trip.game_anchor.stadium_id,
                 travel=travel,
+                travel_source=travel_source,
             )
         )
         previous_id = "stadium"
 
     if trip.accommodation is not None and day_type != DayType.DEPARTURE_DAY:
         travel = matrix.get(previous_id, "accommodation")
+        travel_source = matrix.get_source(
+            previous_id,
+            "accommodation",
+        )
         if day_type == DayType.GAME_DAY:
             previous_end = items[-1].scheduled_end_at
             start = previous_end + timedelta(minutes=travel)
@@ -249,11 +261,16 @@ def _schedule_day(
                 start + timedelta(minutes=DEFAULT_ANCHOR_MINUTES),
                 sequence=len(items) + 1,
                 travel=travel,
+                travel_source=travel_source,
             )
         )
 
     if day_type == DayType.DEPARTURE_DAY:
         travel = matrix.get(previous_id, "departure")
+        travel_source = matrix.get_source(
+            previous_id,
+            "departure",
+        )
         start = trip.trip_end_at - timedelta(
             minutes=DEPARTURE_BUFFER_MINUTES
         )
@@ -265,6 +282,7 @@ def _schedule_day(
                 trip.trip_end_at,
                 sequence=len(items) + 1,
                 travel=travel,
+                travel_source=travel_source,
             )
         )
 
@@ -282,6 +300,7 @@ def _anchor_item(
     sequence: int = 1,
     place_id: str | None = None,
     travel: int = 0,
+    travel_source: TravelTimeSource | None = None,
 ) -> ItineraryItem:
     return ItineraryItem(
         type=item_type,
@@ -294,6 +313,7 @@ def _anchor_item(
         scheduled_start_at=start,
         scheduled_end_at=end,
         travel_minutes_from_previous=travel,
+        travel_time_source=travel_source,
         is_required=True,
     )
 

@@ -4,7 +4,11 @@ from pathlib import Path
 
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import TravelTimeMatrix
-from app.models.itinerary import ItineraryItemType, TripInput
+from app.models.itinerary import (
+    ItineraryItemType,
+    TravelTimeSource,
+    TripInput,
+)
 from app.models.place import Place
 
 
@@ -67,4 +71,17 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
         item.travel_minutes_from_previous
         for day in result.days
         for item in day.items
+    )
+
+    travelled_items = [
+        item
+        for day in result.days
+        for item in day.items
+        if item.travel_minutes_from_previous > 0
+    ]
+
+    assert travelled_items
+    assert all(
+        item.travel_time_source == TravelTimeSource.FAKE
+        for item in travelled_items
     )

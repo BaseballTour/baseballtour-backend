@@ -5,6 +5,7 @@ from app.algorithms.travel_time import (
     build_travel_time_matrix,
     fallback_travel_minutes,
 )
+from app.models.itinerary import TravelTimeSource
 
 
 def test_fallback_travel_time_is_positive() -> None:
@@ -34,6 +35,8 @@ async def test_matrix_uses_provider_and_deduplicates_nodes() -> None:
 
     assert matrix.get("a", "b") == 17
     assert matrix.get("b", "a") == 17
+    assert matrix.get_source("a", "b") == TravelTimeSource.ODSAY
+    assert matrix.get_source("b", "a") == TravelTimeSource.ODSAY
     assert calls == 2
 
 
@@ -51,3 +54,7 @@ async def test_matrix_falls_back_when_provider_fails() -> None:
     )
 
     assert matrix.get("a", "b") >= 5
+    assert (
+        matrix.get_source("a", "b")
+        == TravelTimeSource.ESTIMATED
+    )

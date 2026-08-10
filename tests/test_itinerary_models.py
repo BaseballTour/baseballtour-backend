@@ -61,6 +61,14 @@ def test_itinerary_result_sample_is_valid() -> None:
         result.model_dump()["days"][0]["items"][0]["type"]
         == "ARRIVAL_POINT"
     )
+    assert (
+        result.model_dump()["days"][0]["items"][0]["travelTimeSource"]
+        is None
+    )
+    assert (
+        result.model_dump()["days"][0]["items"][1]["travelTimeSource"]
+        == "FAKE"
+    )
 
 
 def test_trip_input_rejects_naive_datetime() -> None:

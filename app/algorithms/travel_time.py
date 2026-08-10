@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import asin, cos, radians, sin, sqrt
 from typing import Awaitable, Callable, Protocol
 
-from app.models.itinerary import TripInput
+from app.models.itinerary import TripInput, TravelTimeSource
 from app.models.place import Place
 
 
@@ -29,11 +29,28 @@ class MatrixNode:
 @dataclass
 class TravelTimeMatrix:
     minutes: dict[tuple[str, str], int]
+    sources: dict[
+        tuple[str, str],
+        TravelTimeSource,
+    ] = field(default_factory=dict)
 
     def get(self, origin_id: str, destination_id: str) -> int:
         if origin_id == destination_id:
             return 0
         return self.minutes[(origin_id, destination_id)]
+
+    def get_source(
+        self,
+        origin_id: str,
+        destination_id: str,
+    ) -> TravelTimeSource | None:
+        if origin_id == destination_id:
+            return None
+
+        return self.sources.get(
+            (origin_id, destination_id),
+            TravelTimeSource.FAKE,
+        )
 
 
 def haversine_kilometers(origin: Coordinate, destination: Coordinate) -> float:
@@ -66,15 +83,19 @@ async def build_travel_time_matrix(
 ) -> TravelTimeMatrix:
     unique = {node.node_id: node for node in nodes}
     minutes: dict[tuple[str, str], int] = {}
+    sources: dict[tuple[str, str], TravelTimeSource] = {}
 
     for origin_id, origin in unique.items():
         for destination_id, destination in unique.items():
             if origin_id == destination_id:
                 continue
+
             key = (origin_id, destination_id)
             if key in minutes:
                 continue
+
             value: int | None = None
+
             if provider is not None:
                 try:
                     value = await provider(
@@ -85,13 +106,21 @@ async def build_travel_time_matrix(
                     )
                 except Exception:
                     value = None
-            minutes[key] = (
-                value
-                if value is not None
-                else fallback_travel_minutes(origin, destination)
-            )
 
-    return TravelTimeMatrix(minutes=minutes)
+            if value is not None:
+                minutes[key] = value
+                sources[key] = TravelTimeSource.ODSAY
+            else:
+                minutes[key] = fallback_travel_minutes(
+                    origin,
+                    destination,
+                )
+                sources[key] = TravelTimeSource.ESTIMATED
+
+    return TravelTimeMatrix(
+        minutes=minutes,
+        sources=sources,
+    )
 
 
 async def build_itinerary_travel_time_matrix(

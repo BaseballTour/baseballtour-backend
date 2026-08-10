@@ -18,7 +18,8 @@
           "scheduledStartAt": "2026-08-14T10:30:00+09:00",
           "scheduledEndAt": "2026-08-14T10:50:00+09:00",
           "travelMinutesFromPrevious": 0,
-          "isRequired": true
+          "isRequired": true,
+          "travelTimeSource": null
         },
         {
           "type": "PLACE",
@@ -31,7 +32,8 @@
           "scheduledStartAt": "2026-08-14T11:30:00+09:00",
           "scheduledEndAt": "2026-08-14T13:00:00+09:00",
           "travelMinutesFromPrevious": 40,
-          "isRequired": true
+          "isRequired": true,
+          "travelTimeSource": "FAKE"
         }
       ]
     },
@@ -50,7 +52,8 @@
           "scheduledStartAt": "2026-08-15T17:50:00+09:00",
           "scheduledEndAt": "2026-08-15T22:00:00+09:00",
           "travelMinutesFromPrevious": 35,
-          "isRequired": true
+          "isRequired": true,
+          "travelTimeSource": "FAKE"
         }
       ]
     }
