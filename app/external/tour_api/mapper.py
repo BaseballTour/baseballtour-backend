@@ -17,6 +17,20 @@ TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
 }
 
 
+
+def get_tour_api_content_type_id(
+    category: PlaceCategory | None,
+) -> str | None:
+    if category is None:
+        return None
+
+    for content_type_id, mapped_category in TOUR_API_CATEGORY_MAP.items():
+        if mapped_category == category:
+            return content_type_id
+
+    return None
+
+
 def get_place_category(content_type_id: str | None) -> PlaceCategory:
     if not content_type_id:
         return PlaceCategory.OTHER

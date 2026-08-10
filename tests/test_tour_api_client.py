@@ -82,3 +82,37 @@ def test_tour_api_business_error_is_rejected() -> None:
 
     assert exc_info.value.status_code == 502
     assert exc_info.value.code == "TOUR_API_FAILED"
+
+
+@pytest.mark.anyio
+async def test_nearby_forwards_category_and_pagination(
+    monkeypatch,
+) -> None:
+    from app.external.tour_api import client as client_module
+
+    received = {}
+
+    async def fake_request(operation, params, *, client=None):
+        received["operation"] = operation
+        received["params"] = params
+        return {"response": {"body": {"items": {"item": []}}}}
+
+    monkeypatch.setattr(
+        client_module,
+        "_request_tour_api",
+        fake_request,
+    )
+
+    await client_module.get_nearby_places(
+        longitude=127.0719,
+        latitude=37.5122,
+        radius=2000,
+        page_no=2,
+        num_of_rows=10,
+        content_type_id="39",
+    )
+
+    assert received["operation"] == "locationBasedList2"
+    assert received["params"]["pageNo"] == 2
+    assert received["params"]["numOfRows"] == 10
+    assert received["params"]["contentTypeId"] == "39"

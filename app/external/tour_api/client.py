@@ -243,18 +243,24 @@ async def get_nearby_places(
     page_no: int = 1,
     num_of_rows: int = 20,
     *,
+    content_type_id: str | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "mapX": longitude,
+        "mapY": latitude,
+        "radius": radius,
+        "arrange": "E",
+        "pageNo": page_no,
+        "numOfRows": num_of_rows,
+    }
+
+    if content_type_id is not None:
+        params["contentTypeId"] = content_type_id
+
     return await _request_tour_api(
         "locationBasedList2",
-        {
-            "mapX": longitude,
-            "mapY": latitude,
-            "radius": radius,
-            "arrange": "E",
-            "pageNo": page_no,
-            "numOfRows": num_of_rows,
-        },
+        params,
         client=client,
     )
 

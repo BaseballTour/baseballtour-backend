@@ -18,10 +18,11 @@ from app.external.tour_api.client import (
 from app.external.tour_api.mapper import (
     deduplicate_places,
     empty_string_to_none,
+    get_tour_api_content_type_id,
     tour_api_item_to_place,
     tour_api_items_to_places,
 )
-from app.models.place import Place
+from app.models.place import Place, PlaceCategory
 
 
 DEFAULT_CACHE_TTL_SECONDS = 300
@@ -31,6 +32,12 @@ DEFAULT_CACHE_TTL_SECONDS = 300
 class _CacheEntry:
     expires_at: float
     value: Any
+
+
+@dataclass(frozen=True)
+class NearbyPlacePage:
+    places: list[Place]
+    next_page_token: str | None
 
 
 @dataclass
@@ -59,6 +66,78 @@ class TourApiAdapter:
         )
         return value
 
+    async def get_nearby_place_page(
+        self,
+        longitude: float,
+        latitude: float,
+        radius: int = 2000,
+        page_no: int = 1,
+        num_of_rows: int = 20,
+        category: PlaceCategory | None = None,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> NearbyPlacePage:
+        content_type_id = get_tour_api_content_type_id(category)
+
+        if category is not None and content_type_id is None:
+            return NearbyPlacePage(
+                places=[],
+                next_page_token=None,
+            )
+
+        key = (
+            "nearby",
+            longitude,
+            latitude,
+            radius,
+            category.value if category is not None else None,
+            page_no,
+            num_of_rows,
+        )
+
+        async def load() -> NearbyPlacePage:
+            raw = await get_nearby_places(
+                longitude=longitude,
+                latitude=latitude,
+                radius=radius,
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                content_type_id=content_type_id,
+                client=client,
+            )
+
+            raw_items = extract_items(raw)
+            places = deduplicate_places(
+                tour_api_items_to_places(raw_items)
+            )
+
+            body = raw.get("response", {}).get("body", {})
+            total_count: int | None = None
+
+            if isinstance(body, dict):
+                try:
+                    total_count = int(body.get("totalCount"))
+                except (TypeError, ValueError):
+                    total_count = None
+
+            if total_count is not None:
+                has_next = (
+                    page_no * num_of_rows < total_count
+                )
+            else:
+                has_next = len(raw_items) == num_of_rows
+
+            return NearbyPlacePage(
+                places=places,
+                next_page_token=(
+                    str(page_no + 1)
+                    if has_next
+                    else None
+                ),
+            )
+
+        return await self._cached(key, load)
+
     async def get_nearby_place_list(
         self,
         longitude: float,
@@ -67,19 +146,13 @@ class TourApiAdapter:
         *,
         client: httpx.AsyncClient | None = None,
     ) -> list[Place]:
-        key = ("nearby", longitude, latitude, radius)
-
-        async def load() -> list[Place]:
-            raw = await get_nearby_places(
-                longitude=longitude,
-                latitude=latitude,
-                radius=radius,
-                client=client,
-            )
-            places = tour_api_items_to_places(extract_items(raw))
-            return deduplicate_places(places)
-
-        return await self._cached(key, load)
+        page = await self.get_nearby_place_page(
+            longitude=longitude,
+            latitude=latitude,
+            radius=radius,
+            client=client,
+        )
+        return page.places
 
     async def get_place_detail(
         self,

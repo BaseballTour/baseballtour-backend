@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.api.v1.endpoints import tour as tour_endpoint
 from app.core.exceptions import AppException
+from app.external.tour_api.adapter import NearbyPlacePage
 from app.main import app
 from app.models.place import (
     Place,
@@ -31,15 +32,21 @@ def make_place() -> Place:
 def test_nearby_returns_place_and_meta(
     monkeypatch,
 ) -> None:
-    async def fake_get_nearby_place_list(
+    received = {}
+
+    async def fake_get_nearby_place_page(
         **kwargs,
-    ) -> list[Place]:
-        return [make_place()]
+    ) -> NearbyPlacePage:
+        received.update(kwargs)
+        return NearbyPlacePage(
+            places=[make_place()],
+            next_page_token="3",
+        )
 
     monkeypatch.setattr(
         tour_endpoint.tour_api_adapter,
-        "get_nearby_place_list",
-        fake_get_nearby_place_list,
+        "get_nearby_place_page",
+        fake_get_nearby_place_page,
     )
 
     response = client.get(
@@ -48,6 +55,9 @@ def test_nearby_returns_place_and_meta(
             "longitude": 127.0719,
             "latitude": 37.5122,
             "radius": 2000,
+            "category": "RESTAURANT",
+            "pageSize": 10,
+            "pageToken": "2",
         },
     )
 
@@ -57,12 +67,16 @@ def test_nearby_returns_place_and_meta(
 
     assert body["success"] is True
     assert body["meta"]["count"] == 1
-    assert body["meta"]["nextPageToken"] is None
+    assert body["meta"]["nextPageToken"] == "3"
 
     [place] = body["data"]
 
     assert place["placeId"] == "tour_123456"
     assert place["category"] == "RESTAURANT"
+
+    assert received["page_no"] == 2
+    assert received["num_of_rows"] == 10
+    assert received["category"] == PlaceCategory.RESTAURANT
 
 
 def test_nearby_rejects_invalid_coordinate() -> None:
@@ -83,12 +97,39 @@ def test_nearby_rejects_invalid_coordinate() -> None:
     assert body["error"]["code"] == "VALIDATION_ERROR"
 
 
+def test_nearby_rejects_invalid_page_token() -> None:
+    response = client.get(
+        "/api/v1/tour/nearby",
+        params={
+            "pageToken": "invalid",
+        },
+    )
+
+    assert response.status_code == 400
+    assert (
+        response.json()["error"]["code"]
+        == "INVALID_PAGE_TOKEN"
+    )
+
+
+def test_nearby_rejects_unsupported_category() -> None:
+    response = client.get(
+        "/api/v1/tour/nearby",
+        params={
+            "category": "CAFE",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_nearby_propagates_tour_api_error(
     monkeypatch,
 ) -> None:
-    async def fake_get_nearby_place_list(
+    async def fake_get_nearby_place_page(
         **kwargs,
-    ) -> list[Place]:
+    ) -> NearbyPlacePage:
         raise AppException(
             status_code=429,
             code="EXTERNAL_API_RATE_LIMITED",
@@ -97,8 +138,8 @@ def test_nearby_propagates_tour_api_error(
 
     monkeypatch.setattr(
         tour_endpoint.tour_api_adapter,
-        "get_nearby_place_list",
-        fake_get_nearby_place_list,
+        "get_nearby_place_page",
+        fake_get_nearby_place_page,
     )
 
     response = client.get(
