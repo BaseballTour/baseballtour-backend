@@ -22,6 +22,37 @@ class PlaceSource(str, Enum):
     USER_PICK = "USER_PICK"
 
 
+class BusinessRuleStatus(str, Enum):
+    PARSED = "PARSED"
+    MISSING = "MISSING"
+    UNPARSABLE = "UNPARSABLE"
+    COMPLEX = "COMPLEX"
+
+
+class Weekday(str, Enum):
+    MONDAY = "MONDAY"
+    TUESDAY = "TUESDAY"
+    WEDNESDAY = "WEDNESDAY"
+    THURSDAY = "THURSDAY"
+    FRIDAY = "FRIDAY"
+    SATURDAY = "SATURDAY"
+    SUNDAY = "SUNDAY"
+
+
+class BusinessHoursRule(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=lambda value: value.split("_")[0] + "".join(
+            part.capitalize() for part in value.split("_")[1:]
+        ),
+        populate_by_name=True,
+        serialize_by_alias=True,
+        use_enum_values=True,
+    )
+    weekdays: list[Weekday]
+    open_time: str
+    close_time: str
+
+
 class Place(BaseModel):
     model_config = ConfigDict(
         alias_generator=lambda value: value.split("_")[0] + "".join(
@@ -94,10 +125,17 @@ class Place(BaseModel):
         description="영업 종료시간 HH:MM"
     )
 
+    business_hours_status: BusinessRuleStatus = BusinessRuleStatus.MISSING
+    business_hours_text: str | None = None
+    business_hours_rules: list[BusinessHoursRule] = Field(default_factory=list)
+
     closed_days_text: str | None = Field(
         default=None,
         description="휴무일 원문"
     )
+
+    closed_days_status: BusinessRuleStatus = BusinessRuleStatus.MISSING
+    closed_weekdays: list[Weekday] = Field(default_factory=list)
 
     default_stay_minutes: int = Field(
         default=60,

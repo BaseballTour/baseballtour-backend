@@ -59,6 +59,10 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
     assert first.open_time == "10:00"
     assert first.close_time == "22:00"
     assert first.closed_days_text == "매주 월요일"
+    assert first.business_hours_status == "PARSED"
+    assert first.business_hours_text == "10:00~22:00"
+    assert len(first.business_hours_rules) == 1
+    assert first.closed_days_status == "PARSED"
     assert first.thumbnail_url == "https://example.com/detail.jpg"
     assert second == first
     assert calls["common"] == 1
@@ -90,4 +94,6 @@ async def test_detail_keeps_unknown_hours_and_image_as_none(monkeypatch) -> None
 
     assert place.open_time is None
     assert place.close_time is None
+    assert place.business_hours_status == "MISSING"
+    assert place.closed_days_status == "MISSING"
     assert place.thumbnail_url is None
