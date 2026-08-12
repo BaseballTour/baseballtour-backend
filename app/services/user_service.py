@@ -53,6 +53,7 @@ class UserService:
         user = UserDocument(
             email=authenticated_user.email,
             nickname=request.nickname,
+            birth_year=request.birth_year,
             support_team_id=request.support_team_id,
             profile_image_url=None,
             onboarding_completed=True,
@@ -168,6 +169,7 @@ class UserService:
             user_id=user_id,
             email=user.email,
             nickname=user.nickname,
+            birth_year=user.birth_year,
             profile_image_url=user.profile_image_url,
             support_team=SupportTeamResponse(
                 team_id=team.team_id,

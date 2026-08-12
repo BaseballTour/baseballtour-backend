@@ -9,6 +9,7 @@ class UserDocument(ApiModel):
 
     email: str
     nickname: str
+    birth_year: int | None = None
     support_team_id: str
     profile_image_url: str | None = None
     onboarding_completed: bool
@@ -20,6 +21,7 @@ class UserBootstrapRequest(ApiModel):
     """최초 사용자 프로필 생성 요청."""
 
     nickname: str
+    birth_year: int
     support_team_id: str
 
 
@@ -35,6 +37,7 @@ class UserResponse(ApiModel):
     user_id: str
     email: str
     nickname: str
+    birth_year: int | None = None
     profile_image_url: str | None = None
     support_team: SupportTeamResponse
     onboarding_completed: bool
