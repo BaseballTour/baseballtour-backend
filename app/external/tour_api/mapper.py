@@ -122,9 +122,14 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         overview=empty_string_to_none(item.get("overview")),
         open_time=empty_string_to_none(item.get("openTime")),
         close_time=empty_string_to_none(item.get("closeTime")),
+        business_hours_status=item.get("businessHoursStatus", "MISSING"),
+        business_hours_text=empty_string_to_none(item.get("businessHoursText")),
+        business_hours_rules=item.get("businessHoursRules") or [],
         closed_days_text=empty_string_to_none(
             item.get("closedDaysText")
         ),
+        closed_days_status=item.get("closedDaysStatus", "MISSING"),
+        closed_weekdays=item.get("closedWeekdays") or [],
         distance_meters=(
             float(item["dist"])
             if empty_string_to_none(item.get("dist"))

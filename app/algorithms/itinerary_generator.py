@@ -16,7 +16,7 @@ from app.models.itinerary import (
     TravelTimeSource,
     TripInput,
 )
-from app.models.place import Place
+from app.models.place import BusinessRuleStatus, Place, Weekday
 
 
 DEFAULT_DAY_START = time(9, 0)
@@ -175,7 +175,8 @@ def _schedule_day(
                 continue
             travel = matrix.get(previous_id, place.place_id)
             start = cursor + timedelta(minutes=travel)
-            start = _apply_open_time(start, place.open_time)
+            opening, closing = _hours_for_date(place, target_date)
+            start = _apply_open_time(start, opening)
             end = start + timedelta(minutes=place.default_stay_minutes)
             tail_minutes = (
                 matrix.get(place.place_id, final_anchor_id)
@@ -183,7 +184,7 @@ def _schedule_day(
                 else 0
             )
             if (
-                not _fits_hours(end, place.close_time)
+                not _fits_hours(end, closing)
                 or end + timedelta(minutes=tail_minutes) > day_end
             ):
                 continue
@@ -354,8 +355,16 @@ def _fits_hours(end: datetime, value: str | None) -> bool:
 
 
 def _is_closed(place: Place, target_date: date) -> bool:
-    text = (place.closed_days_text or "").replace("요일", "")
-    if "연중무휴" in text or "없음" in text:
+    if place.closed_days_status != BusinessRuleStatus.PARSED:
         return False
-    weekday_names = ("월", "화", "수", "목", "금", "토", "일")
-    return bool(text) and weekday_names[target_date.weekday()] in text
+    return list(Weekday)[target_date.weekday()] in place.closed_weekdays
+
+
+def _hours_for_date(place: Place, target_date: date) -> tuple[str | None, str | None]:
+    if place.business_hours_status != BusinessRuleStatus.PARSED:
+        return None, None
+    weekday = list(Weekday)[target_date.weekday()]
+    for rule in place.business_hours_rules:
+        if weekday in rule.weekdays:
+            return rule.open_time, rule.close_time
+    return None, None
