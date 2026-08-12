@@ -492,6 +492,201 @@
         }
       }
     },
+    "/api/v1/trips/{tripId}/place-selections": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 장소 선택 추가",
+        "description": "로그인 사용자가 소유한 여행에 방문할 장소를 추가합니다.",
+        "operationId": "create_place_selection_api_v1_trips__tripId__place_selections_post",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSelectionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PlaceSelectionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 장소 선택 목록 조회",
+        "description": "로그인 사용자가 소유한 여행에 선택된 장소 목록을 조회합니다.",
+        "operationId": "get_place_selections_api_v1_trips__tripId__place_selections_get",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_PlaceSelectionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/place-selections/{placeId}": {
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 장소 선택 삭제",
+        "description": "로그인 사용자가 소유한 여행에서 선택한 장소를 삭제합니다.",
+        "operationId": "delete_place_selection_api_v1_trips__tripId__place_selections__placeId__delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "placeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "선택한 장소 ID",
+              "title": "Placeid"
+            },
+            "description": "선택한 장소 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/bootstrap": {
       "post": {
         "tags": [
@@ -1155,6 +1350,33 @@
         ],
         "title": "ListSuccessResponse[GameResponse]"
       },
+      "ListSuccessResponse_PlaceSelectionResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSelectionResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[PlaceSelectionResponse]"
+      },
       "ListSuccessResponse_Place_": {
         "properties": {
           "success": {
@@ -1513,6 +1735,61 @@
         ],
         "title": "PlaceCategory"
       },
+      "PlaceSelectionCreateRequest": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Placeid",
+            "description": "선택할 서비스 내부 장소 ID"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "description": "일정에 반드시 포함해야 하는 장소인지 여부",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId"
+        ],
+        "title": "PlaceSelectionCreateRequest",
+        "description": "여행에 장소를 선택하는 요청.",
+        "examples": [
+          {
+            "isRequired": true,
+            "placeId": "tour_123456"
+          }
+        ]
+      },
+      "PlaceSelectionResponse": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "isRequired",
+          "createdAt"
+        ],
+        "title": "PlaceSelectionResponse",
+        "description": "장소 선택 API 응답."
+      },
       "PlaceSource": {
         "type": "string",
         "enum": [
@@ -1623,6 +1900,25 @@
           "data"
         ],
         "title": "SuccessResponse[HealthData]"
+      },
+      "SuccessResponse_PlaceSelectionResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlaceSelectionResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[PlaceSelectionResponse]"
       },
       "SuccessResponse_Place_": {
         "properties": {
