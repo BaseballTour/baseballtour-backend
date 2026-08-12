@@ -49,3 +49,17 @@ class ItineraryPlanRecord(ItineraryPlanDocument):
     """Firestore 문서 ID가 포함된 일정 계획."""
 
     plan_id: str = Field(min_length=1)
+
+
+class ItineraryPlanResponse(ApiModel):
+    """일정 생성 및 상세 조회 API 응답."""
+
+    plan_id: str = Field(min_length=1)
+    trip_id: str = Field(min_length=1)
+    status: ItineraryPlanStatus
+    algorithm_version: str = Field(min_length=1)
+    total_travel_minutes: int = Field(ge=0)
+    days: list[ItineraryPlanDay] = Field(default_factory=list)
+    excluded_places: list[ExcludedPlace] = Field(
+        default_factory=list
+    )

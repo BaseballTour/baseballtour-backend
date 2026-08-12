@@ -9,6 +9,10 @@ from fastapi import (
 )
 
 from app.api.dependencies.auth import get_current_user_id
+from app.schemas.itinerary_plan import (
+    ItineraryPlanRecord,
+    ItineraryPlanResponse,
+)
 from app.schemas.place_selection import (
     PlaceSelectionCreateRequest,
     PlaceSelectionRecord,
@@ -25,6 +29,9 @@ from app.schemas.trip import (
     TripRecord,
     TripSummaryResponse,
     TripUpdateRequest,
+)
+from app.services.itinerary_generation_service import (
+    ItineraryGenerationService,
 )
 from app.services.place_selection_service import (
     PlaceSelectionService,
@@ -50,6 +57,22 @@ def to_summary_response(
         trip_start_at=trip.trip_start_at,
         trip_end_at=trip.trip_end_at,
         created_at=trip.created_at,
+    )
+
+
+def to_itinerary_plan_response(
+    plan: ItineraryPlanRecord,
+) -> ItineraryPlanResponse:
+    """저장된 일정 Plan을 API 응답으로 변환합니다."""
+
+    return ItineraryPlanResponse(
+        plan_id=plan.plan_id,
+        trip_id=plan.trip_id,
+        status=plan.status,
+        algorithm_version=plan.algorithm_version,
+        total_travel_minutes=plan.total_travel_minutes,
+        days=plan.days,
+        excluded_places=plan.excluded_places,
     )
 
 
@@ -370,4 +393,40 @@ def delete_place_selection(
 
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
+    )
+
+
+
+@router.post(
+    "/{tripId}/itineraries",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="여행 일정 생성 및 저장",
+    description=(
+        "저장된 여행·경기·구장·선택 장소 정보를 조합하여 "
+        "여행 일정을 생성하고 ACTIVE Plan으로 저장합니다."
+    ),
+)
+async def create_itinerary(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    service = ItineraryGenerationService()
+
+    plan = await service.generate(
+        user_id=user_id,
+        trip_id=trip_id,
+    )
+
+    return SuccessResponse(
+        data=to_itinerary_plan_response(plan)
     )

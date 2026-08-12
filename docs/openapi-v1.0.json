@@ -687,6 +687,67 @@
         }
       }
     },
+    "/api/v1/trips/{tripId}/itineraries": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 생성 및 저장",
+        "description": "저장된 여행·경기·구장·선택 장소 정보를 조합하여 여행 일정을 생성하고 ACTIVE Plan으로 저장합니다.",
+        "operationId": "create_itinerary_api_v1_trips__tripId__itineraries_post",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/bootstrap": {
       "post": {
         "tags": [
@@ -1131,6 +1192,51 @@
         "title": "AccommodationInfo",
         "description": "여행 숙소 정보."
       },
+      "DayType": {
+        "type": "string",
+        "enum": [
+          "ARRIVAL_DAY",
+          "GAME_DAY",
+          "NON_GAME_DAY",
+          "DEPARTURE_DAY"
+        ],
+        "title": "DayType"
+      },
+      "ExcludedPlace": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "reasonCode": {
+            "$ref": "#/components/schemas/ExcludedReasonCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "reasonCode",
+          "message"
+        ],
+        "title": "ExcludedPlace"
+      },
+      "ExcludedReasonCode": {
+        "type": "string",
+        "enum": [
+          "INSUFFICIENT_TIME",
+          "OUTSIDE_BUSINESS_HOURS",
+          "CLOSED_DAY",
+          "ROUTE_INEFFICIENT",
+          "DUPLICATE_PLACE",
+          "INVALID_PLACE"
+        ],
+        "title": "ExcludedReasonCode"
+      },
       "GameResponse": {
         "properties": {
           "gameId": {
@@ -1294,6 +1400,200 @@
         "additionalProperties": false,
         "type": "object",
         "title": "HealthData"
+      },
+      "ItineraryItemType": {
+        "type": "string",
+        "enum": [
+          "ARRIVAL_POINT",
+          "DEPARTURE_POINT",
+          "ACCOMMODATION",
+          "PLACE",
+          "STADIUM"
+        ],
+        "title": "ItineraryItemType"
+      },
+      "ItineraryPlanDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryPlanItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "dayType"
+        ],
+        "title": "ItineraryPlanDay",
+        "description": "저장용 itemId가 포함된 날짜별 일정."
+      },
+      "ItineraryPlanItem": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ItineraryItemType"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Sequence"
+          },
+          "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Address"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "scheduledStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduledstartat"
+          },
+          "scheduledEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduledendat"
+          },
+          "travelMinutesFromPrevious": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Travelminutesfromprevious",
+            "default": 0
+          },
+          "travelTimeSource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelTimeSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Itemid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sequence",
+          "name",
+          "address",
+          "latitude",
+          "longitude",
+          "scheduledStartAt",
+          "scheduledEndAt",
+          "itemId"
+        ],
+        "title": "ItineraryPlanItem",
+        "description": "저장 후 개별 수정할 수 있는 일정 항목."
+      },
+      "ItineraryPlanResponse": {
+        "properties": {
+          "planId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Planid"
+          },
+          "tripId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tripid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ItineraryPlanStatus"
+          },
+          "algorithmVersion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Algorithmversion"
+          },
+          "totalTravelMinutes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totaltravelminutes"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryPlanDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "excludedPlaces": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedPlace"
+            },
+            "type": "array",
+            "title": "Excludedplaces"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "planId",
+          "tripId",
+          "status",
+          "algorithmVersion",
+          "totalTravelMinutes"
+        ],
+        "title": "ItineraryPlanResponse",
+        "description": "일정 생성 및 상세 조회 API 응답."
+      },
+      "ItineraryPlanStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "ARCHIVED"
+        ],
+        "title": "ItineraryPlanStatus",
+        "description": "생성된 일정 계획의 사용 상태."
       },
       "ListMeta": {
         "properties": {
@@ -1901,6 +2201,25 @@
         ],
         "title": "SuccessResponse[HealthData]"
       },
+      "SuccessResponse_ItineraryPlanResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/ItineraryPlanResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[ItineraryPlanResponse]"
+      },
       "SuccessResponse_PlaceSelectionResponse_": {
         "properties": {
           "success": {
@@ -2099,6 +2418,15 @@
         ],
         "title": "TeamResponse",
         "description": "구단 API 응답 모델."
+      },
+      "TravelTimeSource": {
+        "type": "string",
+        "enum": [
+          "ODSAY",
+          "ESTIMATED",
+          "FAKE"
+        ],
+        "title": "TravelTimeSource"
       },
       "TripCreateRequest": {
         "properties": {
