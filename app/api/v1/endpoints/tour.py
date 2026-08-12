@@ -3,6 +3,7 @@ from fastapi import APIRouter, Path, Query
 from app.core.exceptions import AppException
 from app.models.place import Place
 from app.external.tour_api.adapter import tour_api_adapter
+from app.services.place_enrichment import enrich_place_with_kakao
 from app.schemas.response import (
     ListMeta,
     ListSuccessResponse,
@@ -77,4 +78,5 @@ async def read_place_detail(
     place = await tour_api_adapter.get_place_detail(
         content_id=content_id,
     )
+    place = await enrich_place_with_kakao(place)
     return SuccessResponse(data=place)
