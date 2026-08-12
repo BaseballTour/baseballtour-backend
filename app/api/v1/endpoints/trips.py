@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    Path,
     Response,
     status,
 )
@@ -127,7 +128,7 @@ def get_my_trips(
 
 
 @router.get(
-    "/{trip_id}",
+    "/{tripId}",
     response_model=SuccessResponse[TripDetailResponse],
     summary="여행 상세 조회",
     description=(
@@ -136,7 +137,13 @@ def get_my_trips(
     ),
 )
 def get_trip(
-    trip_id: str,
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
     user_id: Annotated[
         str,
         Depends(get_current_user_id),
@@ -155,7 +162,7 @@ def get_trip(
 
 
 @router.patch(
-    "/{trip_id}",
+    "/{tripId}",
     response_model=SuccessResponse[TripDetailResponse],
     summary="여행 기본정보 수정",
     description=(
@@ -164,7 +171,13 @@ def get_trip(
     ),
 )
 def update_trip(
-    trip_id: str,
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
     request: TripUpdateRequest,
     user_id: Annotated[
         str,
@@ -185,14 +198,20 @@ def update_trip(
 
 
 @router.delete(
-    "/{trip_id}",
+    "/{tripId}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     summary="여행 삭제",
     description="로그인 사용자가 소유한 여행을 삭제합니다.",
 )
 def delete_trip(
-    trip_id: str,
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
     user_id: Annotated[
         str,
         Depends(get_current_user_id),
