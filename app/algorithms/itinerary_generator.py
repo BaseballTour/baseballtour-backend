@@ -4,6 +4,11 @@ from datetime import date, datetime, time, timedelta
 
 from app.algorithms.day_type import classify_day
 from app.algorithms.travel_time import TravelTimeMatrix
+from app.algorithms.route_optimizer import (
+    greedy_insertion,
+    improve_route_2opt,
+    simulate_route,
+)
 from app.models.itinerary import (
     DayType,
     ExcludedPlace,
@@ -72,20 +77,17 @@ def generate_itinerary(
 
     trip_dates = [day.date for day in days]
     for place in remaining:
-        reason_code = (
-            ExcludedReasonCode.CLOSED_DAY
-            if all(_is_closed(place, value) for value in trip_dates)
-            else ExcludedReasonCode.INSUFFICIENT_TIME
-        )
+        reason_code = _exclusion_reason(place, trip_dates)
+        messages = {
+            ExcludedReasonCode.CLOSED_DAY: "여행 기간 동안 휴무입니다.",
+            ExcludedReasonCode.OUTSIDE_BUSINESS_HOURS: "영업시간 안에 체류시간을 확보할 수 없습니다.",
+            ExcludedReasonCode.INSUFFICIENT_TIME: "여행 시간 안에 방문 일정을 배정할 수 없습니다.",
+        }
         excluded.append(
             ExcludedPlace(
                 place_id=place.place_id,
                 reason_code=reason_code,
-                message=(
-                    "여행 기간 동안 휴무입니다."
-                    if reason_code == ExcludedReasonCode.CLOSED_DAY
-                    else "여행 시간 안에 방문 일정을 배정할 수 없습니다."
-                ),
+                message=messages[reason_code],
             )
         )
 
@@ -100,6 +102,18 @@ def generate_itinerary(
                 )
             )
 
+    seen: set[str] = set()
+    for selection in trip.selected_places:
+        if selection.place_id in seen:
+            excluded.append(
+                ExcludedPlace(
+                    place_id=selection.place_id,
+                    reason_code=ExcludedReasonCode.DUPLICATE_PLACE,
+                    message="같은 장소가 중복 선택되어 한 번만 배정했습니다.",
+                )
+            )
+        seen.add(selection.place_id)
+
     total = sum(
         item.travel_minutes_from_previous
         for day in days
@@ -107,7 +121,7 @@ def generate_itinerary(
     )
     return ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="greedy-anchor-v0.1",
+        algorithm_version="greedy-insertion-2opt-v0.2",
         total_travel_minutes=total,
         days=days,
         excluded_places=excluded,
@@ -158,66 +172,51 @@ def _schedule_day(
         final_anchor_id = "stadium"
     elif day_type == DayType.DEPARTURE_DAY:
         final_anchor_id = "departure"
+    elif trip.accommodation is not None:
+        final_anchor_id = "accommodation"
 
+    optimizer_args = dict(
+        target_date=target_date,
+        start_id=previous_id,
+        end_id=final_anchor_id,
+        available_start=day_start,
+        available_end=day_end,
+        matrix=matrix,
+        hours_for_date=_hours_for_date,
+        is_closed=_is_closed,
+        parse_time=_parse_time,
+    )
+    route, unscheduled = greedy_insertion(
+        candidates,
+        is_required=lambda place: selections[place.place_id].is_required,
+        candidate_priority=lambda place: _date_affinity_penalty(
+            place, target_date, trip, matrix
+        ),
+        **optimizer_args,
+    )
+    route = improve_route_2opt(route, **optimizer_args)
+    visits = simulate_route(route, **optimizer_args) or []
     cursor = day_start
-    unscheduled = list(candidates)
-    while unscheduled:
-        ordered = sorted(
-            unscheduled,
-            key=lambda place: (
-                not selections[place.place_id].is_required,
-                matrix.get(previous_id, place.place_id),
-            ),
+    for visit in visits:
+        place = visit.place
+        items.append(
+            ItineraryItem(
+                type=ItineraryItemType.PLACE,
+                sequence=len(items) + 1,
+                place_id=place.place_id,
+                name=place.name,
+                address=place.address or place.name,
+                latitude=place.latitude,
+                longitude=place.longitude,
+                scheduled_start_at=visit.start,
+                scheduled_end_at=visit.end,
+                travel_minutes_from_previous=visit.travel_minutes,
+                travel_mode=matrix.get_mode(previous_id, place.place_id),
+                travel_time_source=matrix.get_source(previous_id, place.place_id),
+                is_required=selections[place.place_id].is_required,
+            )
         )
-        placed = False
-        for place in ordered:
-            if _is_closed(place, target_date):
-                continue
-            travel = matrix.get(previous_id, place.place_id)
-            start = cursor + timedelta(minutes=travel)
-            opening, closing = _hours_for_date(place, target_date)
-            start = _apply_open_time(start, opening)
-            end = start + timedelta(minutes=place.default_stay_minutes)
-            tail_minutes = (
-                matrix.get(place.place_id, final_anchor_id)
-                if final_anchor_id is not None
-                else 0
-            )
-            if (
-                not _fits_hours(end, closing)
-                or end + timedelta(minutes=tail_minutes) > day_end
-            ):
-                continue
-            items.append(
-                ItineraryItem(
-                    type=ItineraryItemType.PLACE,
-                    sequence=len(items) + 1,
-                    place_id=place.place_id,
-                    name=place.name,
-                    address=place.address or place.name,
-                    latitude=place.latitude,
-                    longitude=place.longitude,
-                    scheduled_start_at=start,
-                    scheduled_end_at=end,
-                    travel_minutes_from_previous=travel,
-                    travel_mode=matrix.get_mode(
-                        previous_id,
-                        place.place_id,
-                    ),
-                    travel_time_source=matrix.get_source(
-                        previous_id,
-                        place.place_id,
-                    ),
-                    is_required=selections[place.place_id].is_required,
-                )
-            )
-            cursor = end
-            previous_id = place.place_id
-            unscheduled.remove(place)
-            placed = True
-            break
-        if not placed:
-            break
+        cursor, previous_id = visit.end, place.place_id
 
     if day_type == DayType.GAME_DAY:
         travel = matrix.get(previous_id, "stadium")
@@ -355,9 +354,19 @@ def _fits_hours(end: datetime, value: str | None) -> bool:
 
 
 def _is_closed(place: Place, target_date: date) -> bool:
-    if place.closed_days_status != BusinessRuleStatus.PARSED:
-        return False
-    return list(Weekday)[target_date.weekday()] in place.closed_weekdays
+    weekday = list(Weekday)[target_date.weekday()]
+    if (
+        place.closed_days_status == BusinessRuleStatus.PARSED
+        and weekday in place.closed_weekdays
+    ):
+        return True
+    if (
+        place.business_hours_status == BusinessRuleStatus.PARSED
+        and place.business_hours_rules
+        and all(weekday not in rule.weekdays for rule in place.business_hours_rules)
+    ):
+        return True
+    return False
 
 
 def _hours_for_date(place: Place, target_date: date) -> tuple[str | None, str | None]:
@@ -368,3 +377,71 @@ def _hours_for_date(place: Place, target_date: date) -> tuple[str | None, str | 
         if weekday in rule.weekdays:
             return rule.open_time, rule.close_time
     return None, None
+
+
+def _day_anchor_ids(day_type: DayType, trip: TripInput) -> tuple[str, str | None]:
+    start = "accommodation" if trip.accommodation else "arrival"
+    if day_type == DayType.ARRIVAL_DAY:
+        start = "arrival"
+    if day_type == DayType.GAME_DAY:
+        return start, "stadium"
+    if day_type == DayType.DEPARTURE_DAY:
+        return start, "departure"
+    return start, "accommodation" if trip.accommodation else None
+
+
+def _anchor_cost(place: Place, day_type: DayType, trip: TripInput, matrix: TravelTimeMatrix) -> int:
+    start, end = _day_anchor_ids(day_type, trip)
+    cost = matrix.get(start, place.place_id)
+    if end is not None:
+        cost += matrix.get(place.place_id, end)
+    return cost
+
+
+def _date_affinity_penalty(
+    place: Place,
+    target_date: date,
+    trip: TripInput,
+    matrix: TravelTimeMatrix,
+) -> float:
+    current_type = classify_day(
+        target_date,
+        trip.trip_start_at.date(),
+        trip.trip_end_at.date(),
+        trip.game_anchor.game_start_at.date(),
+    )
+    current_cost = _anchor_cost(place, current_type, trip, matrix)
+    costs = []
+    value = trip.trip_start_at.date()
+    while value <= trip.trip_end_at.date():
+        day_type = classify_day(
+            value,
+            trip.trip_start_at.date(),
+            trip.trip_end_at.date(),
+            trip.game_anchor.game_start_at.date(),
+        )
+        if not _is_closed(place, value):
+            costs.append(_anchor_cost(place, day_type, trip, matrix))
+        value += timedelta(days=1)
+    return current_cost - min(costs) if costs else float("inf")
+
+
+def _exclusion_reason(place: Place, trip_dates: list[date]) -> ExcludedReasonCode:
+    if all(_is_closed(place, value) for value in trip_dates):
+        return ExcludedReasonCode.CLOSED_DAY
+    if place.business_hours_status == BusinessRuleStatus.PARSED:
+        for value in trip_dates:
+            if _is_closed(place, value):
+                continue
+            opening, closing = _hours_for_date(place, value)
+            open_value, close_value = _parse_time(opening), _parse_time(closing)
+            if open_value is None or close_value is None:
+                continue
+            available_minutes = (
+                datetime.combine(value, close_value)
+                - datetime.combine(value, open_value)
+            ).total_seconds() / 60
+            if available_minutes >= place.default_stay_minutes:
+                return ExcludedReasonCode.INSUFFICIENT_TIME
+        return ExcludedReasonCode.OUTSIDE_BUSINESS_HOURS
+    return ExcludedReasonCode.INSUFFICIENT_TIME
