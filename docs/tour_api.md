@@ -9,6 +9,21 @@
 
 API 키는 `.env`에만 저장하고 Git, 샘플 JSON, 클라이언트 응답 로그에 남기지 않는다.
 
+## 장소 분류
+
+TourAPI의 미사용 지역·구분류 필드 `areaCode`, `sigunguCode`, `cat1`, `cat2`,
+`cat3`는 내부 `Place`에 저장하거나 API 응답으로 반환하지 않는다. TourAPI
+원본의 신분류 키 `lclsSystm1`, `lclsSystm2`, `lclsSystm3`를 읽어 내부 API에서는
+철자를 정리한 `lclsSystem1`, `lclsSystem2`, `lclsSystem3`로 반환한다.
+
+- `FD05...`(카페·찻집): 내부 `CAFE`
+- 그 외 `FD...`(음식): 내부 `RESTAURANT`
+- `AC...`(숙박): 내부 `ACCOMMODATION`
+- 신분류가 없는 응답: `contentTypeId`를 내부 대분류 fallback으로 사용
+
+신분류 코드는 세부 필터와 표시용이고, 내부 `category`는 프론트와 알고리즘이
+사용하기 쉬운 단순 분류로 유지한다.
+
 ## 1주차 확인 대상
 
 | 기능 | Endpoint | 구현 함수 |

@@ -19,11 +19,9 @@
             "mapx": "127.0719",
             "mapy": "37.5122",
             "dist": "350.5",
-            "areacode": "1",
-            "sigungucode": "18",
-            "cat1": "A05",
-            "cat2": "A0502",
-            "cat3": "A05020100"
+            "lclsSystm1": "FD",
+            "lclsSystm2": "FD05",
+            "lclsSystm3": "FD050100"
           }
         ]
       },
