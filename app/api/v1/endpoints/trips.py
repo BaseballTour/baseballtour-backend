@@ -33,6 +33,9 @@ from app.schemas.trip import (
 from app.services.itinerary_generation_service import (
     ItineraryGenerationService,
 )
+from app.services.itinerary_plan_service import (
+    ItineraryPlanService,
+)
 from app.services.place_selection_service import (
     PlaceSelectionService,
 )
@@ -429,4 +432,74 @@ async def create_itinerary(
 
     return SuccessResponse(
         data=to_itinerary_plan_response(plan)
+    )
+
+
+
+@router.get(
+    "/{tripId}/plan",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 상세 조회",
+    description=(
+        "로그인 사용자가 소유한 여행의 "
+        "현재 ACTIVE 일정 Plan을 조회합니다."
+    ),
+)
+def get_active_itinerary_plan(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    service = ItineraryPlanService()
+
+    plan = service.get_active_plan(
+        user_id=user_id,
+        trip_id=trip_id,
+    )
+
+    return SuccessResponse(
+        data=to_itinerary_plan_response(plan)
+    )
+
+
+@router.delete(
+    "/{tripId}/plan",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="여행 일정 삭제",
+    description=(
+        "로그인 사용자가 소유한 여행의 "
+        "현재 ACTIVE 일정 Plan을 삭제합니다."
+    ),
+)
+def delete_active_itinerary_plan(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> Response:
+    service = ItineraryPlanService()
+
+    service.delete_active_plan(
+        user_id=user_id,
+        trip_id=trip_id,
+    )
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
     )

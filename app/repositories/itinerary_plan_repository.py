@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from google.cloud.firestore_v1.client import Client
 from google.cloud.firestore_v1.transaction import transactional
 
@@ -108,3 +110,44 @@ class ItineraryPlanRepository:
             plan_id=plan_reference.id,
             **plan.model_dump(),
         )
+
+
+    def delete_active_plan(
+        self,
+        *,
+        trip_id: str,
+        plan_id: str,
+        updated_at: datetime,
+    ) -> None:
+        """
+        현재 ACTIVE Plan을 삭제하고 Trip을 PLANNING 상태로 되돌립니다.
+
+        Plan 삭제와 Trip의 activePlanId/status 갱신은
+        하나의 transaction으로 처리합니다.
+        """
+
+        plan_reference = self._collection.document(
+            plan_id
+        )
+        trip_reference = self._trip_collection.document(
+            trip_id
+        )
+
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction) -> None:
+            transaction.delete(
+                plan_reference
+            )
+
+            transaction.update(
+                trip_reference,
+                {
+                    "status": TripStatus.PLANNING.value,
+                    "activePlanId": None,
+                    "updatedAt": updated_at,
+                },
+            )
+
+        commit(transaction)

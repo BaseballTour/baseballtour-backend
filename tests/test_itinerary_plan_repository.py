@@ -67,6 +67,12 @@ class FakeDocumentReference:
         )
         current.update(updates)
 
+    def delete(self) -> None:
+        self._collection.documents.pop(
+            self.id,
+            None,
+        )
+
 
 class FakeCollection:
     def __init__(self) -> None:
@@ -101,6 +107,12 @@ class FakeTransaction:
         updates: dict,
     ) -> None:
         reference.update(updates)
+
+    def delete(
+        self,
+        reference: FakeDocumentReference,
+    ) -> None:
+        reference.delete()
 
 
 class FakeClient:
@@ -274,3 +286,45 @@ def test_get_by_id_returns_none_when_missing() -> None:
     repository = ItineraryPlanRepository(client=client)
 
     assert repository.get_by_id("missing_plan") is None
+
+
+
+def test_delete_active_plan_removes_plan_and_resets_trip() -> None:
+    client = FakeClient()
+
+    client.collection("trips").documents["trip_001"] = {
+        "status": "GENERATED",
+        "activePlanId": "plan_001",
+        "updatedAt": NOW,
+    }
+
+    client.collection(
+        "itineraryPlans"
+    ).documents["plan_001"] = (
+        make_plan().model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+    )
+
+    repository = ItineraryPlanRepository(
+        client=client
+    )
+
+    repository.delete_active_plan(
+        trip_id="trip_001",
+        plan_id="plan_001",
+        updated_at=NOW,
+    )
+
+    assert "plan_001" not in client.collection(
+        "itineraryPlans"
+    ).documents
+
+    trip = client.collection(
+        "trips"
+    ).documents["trip_001"]
+
+    assert trip["status"] == "PLANNING"
+    assert trip["activePlanId"] is None
+    assert trip["updatedAt"] == NOW

@@ -748,6 +748,119 @@
         }
       }
     },
+    "/api/v1/trips/{tripId}/plan": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 상세 조회",
+        "description": "로그인 사용자가 소유한 여행의 현재 ACTIVE 일정 Plan을 조회합니다.",
+        "operationId": "get_active_itinerary_plan_api_v1_trips__tripId__plan_get",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 삭제",
+        "description": "로그인 사용자가 소유한 여행의 현재 ACTIVE 일정 Plan을 삭제합니다.",
+        "operationId": "delete_active_itinerary_plan_api_v1_trips__tripId__plan_delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/bootstrap": {
       "post": {
         "tags": [
