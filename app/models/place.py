@@ -121,6 +121,16 @@ class Place(BaseModel):
         description="외부 API의 원본 콘텐츠 ID"
     )
 
+    kakao_place_id: str | None = Field(
+        default=None,
+        description="정보 보충에 사용된 카카오 장소 ID"
+    )
+
+    enriched_by: list[PlaceSource] = Field(
+        default_factory=list,
+        description="기본 출처 외에 장소 정보를 보충한 데이터 출처"
+    )
+
     content_type_id: str | None = Field(
         default=None,
         description="TourAPI 콘텐츠 유형 ID"
