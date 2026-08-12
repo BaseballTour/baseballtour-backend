@@ -33,6 +33,17 @@ class ItineraryItemType(str, Enum):
     STADIUM = "STADIUM"
 
 
+class TravelMode(str, Enum):
+    WALK = "WALK"
+    TRANSIT = "TRANSIT"
+
+
+class TravelTimeSource(str, Enum):
+    ODSAY = "ODSAY"
+    ESTIMATED = "ESTIMATED"
+    FAKE = "FAKE"
+
+
 class ExcludedReasonCode(str, Enum):
     INSUFFICIENT_TIME = "INSUFFICIENT_TIME"
     OUTSIDE_BUSINESS_HOURS = "OUTSIDE_BUSINESS_HOURS"
@@ -109,6 +120,8 @@ class ItineraryItem(AlgorithmModel):
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     travel_minutes_from_previous: int = Field(default=0, ge=0)
+    travel_mode: TravelMode | None = None
+    travel_time_source: TravelTimeSource | None = None
     is_required: bool = False
 
     @model_validator(mode="after")

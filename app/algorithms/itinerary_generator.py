@@ -12,6 +12,8 @@ from app.models.itinerary import (
     ItineraryItem,
     ItineraryItemType,
     ItineraryResult,
+    TravelMode,
+    TravelTimeSource,
     TripInput,
 )
 from app.models.place import Place
@@ -197,6 +199,14 @@ def _schedule_day(
                     scheduled_start_at=start,
                     scheduled_end_at=end,
                     travel_minutes_from_previous=travel,
+                    travel_mode=matrix.get_mode(
+                        previous_id,
+                        place.place_id,
+                    ),
+                    travel_time_source=matrix.get_source(
+                        previous_id,
+                        place.place_id,
+                    ),
                     is_required=selections[place.place_id].is_required,
                 )
             )
@@ -223,6 +233,11 @@ def _schedule_day(
                 sequence=len(items) + 1,
                 place_id=trip.game_anchor.stadium_id,
                 travel=travel,
+                travel_mode=matrix.get_mode(previous_id, "stadium"),
+                travel_time_source=matrix.get_source(
+                    previous_id,
+                    "stadium",
+                ),
             )
         )
         previous_id = "stadium"
@@ -249,6 +264,11 @@ def _schedule_day(
                 start + timedelta(minutes=DEFAULT_ANCHOR_MINUTES),
                 sequence=len(items) + 1,
                 travel=travel,
+                travel_mode=matrix.get_mode(previous_id, "accommodation"),
+                travel_time_source=matrix.get_source(
+                    previous_id,
+                    "accommodation",
+                ),
             )
         )
 
@@ -265,6 +285,11 @@ def _schedule_day(
                 trip.trip_end_at,
                 sequence=len(items) + 1,
                 travel=travel,
+                travel_mode=matrix.get_mode(previous_id, "departure"),
+                travel_time_source=matrix.get_source(
+                    previous_id,
+                    "departure",
+                ),
             )
         )
 
@@ -282,6 +307,8 @@ def _anchor_item(
     sequence: int = 1,
     place_id: str | None = None,
     travel: int = 0,
+    travel_mode: TravelMode | None = None,
+    travel_time_source: TravelTimeSource | None = None,
 ) -> ItineraryItem:
     return ItineraryItem(
         type=item_type,
@@ -294,6 +321,8 @@ def _anchor_item(
         scheduled_start_at=start,
         scheduled_end_at=end,
         travel_minutes_from_previous=travel,
+        travel_mode=travel_mode,
+        travel_time_source=travel_time_source,
         is_required=True,
     )
 

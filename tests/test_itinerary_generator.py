@@ -68,3 +68,15 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
         for day in result.days
         for item in day.items
     )
+    travel_items = [
+        item
+        for day in result.days
+        for item in day.items
+        if item.travel_minutes_from_previous > 0
+    ]
+    assert travel_items
+    assert all(item.travel_mode is not None for item in travel_items)
+    assert all(
+        item.travel_time_source is not None
+        for item in travel_items
+    )
