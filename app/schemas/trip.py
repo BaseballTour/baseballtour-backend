@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
 from app.schemas.base import ApiModel
 
@@ -73,6 +73,30 @@ class AccommodationInfo(ApiModel):
 class TripCreateRequest(ApiModel):
     """여행 생성 요청."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "gameId": "game_20260815_lg_doosan",
+                    "title": "잠실 원정 직관 여행",
+                    "tripStartAt": "2026-08-15T12:00:00+09:00",
+                    "tripEndAt": "2026-08-15T23:00:00+09:00",
+                    "arrivalPoint": {
+                        "name": "서울역",
+                        "latitude": 37.5547,
+                        "longitude": 126.9706,
+                    },
+                    "departurePoint": {
+                        "name": "서울역",
+                        "latitude": 37.5547,
+                        "longitude": 126.9706,
+                    },
+                    "accommodation": None,
+                }
+            ]
+        }
+    )
+
     game_id: str = Field(
         min_length=1,
         description="관람할 경기 ID",
@@ -102,6 +126,25 @@ class TripCreateRequest(ApiModel):
 
 class TripUpdateRequest(ApiModel):
     """여행 기본정보 수정 요청."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "title": "잠실 1박 2일 직관 여행",
+                    "tripEndAt": "2026-08-16T11:00:00+09:00",
+                    "accommodation": {
+                        "name": "잠실 호텔",
+                        "address": "서울특별시 송파구",
+                        "latitude": 37.513,
+                        "longitude": 127.102,
+                        "checkInAt": "2026-08-15T22:00:00+09:00",
+                        "checkOutAt": "2026-08-16T10:00:00+09:00",
+                    },
+                }
+            ]
+        }
+    )
 
     game_id: str | None = Field(
         default=None,

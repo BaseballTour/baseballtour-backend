@@ -62,33 +62,39 @@ async def read_nearby_places(
         ge=-180,
         le=180,
         description="경도, TourAPI mapX",
+        examples=[127.0719],
     ),
     latitude: float = Query(
         default=37.5122,
         ge=-90,
         le=90,
         description="위도, TourAPI mapY",
+        examples=[37.5122],
     ),
     radius: int = Query(
         default=2000,
         ge=1,
         le=20000,
         description="검색 반경, 미터 단위",
+        examples=[2000],
     ),
     category: TourNearbyCategory | None = Query(
         default=None,
         description="내부 장소 카테고리 필터",
+        examples=["RESTAURANT"],
     ),
     page_size: int = Query(
         default=20,
         alias="pageSize",
         ge=1,
         description="페이지당 장소 수",
+        examples=[20],
     ),
     page_token: str | None = Query(
         default=None,
         alias="pageToken",
         description="이전 응답의 nextPageToken",
+        examples=["2"],
     ),
 ) -> ListSuccessResponse[Place]:
     page_no = _parse_page_token(page_token)
@@ -123,6 +129,7 @@ async def read_place_detail(
     place_id: str = Path(
         alias="placeId",
         description="내부 장소 ID, 예: tour_1603175",
+        examples=["tour_1603175"],
     ),
 ) -> SuccessResponse[Place]:
     prefix = "tour_"

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.stadium import StadiumSummaryResponse
@@ -74,6 +74,38 @@ class GameTeamSummaryResponse(ApiModel):
 
 class GameResponse(ApiModel):
     """경기 목록 및 상세 조회 응답."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "gameId": "dev_game_20260815_lotte_doosan",
+                    "gameStartAt": "2026-08-15T18:00:00+09:00",
+                    "status": "SCHEDULED",
+                    "homeTeam": {
+                        "teamId": "lotte",
+                        "name": "롯데 자이언츠",
+                        "logoUrl": "https://example.com/teams/lotte.png",
+                    },
+                    "awayTeam": {
+                        "teamId": "doosan",
+                        "name": "두산 베어스",
+                        "logoUrl": "https://example.com/teams/doosan.png",
+                    },
+                    "stadium": {
+                        "stadiumId": "sajik",
+                        "name": "사직야구장",
+                        "address": "부산광역시 동래구 사직로 45",
+                        "latitude": 35.194,
+                        "longitude": 129.0615,
+                    },
+                    "homeScore": None,
+                    "awayScore": None,
+                    "resultText": None,
+                }
+            ]
+        }
+    )
 
     game_id: str
     game_start_at: AwareDatetime
