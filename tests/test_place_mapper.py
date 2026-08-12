@@ -27,13 +27,20 @@ def test_location_sample_maps_to_internal_place() -> None:
     place = tour_api_item_to_place(item)
 
     assert place.place_id == "tour_123456"
-    assert place.category == PlaceCategory.RESTAURANT
+    assert place.category == PlaceCategory.CAFE
+    assert place.lcls_system1 == "FD"
+    assert place.lcls_system2 == "FD05"
+    assert place.lcls_system3 == "FD050100"
     assert place.latitude == 37.5122
     assert place.longitude == 127.0719
     assert place.address == "서울특별시 송파구 올림픽로 25"
     assert place.distance_meters == 350.5
     assert place.model_dump()["placeId"] == "tour_123456"
     assert place.model_dump()["defaultStayMinutes"] == 60
+    assert place.model_dump()["lclsSystem3"] == "FD050100"
+    assert "areaCode" not in place.model_dump()
+    assert "sigunguCode" not in place.model_dump()
+    assert "categoryCode1" not in place.model_dump()
 
 
 def test_extract_items_accepts_empty_and_single_item_responses() -> None:
@@ -115,6 +122,40 @@ def test_activity_content_type_maps_to_activity() -> None:
     place = tour_api_item_to_place(item)
 
     assert place.category == PlaceCategory.ACTIVITY
+
+
+def test_new_food_classification_maps_cafe() -> None:
+    item = make_valid_item()
+    item.update({
+        "lclsSystm1": "FD",
+        "lclsSystm2": "FD05",
+        "lclsSystm3": "FD050200",
+    })
+
+    place = tour_api_item_to_place(item)
+
+    assert place.category == PlaceCategory.CAFE
+
+
+def test_new_food_classification_maps_restaurant() -> None:
+    item = make_valid_item()
+    item.update({
+        "lclsSystm1": "FD",
+        "lclsSystm2": "FD02",
+        "lclsSystm3": "FD020200",
+    })
+
+    place = tour_api_item_to_place(item)
+
+    assert place.category == PlaceCategory.RESTAURANT
+
+
+def test_content_type_is_used_when_new_classification_is_missing() -> None:
+    item = make_valid_item()
+
+    place = tour_api_item_to_place(item)
+
+    assert place.category == PlaceCategory.RESTAURANT
 
 
 def test_external_source_requires_source_content_id() -> None:

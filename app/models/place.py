@@ -136,29 +136,19 @@ class Place(BaseModel):
         description="TourAPI 콘텐츠 유형 ID"
     )
 
-    area_code: str | None = Field(
+    lcls_system1: str | None = Field(
         default=None,
-        description="TourAPI 지역 코드"
+        description="TourAPI 신분류 대분류 코드"
     )
 
-    sigungu_code: str | None = Field(
+    lcls_system2: str | None = Field(
         default=None,
-        description="TourAPI 시군구 코드"
+        description="TourAPI 신분류 중분류 코드"
     )
 
-    category_code1: str | None = Field(
+    lcls_system3: str | None = Field(
         default=None,
-        description="TourAPI 대분류 코드 cat1"
-    )
-
-    category_code2: str | None = Field(
-        default=None,
-        description="TourAPI 중분류 코드 cat2"
-    )
-
-    category_code3: str | None = Field(
-        default=None,
-        description="TourAPI 소분류 코드 cat3"
+        description="TourAPI 신분류 소분류 코드"
     )
 
     @model_validator(mode="after")
