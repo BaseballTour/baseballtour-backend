@@ -1,7 +1,7 @@
 # Week 3 담당자 B 진행 현황
 
-기준 브랜치: `feature/week3-algorithm`  
-기준 main: `98696ba`
+기준 브랜치: `feature/week3-route-optimization`
+작업 시작 기준 main: `94c49b2`
 
 ## 이번 반영 완료
 
@@ -14,7 +14,7 @@
 - 가까운 장소는 `WALK/ESTIMATED`, 대중교통이 빠르면 `TRANSIT/ODSAY` 선택
 - ODsay 실패 시 도보 예상시간 fallback
 - 기존 가짜 Matrix는 `TRANSIT/FAKE`로 직렬화
-- 이동시간 및 일정 생성 관련 테스트 13개 통과
+- 전체 회귀 테스트 157개 통과
 
 ## 기존 구현으로 완료 또는 대부분 완료
 
@@ -95,11 +95,11 @@
 - 저장 일정의 `isFixed=true`는 재생성 시 현재 날짜·순서를 유지한다.
 - 제외 결과에 `isRequired`를 포함하고 결과 전체에
   `hasRequiredPlaceConflict`를 제공한다.
-- 자동 추천 후보 조회·빈 시간 삽입과 고정 Item 기반 재최적화는 입력 후보를
-  공급하고 Plan을 저장하는 Application Service가 연결된 뒤 구현한다.
-4. 당일치기·1박 2일·2박 3일 및 날짜 중첩 추가 테스트
-5. 일정 편집 후 시간 충돌 검증 함수
-6. 실제 TourAPI·경기·ODsay 데이터 통합 테스트
+- 빈 시간 삽입 순수 알고리즘은 완료했다. 실제 추천 후보 조회와 고정 Item 기반
+  재최적화는 Application Service 및 Plan 저장이 연결된 뒤 구현한다.
+- 당일치기·1박 2일·2박 3일 및 날짜 중첩 추가 테스트는 다음 주차로 이관한다.
+- 일정 편집 후 시간 충돌 검증과 실제 TourAPI·경기·ODsay 통합 테스트도
+  다음 주차로 이관한다.
 
 ## 경로 최적화 v0.2 반영
 
@@ -153,3 +153,22 @@
 - 저장 시 `itemId` 생성
 - 일정 Item 시간 수정·삭제·교체·순서 변경 API
 - ACTIVE/ARCHIVED Plan과 Trip 상태 transaction 처리
+
+## 다음 주차 이관 확정
+
+회의 시점부터 아래 항목은 이번 3주차 범위에서 추가 구현하지 않고 다음 주차로
+이관한다.
+
+- 실제 TourAPI·저장 Place에서 자동 추천 후보를 준비하는 Application Service
+- `POST /trips/{tripId}/itineraries` 실제 연결과 Firestore Plan 저장
+- 찜 컬렉션과 `trips/{tripId}/placeCandidates` CRUD
+- 일정 Item 시간 수정·삭제·교체·드래그 앤 드롭 API
+- 사용자가 숙소 Item을 중간으로 이동했을 때 앞뒤 이동시간 재계산
+- 사용자가 장소를 수동 추가했을 때 최적화 없이 시간표만 재계산하고 충돌 경고
+- `isFixed=true` Item을 유지하는 부분 재최적화·재생성
+- 고정되지 않은 자동 추천 제거 후 다시 추천하는 재생성 흐름
+- 후보 10·20·30개 성능 측정과 알고리즘 실행시간 제한
+- 실제 Game·Stadium·TourAPI·ODsay·Firestore 통합 테스트
+
+이번 주 완료 기준은 순수 알고리즘에 사용자 후보·추천 후보·이동시간 Matrix를
+전달하면 날짜별 코스를 만들고 자동 추천 여부를 구분해 반환하는 것까지다.
