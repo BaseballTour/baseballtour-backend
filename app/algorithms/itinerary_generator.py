@@ -5,9 +5,10 @@ from datetime import date, datetime, time, timedelta
 from app.algorithms.day_type import classify_day
 from app.algorithms.travel_time import TravelTimeMatrix
 from app.algorithms.route_optimizer import (
-    greedy_insertion,
     improve_route_2opt,
+    route_travel_minutes,
     simulate_route,
+    simulate_route_detailed,
     transfer_buffer,
 )
 from app.models.itinerary import (
@@ -49,7 +50,9 @@ def generate_itinerary(
     )
     excluded: list[ExcludedPlace] = []
     days: list[ItineraryDay] = []
-    remaining = list(candidates)
+    routes, failed_reasons = _assign_places_to_dates(
+        trip, candidates, selected, matrix
+    )
 
     current_date = trip.trip_start_at.date()
     end_date = trip.trip_end_at.date()
@@ -60,11 +63,11 @@ def generate_itinerary(
             trip.trip_end_at.date(),
             trip.game_anchor.game_start_at.date(),
         )
-        items, remaining = _schedule_day(
+        items = _schedule_day(
             current_date,
             day_type,
             trip,
-            remaining,
+            routes[current_date],
             selected,
             matrix,
         )
@@ -77,12 +80,15 @@ def generate_itinerary(
         )
         current_date += timedelta(days=1)
 
-    trip_dates = [day.date for day in days]
-    for place in remaining:
-        reason_code = _exclusion_reason(place, trip_dates)
+    for place in candidates:
+        if place.place_id not in failed_reasons:
+            continue
+        reason_code = failed_reasons[place.place_id]
         messages = {
             ExcludedReasonCode.CLOSED_DAY: "여행 기간 동안 휴무입니다.",
             ExcludedReasonCode.OUTSIDE_BUSINESS_HOURS: "영업시간 안에 체류시간을 확보할 수 없습니다.",
+            ExcludedReasonCode.ADMISSION_DEADLINE: "입장 마감 전까지 방문할 수 없습니다.",
+            ExcludedReasonCode.ANCHOR_CONFLICT: "방문하면 경기장 또는 출발지의 필수 도착시간을 지킬 수 없습니다.",
             ExcludedReasonCode.INSUFFICIENT_TIME: "여행 시간 안에 방문 일정을 배정할 수 없습니다.",
         }
         excluded.append(
@@ -129,7 +135,7 @@ def generate_itinerary(
     )
     return ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="greedy-insertion-2opt-v0.2",
+        algorithm_version="multi-day-selection-v0.3",
         total_travel_minutes=total,
         days=days,
         excluded_places=excluded,
@@ -140,10 +146,10 @@ def _schedule_day(
     target_date: date,
     day_type: DayType,
     trip: TripInput,
-    candidates: list[Place],
+    route: list[Place],
     selections: dict,
     matrix: TravelTimeMatrix,
-) -> tuple[list[ItineraryItem], list[Place]]:
+) -> list[ItineraryItem]:
     timezone = trip.trip_start_at.tzinfo
     assert timezone is not None
     day_start = datetime.combine(target_date, DEFAULT_DAY_START, timezone)
@@ -194,14 +200,6 @@ def _schedule_day(
         is_closed=_is_closed,
         parse_time=_parse_time,
     )
-    route, unscheduled = greedy_insertion(
-        candidates,
-        is_required=lambda place: selections[place.place_id].is_required,
-        candidate_priority=lambda place: _date_affinity_penalty(
-            place, target_date, trip, matrix
-        ),
-        **optimizer_args,
-    )
     route = improve_route_2opt(route, **optimizer_args)
     visits = simulate_route(route, **optimizer_args) or []
     cursor = day_start
@@ -247,10 +245,7 @@ def _schedule_day(
                 travel=travel,
                 transfer_buffer=transfer_buffer(previous_id, "stadium"),
                 travel_mode=matrix.get_mode(previous_id, "stadium"),
-                travel_time_source=matrix.get_source(
-                    previous_id,
-                    "stadium",
-                ),
+                travel_time_source=matrix.get_source(previous_id, "stadium"),
             )
         )
         previous_id = "stadium"
@@ -267,11 +262,7 @@ def _schedule_day(
                 cursor + timedelta(
                     minutes=travel + transfer_buffer(previous_id, "accommodation")
                 ),
-                datetime.combine(
-                    target_date,
-                    DEFAULT_DAY_END,
-                    timezone,
-                ),
+                datetime.combine(target_date, DEFAULT_DAY_END, timezone),
             )
         items.append(
             _anchor_item(
@@ -283,18 +274,13 @@ def _schedule_day(
                 travel=travel,
                 transfer_buffer=transfer_buffer(previous_id, "accommodation"),
                 travel_mode=matrix.get_mode(previous_id, "accommodation"),
-                travel_time_source=matrix.get_source(
-                    previous_id,
-                    "accommodation",
-                ),
+                travel_time_source=matrix.get_source(previous_id, "accommodation"),
             )
         )
 
     if day_type == DayType.DEPARTURE_DAY:
         travel = matrix.get(previous_id, "departure")
-        start = trip.trip_end_at - timedelta(
-            minutes=DEPARTURE_BUFFER_MINUTES
-        )
+        start = trip.trip_end_at - timedelta(minutes=DEPARTURE_BUFFER_MINUTES)
         items.append(
             _anchor_item(
                 ItineraryItemType.DEPARTURE_POINT,
@@ -305,16 +291,169 @@ def _schedule_day(
                 travel=travel,
                 transfer_buffer=transfer_buffer(previous_id, "departure"),
                 travel_mode=matrix.get_mode(previous_id, "departure"),
-                travel_time_source=matrix.get_source(
-                    previous_id,
-                    "departure",
-                ),
+                travel_time_source=matrix.get_source(previous_id, "departure"),
             )
         )
 
     for index, item in enumerate(items, start=1):
         item.sequence = index
-    return items, unscheduled
+    return items
+
+
+def _assign_places_to_dates(
+    trip: TripInput,
+    candidates: list[Place],
+    selections: dict,
+    matrix: TravelTimeMatrix,
+) -> tuple[dict[date, list[Place]], dict[str, ExcludedReasonCode]]:
+    """필수·일반·자동추천 순으로 모든 날짜와 삽입 위치를 비교한다."""
+    dates: list[date] = []
+    value = trip.trip_start_at.date()
+    while value <= trip.trip_end_at.date():
+        dates.append(value)
+        value += timedelta(days=1)
+    routes = {value: [] for value in dates}
+    failures: dict[str, ExcludedReasonCode] = {}
+    source_priority = {
+        "FAVORITE_COLLECTION": 0,
+        "NEARBY_RECOMMENDATION": 0,
+        "AUTO_RECOMMENDED": 1,
+    }
+
+    def order_key(place: Place) -> tuple:
+        selection = selections[place.place_id]
+        closing_values = []
+        for target_date in dates:
+            _, closing = _hours_for_date(place, target_date)
+            parsed = _parse_time(closing)
+            if parsed is not None:
+                closing_values.append(parsed.hour * 60 + parsed.minute)
+        earliest_close = min(closing_values) if closing_values else 24 * 60
+        return (
+            not selection.is_required,
+            source_priority[selection.selection_source.value],
+            earliest_close,
+            place.place_id,
+        )
+
+    for place in sorted(candidates, key=order_key):
+        best: tuple[tuple, date, list[Place]] | None = None
+        failure_codes: list[ExcludedReasonCode] = []
+        for target_date in dates:
+            day_type = classify_day(
+                target_date,
+                trip.trip_start_at.date(),
+                trip.trip_end_at.date(),
+                trip.game_anchor.game_start_at.date(),
+            )
+            args = _optimizer_args_for_date(
+                target_date, day_type, trip, matrix
+            )
+            current = routes[target_date]
+            current_cost = route_travel_minutes(
+                args["start_id"], current, args["end_id"], matrix
+            )
+            for index in range(len(current) + 1):
+                proposed = [*current[:index], place, *current[index:]]
+                result = simulate_route_detailed(proposed, **args)
+                if not result.feasible:
+                    if result.failure is not None and (
+                        result.failure.place_id in {None, place.place_id}
+                    ):
+                        failure_codes.append(result.failure.reason_code)
+                    continue
+                marginal = route_travel_minutes(
+                    args["start_id"], proposed, args["end_id"], matrix
+                ) - current_cost
+                closing_slack = (
+                    result.closing_slack_minutes
+                    if result.closing_slack_minutes is not None
+                    else 24 * 60
+                )
+                anchor_slack = result.anchor_slack_minutes or 0
+                score = (
+                    _date_affinity_penalty(
+                        place, target_date, trip, matrix
+                    ),
+                    marginal,
+                    closing_slack,
+                    -anchor_slack,
+                    target_date.toordinal(),
+                    index,
+                )
+                if best is None or score < best[0]:
+                    best = (score, target_date, proposed)
+
+        if best is None:
+            failures[place.place_id] = _representative_failure(
+                failure_codes
+            )
+        else:
+            routes[best[1]] = best[2]
+    return routes, failures
+
+
+def _representative_failure(
+    failures: list[ExcludedReasonCode],
+) -> ExcludedReasonCode:
+    if failures and all(
+        reason == ExcludedReasonCode.CLOSED_DAY for reason in failures
+    ):
+        return ExcludedReasonCode.CLOSED_DAY
+    precedence = (
+        ExcludedReasonCode.ADMISSION_DEADLINE,
+        ExcludedReasonCode.OUTSIDE_BUSINESS_HOURS,
+        ExcludedReasonCode.ANCHOR_CONFLICT,
+        ExcludedReasonCode.INSUFFICIENT_TIME,
+    )
+    return next(
+        (reason for reason in precedence if reason in failures),
+        ExcludedReasonCode.INSUFFICIENT_TIME,
+    )
+
+
+def _optimizer_args_for_date(
+    target_date: date,
+    day_type: DayType,
+    trip: TripInput,
+    matrix: TravelTimeMatrix,
+) -> dict:
+    timezone = trip.trip_start_at.tzinfo
+    assert timezone is not None
+    start_id = "accommodation" if trip.accommodation else "arrival"
+    available_start = datetime.combine(
+        target_date, DEFAULT_DAY_START, timezone
+    )
+    available_end = datetime.combine(
+        target_date, DEFAULT_DAY_END, timezone
+    )
+    end_id = "accommodation" if trip.accommodation else None
+    if day_type == DayType.ARRIVAL_DAY:
+        start_id = "arrival"
+        available_start = trip.trip_start_at + timedelta(
+            minutes=DEFAULT_ANCHOR_MINUTES
+        )
+    if day_type == DayType.GAME_DAY:
+        end_id = "stadium"
+        available_end = trip.game_anchor.game_start_at - timedelta(
+            minutes=trip.game_anchor.required_arrival_minutes
+        )
+    elif day_type == DayType.DEPARTURE_DAY:
+        end_id = "departure"
+        available_end = trip.trip_end_at - timedelta(
+            minutes=DEPARTURE_BUFFER_MINUTES
+        )
+    return {
+        "target_date": target_date,
+        "start_id": start_id,
+        "end_id": end_id,
+        "available_start": available_start,
+        "available_end": available_end,
+        "matrix": matrix,
+        "hours_for_date": _hours_for_date,
+        "is_closed": _is_closed,
+        "parse_time": _parse_time,
+    }
 
 
 def _anchor_item(

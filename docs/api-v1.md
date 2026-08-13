@@ -56,6 +56,18 @@ POST /api/v1/trips/{tripId}/itineraries
   `excludedPlaces[].isRequired`로 충돌을 전달한다.
 - `isFixed`는 저장 일정 Item의 재생성 정책이며 여행 후보 입력과 분리한다.
 
+장소를 배정하지 못하면 다음 제외 사유를 사용한다.
+
+| code | 의미 |
+| --- | --- |
+| `CLOSED_DAY` | 여행 기간 동안 방문 가능한 영업일이 없음 |
+| `ADMISSION_DEADLINE` | 안전하게 해석된 입장·매표 마감 이후 도착 |
+| `OUTSIDE_BUSINESS_HOURS` | 체류 종료가 영업 종료를 초과 |
+| `ANCHOR_CONFLICT` | 방문 시 경기장 또는 출발지 필수 도착시각 위반 |
+| `INSUFFICIENT_TIME` | 그 밖의 하루 시간 예산 부족 |
+| `DUPLICATE_PLACE` | 같은 장소 중복 선택 |
+| `INVALID_PLACE` | Place 정보를 찾지 못함 |
+
 저장된 일정 Item에는 다음 필드를 둔다.
 
 ```json
