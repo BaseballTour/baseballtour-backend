@@ -35,5 +35,6 @@
       "placeId": "tour_123456",
       "isRequired": true
     }
-  ]
+  ],
+  "autoFillRecommendations": true
 }

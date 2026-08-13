@@ -15,6 +15,23 @@ class PlaceCategory(str, Enum):
     OTHER = "OTHER"
 
 
+CATEGORY_DEFAULT_STAY_MINUTES = {
+    PlaceCategory.CAFE: 45,
+    PlaceCategory.RESTAURANT: 60,
+    PlaceCategory.TOURIST_SPOT: 90,
+    PlaceCategory.CULTURAL_FACILITY: 90,
+    PlaceCategory.SHOPPING: 60,
+    PlaceCategory.ACTIVITY: 120,
+    PlaceCategory.FESTIVAL: 120,
+    PlaceCategory.OTHER: 60,
+    PlaceCategory.ACCOMMODATION: 30,
+}
+
+
+def default_stay_minutes_for(category: PlaceCategory) -> int:
+    return CATEGORY_DEFAULT_STAY_MINUTES[category]
+
+
 class PlaceSource(str, Enum):
     TOUR_API = "TOUR_API"
     KAKAO = "KAKAO"

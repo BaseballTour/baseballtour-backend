@@ -98,6 +98,39 @@ trips/{tripId}/placeCandidates/{placeId}
 초기 정책에서 `isFixed=true`는 날짜와 순서를 보존하되 정확한 시작·종료시각은
 앞뒤 이동시간에 맞춰 다시 계산한다.
 
+### 자동 추천 결과 계약
+
+사용자가 선택한 후보를 먼저 배정한 뒤 남는 시간에 추천 후보를 삽입한다.
+
+```json
+{
+  "type": "PLACE",
+  "placeId": "tour_789012",
+  "isRequired": false,
+  "addedBy": "ALGORITHM"
+}
+```
+
+- `addedBy=USER`: 필수·일반 사용자 후보에서 생성된 Item
+- `addedBy=ALGORITHM`: 빈 시간을 채우기 위해 알고리즘이 추가한 Item
+- Anchor Item은 추천 출처 대상이 아니므로 `addedBy=null`이다.
+
+결과 메타데이터:
+
+```json
+{
+  "autoFillApplied": true,
+  "autoRecommendedPlaceCount": 3
+}
+```
+
+추천할 장소가 없거나 조건을 만족하지 못해도 일정 생성은 성공하며
+`autoFillApplied=false`를 반환한다. 추천 개수 상한은 없고 추가 이동시간 30분,
+삽입 후 최소 여유 30분, 영업시간·입장 마감·Anchor 제약으로 제한한다.
+
+카테고리별 기본 체류시간은 카페 45분, 음식점 60분, 관광지·문화시설 90분,
+쇼핑 60분, 액티비티·축제 120분, 기타 60분이다. 숙박은 자동 추천에서 제외한다.
+
 ### 찜 컬렉션 연결 예정
 
 ```text

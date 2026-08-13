@@ -17,13 +17,19 @@ from app.models.itinerary import (
     ExcludedReasonCode,
     ItineraryDay,
     ItineraryItem,
+    ItineraryItemAddedBy,
     ItineraryItemType,
     ItineraryResult,
     TravelMode,
     TravelTimeSource,
     TripInput,
 )
-from app.models.place import BusinessRuleStatus, Place, Weekday
+from app.models.place import (
+    BusinessRuleStatus,
+    Place,
+    PlaceCategory,
+    Weekday,
+)
 
 
 DEFAULT_DAY_START = time(9, 0)
@@ -32,12 +38,16 @@ DEFAULT_ANCHOR_MINUTES = 20
 ACCOMMODATION_STAY_MINUTES = 30
 DEFAULT_GAME_MINUTES = 180
 DEPARTURE_BUFFER_MINUTES = 60
+AUTO_FILL_MIN_REMAINING_MINUTES = 30
+AUTO_FILL_MAX_DETOUR_MINUTES = 30
 
 
 def generate_itinerary(
     trip: TripInput,
     places: list[Place],
     matrix: TravelTimeMatrix,
+    *,
+    recommended_places: list[Place] | None = None,
 ) -> ItineraryResult:
     """Anchor와 가까운 장소 우선 규칙을 적용하는 1차 일정 생성기."""
     selected = {item.place_id: item for item in trip.selected_places}
@@ -53,6 +63,15 @@ def generate_itinerary(
     routes, failed_reasons = _assign_places_to_dates(
         trip, candidates, selected, matrix
     )
+    auto_ids: set[str] = set()
+    if trip.auto_fill_recommendations and recommended_places:
+        routes, auto_ids = _fill_routes_with_recommendations(
+            trip,
+            routes,
+            recommended_places,
+            matrix,
+            excluded_ids=set(selected),
+        )
 
     current_date = trip.trip_start_at.date()
     end_date = trip.trip_end_at.date()
@@ -69,6 +88,7 @@ def generate_itinerary(
             trip,
             routes[current_date],
             selected,
+            auto_ids,
             matrix,
         )
         days.append(
@@ -132,10 +152,12 @@ def generate_itinerary(
     )
     return ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="multi-day-selection-v0.3",
+        algorithm_version="auto-fill-v0.4",
         total_travel_minutes=total,
         days=days,
         excluded_places=excluded,
+        auto_fill_applied=bool(auto_ids),
+        auto_recommended_place_count=len(auto_ids),
     )
 
 
@@ -145,6 +167,7 @@ def _schedule_day(
     trip: TripInput,
     route: list[Place],
     selections: dict,
+    auto_ids: set[str],
     matrix: TravelTimeMatrix,
 ) -> list[ItineraryItem]:
     timezone = trip.trip_start_at.tzinfo
@@ -219,7 +242,16 @@ def _schedule_day(
                 ),
                 travel_mode=matrix.get_mode(previous_id, place.place_id),
                 travel_time_source=matrix.get_source(previous_id, place.place_id),
-                is_required=selections[place.place_id].is_required,
+                is_required=(
+                    selections[place.place_id].is_required
+                    if place.place_id in selections
+                    else False
+                ),
+                added_by=(
+                    ItineraryItemAddedBy.ALGORITHM
+                    if place.place_id in auto_ids
+                    else ItineraryItemAddedBy.USER
+                ),
             )
         )
         cursor, previous_id = visit.end, place.place_id
@@ -380,6 +412,122 @@ def _assign_places_to_dates(
         else:
             routes[best[1]] = best[2]
     return routes, failures
+
+
+def _fill_routes_with_recommendations(
+    trip: TripInput,
+    routes: dict[date, list[Place]],
+    recommendations: list[Place],
+    matrix: TravelTimeMatrix,
+    *,
+    excluded_ids: set[str],
+) -> tuple[dict[date, list[Place]], set[str]]:
+    """사용자 후보를 보존하면서 실행 가능한 추천 장소를 반복 삽입한다."""
+    remaining = {
+        place.place_id: place
+        for place in recommendations
+        if place.place_id not in excluded_ids
+        and place.category != PlaceCategory.ACCOMMODATION
+    }
+    added: set[str] = set()
+
+    while remaining:
+        best: tuple[tuple, date, list[Place], Place] | None = None
+        for target_date in sorted(routes):
+            day_type = classify_day(
+                target_date,
+                trip.trip_start_at.date(),
+                trip.trip_end_at.date(),
+                trip.game_anchor.game_start_at.date(),
+            )
+            args = _optimizer_args_for_date(
+                target_date, day_type, trip, matrix
+            )
+            current = routes[target_date]
+            current_cost = route_travel_minutes(
+                args["start_id"], current, args["end_id"], matrix
+            )
+            for place in sorted(
+                remaining.values(), key=lambda item: item.place_id
+            ):
+                if (
+                    place.category == PlaceCategory.FESTIVAL
+                    and place.business_hours_status
+                    != BusinessRuleStatus.PARSED
+                ):
+                    continue
+                for index in range(len(current) + 1):
+                    proposed = [*current[:index], place, *current[index:]]
+                    result = simulate_route_detailed(proposed, **args)
+                    if not result.feasible:
+                        continue
+                    if (
+                        result.anchor_slack_minutes is None
+                        or result.anchor_slack_minutes
+                        < AUTO_FILL_MIN_REMAINING_MINUTES
+                    ):
+                        continue
+                    marginal = route_travel_minutes(
+                        args["start_id"], proposed, args["end_id"], matrix
+                    ) - current_cost
+                    if marginal > AUTO_FILL_MAX_DETOUR_MINUTES:
+                        continue
+                    visit = next(
+                        item
+                        for item in result.visits
+                        if item.place.place_id == place.place_id
+                    )
+                    closing_slack = (
+                        result.closing_slack_minutes
+                        if result.closing_slack_minutes is not None
+                        else 24 * 60
+                    )
+                    score = (
+                        marginal,
+                        -(result.anchor_slack_minutes or 0),
+                        -closing_slack,
+                        _meal_time_category_priority(
+                            place.category, visit.start.time()
+                        ),
+                        abs(
+                            result.anchor_slack_minutes
+                            - AUTO_FILL_MIN_REMAINING_MINUTES
+                        ),
+                        target_date.toordinal(),
+                        index,
+                        place.place_id,
+                    )
+                    if best is None or score < best[0]:
+                        best = (score, target_date, proposed, place)
+
+        if best is None:
+            break
+        _, target_date, proposed, place = best
+        routes[target_date] = proposed
+        added.add(place.place_id)
+        remaining.pop(place.place_id)
+
+    return routes, added
+
+
+def _meal_time_category_priority(
+    category: PlaceCategory | str,
+    visit_time: time,
+) -> int:
+    minute = visit_time.hour * 60 + visit_time.minute
+    is_meal_time = 11 * 60 <= minute <= 14 * 60 or 17 * 60 <= minute <= 20 * 60
+    if is_meal_time:
+        return 0 if category == PlaceCategory.RESTAURANT else 1
+    return (
+        0
+        if category
+        in {
+            PlaceCategory.TOURIST_SPOT,
+            PlaceCategory.CAFE,
+            PlaceCategory.CULTURAL_FACILITY,
+        }
+        else 1
+    )
 
 
 def _representative_failure(

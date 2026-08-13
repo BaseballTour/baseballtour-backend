@@ -44,6 +44,11 @@ class TravelTimeSource(str, Enum):
     FAKE = "FAKE"
 
 
+class ItineraryItemAddedBy(str, Enum):
+    USER = "USER"
+    ALGORITHM = "ALGORITHM"
+
+
 class ExcludedReasonCode(str, Enum):
     INSUFFICIENT_TIME = "INSUFFICIENT_TIME"
     OUTSIDE_BUSINESS_HOURS = "OUTSIDE_BUSINESS_HOURS"
@@ -85,6 +90,7 @@ class TripInput(AlgorithmModel):
     selected_places: list[SelectedPlaceInput] = Field(
         default_factory=list
     )
+    auto_fill_recommendations: bool = True
 
     @model_validator(mode="after")
     def validate_period_and_timezone(self) -> "TripInput":
@@ -131,6 +137,7 @@ class ItineraryItem(AlgorithmModel):
     travel_mode: TravelMode | None = None
     travel_time_source: TravelTimeSource | None = None
     is_required: bool = False
+    added_by: ItineraryItemAddedBy | None = None
 
     @model_validator(mode="after")
     def validate_schedule(self) -> "ItineraryItem":
@@ -156,6 +163,8 @@ class ItineraryResult(AlgorithmModel):
     total_travel_minutes: int = Field(default=0, ge=0)
     days: list[ItineraryDay] = Field(default_factory=list)
     excluded_places: list[ExcludedPlace] = Field(default_factory=list)
+    auto_fill_applied: bool = False
+    auto_recommended_place_count: int = Field(default=0, ge=0)
 
     @computed_field
     @property

@@ -20,7 +20,8 @@
           "travelMinutesFromPrevious": 0,
           "travelMode": null,
           "travelTimeSource": null,
-          "isRequired": true
+          "isRequired": true,
+          "addedBy": null
         },
         {
           "type": "PLACE",
@@ -35,7 +36,8 @@
           "travelMinutesFromPrevious": 40,
           "travelMode": "TRANSIT",
           "travelTimeSource": "FAKE",
-          "isRequired": true
+          "isRequired": true,
+          "addedBy": "USER"
         }
       ]
     },
@@ -56,10 +58,13 @@
           "travelMinutesFromPrevious": 35,
           "travelMode": "TRANSIT",
           "travelTimeSource": "FAKE",
-          "isRequired": true
+          "isRequired": true,
+          "addedBy": null
         }
       ]
     }
   ],
-  "excludedPlaces": []
+  "excludedPlaces": [],
+  "autoFillApplied": false,
+  "autoRecommendedPlaceCount": 0
 }
