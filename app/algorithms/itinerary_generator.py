@@ -8,6 +8,7 @@ from app.algorithms.route_optimizer import (
     greedy_insertion,
     improve_route_2opt,
     simulate_route,
+    transfer_buffer,
 )
 from app.models.itinerary import (
     DayType,
@@ -27,6 +28,7 @@ from app.models.place import BusinessRuleStatus, Place, Weekday
 DEFAULT_DAY_START = time(9, 0)
 DEFAULT_DAY_END = time(21, 0)
 DEFAULT_ANCHOR_MINUTES = 20
+ACCOMMODATION_STAY_MINUTES = 30
 DEFAULT_GAME_MINUTES = 180
 DEPARTURE_BUFFER_MINUTES = 60
 
@@ -211,6 +213,9 @@ def _schedule_day(
                 scheduled_start_at=visit.start,
                 scheduled_end_at=visit.end,
                 travel_minutes_from_previous=visit.travel_minutes,
+                transfer_buffer_minutes=transfer_buffer(
+                    previous_id, place.place_id
+                ),
                 travel_mode=matrix.get_mode(previous_id, place.place_id),
                 travel_time_source=matrix.get_source(previous_id, place.place_id),
                 is_required=selections[place.place_id].is_required,
@@ -233,6 +238,7 @@ def _schedule_day(
                 sequence=len(items) + 1,
                 place_id=trip.game_anchor.stadium_id,
                 travel=travel,
+                transfer_buffer=transfer_buffer(previous_id, "stadium"),
                 travel_mode=matrix.get_mode(previous_id, "stadium"),
                 travel_time_source=matrix.get_source(
                     previous_id,
@@ -246,10 +252,14 @@ def _schedule_day(
         travel = matrix.get(previous_id, "accommodation")
         if day_type == DayType.GAME_DAY:
             previous_end = items[-1].scheduled_end_at
-            start = previous_end + timedelta(minutes=travel)
+            start = previous_end + timedelta(
+                minutes=travel + transfer_buffer(previous_id, "accommodation")
+            )
         else:
             start = max(
-                cursor + timedelta(minutes=travel),
+                cursor + timedelta(
+                    minutes=travel + transfer_buffer(previous_id, "accommodation")
+                ),
                 datetime.combine(
                     target_date,
                     DEFAULT_DAY_END,
@@ -261,9 +271,10 @@ def _schedule_day(
                 ItineraryItemType.ACCOMMODATION,
                 trip.accommodation,
                 start,
-                start + timedelta(minutes=DEFAULT_ANCHOR_MINUTES),
+                start + timedelta(minutes=ACCOMMODATION_STAY_MINUTES),
                 sequence=len(items) + 1,
                 travel=travel,
+                transfer_buffer=transfer_buffer(previous_id, "accommodation"),
                 travel_mode=matrix.get_mode(previous_id, "accommodation"),
                 travel_time_source=matrix.get_source(
                     previous_id,
@@ -285,6 +296,7 @@ def _schedule_day(
                 trip.trip_end_at,
                 sequence=len(items) + 1,
                 travel=travel,
+                transfer_buffer=transfer_buffer(previous_id, "departure"),
                 travel_mode=matrix.get_mode(previous_id, "departure"),
                 travel_time_source=matrix.get_source(
                     previous_id,
@@ -307,6 +319,7 @@ def _anchor_item(
     sequence: int = 1,
     place_id: str | None = None,
     travel: int = 0,
+    transfer_buffer: int = 0,
     travel_mode: TravelMode | None = None,
     travel_time_source: TravelTimeSource | None = None,
 ) -> ItineraryItem:
@@ -321,6 +334,7 @@ def _anchor_item(
         scheduled_start_at=start,
         scheduled_end_at=end,
         travel_minutes_from_previous=travel,
+        transfer_buffer_minutes=transfer_buffer,
         travel_mode=travel_mode,
         travel_time_source=travel_time_source,
         is_required=True,

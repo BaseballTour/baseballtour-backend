@@ -37,7 +37,7 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
         calls["intro_content_type_id"] = args[1]
         return response_with(
             {
-                "opentimefood": "10:00~22:00",
+                "opentimefood": "10:00~22:00 (입장 마감 21:00)",
                 "restdatefood": "매주 월요일",
             }
         )
@@ -60,8 +60,10 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
     assert first.close_time == "22:00"
     assert first.closed_days_text == "매주 월요일"
     assert first.business_hours_status == "PARSED"
-    assert first.business_hours_text == "10:00~22:00"
+    assert first.business_hours_text == "10:00~22:00 (입장 마감 21:00)"
     assert len(first.business_hours_rules) == 1
+    assert first.admission_deadline_status == "PARSED"
+    assert first.admission_deadline_time == "21:00"
     assert first.closed_days_status == "PARSED"
     assert first.thumbnail_url == "https://example.com/detail.jpg"
     assert second == first

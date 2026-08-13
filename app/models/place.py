@@ -129,6 +129,16 @@ class Place(BaseModel):
     business_hours_text: str | None = None
     business_hours_rules: list[BusinessHoursRule] = Field(default_factory=list)
 
+    admission_deadline_time: str | None = Field(
+        default=None,
+        description="안전하게 해석된 최종 입장 가능 시각 HH:MM",
+    )
+    admission_deadline_status: BusinessRuleStatus = BusinessRuleStatus.MISSING
+    admission_deadline_text: str | None = Field(
+        default=None,
+        description="입장 마감 관련 TourAPI 원문",
+    )
+
     closed_days_text: str | None = Field(
         default=None,
         description="휴무일 원문"

@@ -120,6 +120,11 @@ class ItineraryItem(AlgorithmModel):
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     travel_minutes_from_previous: int = Field(default=0, ge=0)
+    transfer_buffer_minutes: int = Field(
+        default=0,
+        ge=0,
+        description="이동시간과 별도로 확보한 환승·대기 여유시간",
+    )
     travel_mode: TravelMode | None = None
     travel_time_source: TravelTimeSource | None = None
     is_required: bool = False

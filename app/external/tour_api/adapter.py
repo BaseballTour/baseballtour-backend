@@ -21,7 +21,11 @@ from app.external.tour_api.mapper import (
     tour_api_items_to_places,
 )
 from app.models.place import Place
-from app.external.tour_api.business_hours import parse_business_hours, parse_closed_days
+from app.external.tour_api.business_hours import (
+    parse_admission_deadline,
+    parse_business_hours,
+    parse_closed_days,
+)
 
 
 DEFAULT_CACHE_TTL_SECONDS = 300
@@ -155,6 +159,7 @@ def _normalize_intro(item: dict[str, Any]) -> dict[str, Any]:
         ),
     )
     hours_status, hours_text, hours_rules = parse_business_hours(hours)
+    admission_status, admission_text, admission_time = parse_admission_deadline(hours)
     closed_raw = _first_non_empty(item, ("restdatefood", "restdateshopping", "restdateculture", "restdateleports", "restdate"))
     closed_status, closed_text, closed_weekdays = parse_closed_days(closed_raw)
     opening = hours_rules[0].open_time if len(hours_rules) == 1 else None
@@ -165,6 +170,9 @@ def _normalize_intro(item: dict[str, Any]) -> dict[str, Any]:
         "businessHoursStatus": hours_status,
         "businessHoursText": hours_text,
         "businessHoursRules": [rule.model_dump() for rule in hours_rules],
+        "admissionDeadlineTime": admission_time,
+        "admissionDeadlineStatus": admission_status,
+        "admissionDeadlineText": admission_text,
         "closedDaysText": closed_text,
         "closedDaysStatus": closed_status,
         "closedWeekdays": closed_weekdays,

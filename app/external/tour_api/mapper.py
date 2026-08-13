@@ -125,6 +125,15 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         business_hours_status=item.get("businessHoursStatus", "MISSING"),
         business_hours_text=empty_string_to_none(item.get("businessHoursText")),
         business_hours_rules=item.get("businessHoursRules") or [],
+        admission_deadline_time=empty_string_to_none(
+            item.get("admissionDeadlineTime")
+        ),
+        admission_deadline_status=item.get(
+            "admissionDeadlineStatus", "MISSING"
+        ),
+        admission_deadline_text=empty_string_to_none(
+            item.get("admissionDeadlineText")
+        ),
         closed_days_text=empty_string_to_none(
             item.get("closedDaysText")
         ),

@@ -80,3 +80,17 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
         item.travel_time_source is not None
         for item in travel_items
     )
+    accommodation = next(
+        item
+        for day in result.days
+        for item in day.items
+        if item.item_type == ItineraryItemType.ACCOMMODATION
+    )
+    assert (
+        accommodation.scheduled_end_at
+        - accommodation.scheduled_start_at
+    ).total_seconds() == 30 * 60
+    assert all(
+        item.transfer_buffer_minutes == 15
+        for item in travel_items
+    )

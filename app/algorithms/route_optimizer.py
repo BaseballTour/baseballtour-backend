@@ -17,6 +17,13 @@ class ScheduledVisit:
 HoursResolver = Callable[[Place, date], tuple[str | None, str | None]]
 ClosedChecker = Callable[[Place, date], bool]
 TimeParser = Callable[[str | None], object | None]
+TRANSFER_BUFFER_MINUTES = 15
+
+
+def transfer_buffer(origin_id: str, destination_id: str | None) -> int:
+    if destination_id is None or origin_id == destination_id:
+        return 0
+    return TRANSFER_BUFFER_MINUTES
 
 
 def route_travel_minutes(
@@ -55,7 +62,8 @@ def simulate_route(
         if is_closed(place, target_date):
             return None
         travel = matrix.get(previous, place.place_id)
-        start = cursor + timedelta(minutes=travel)
+        buffer = transfer_buffer(previous, place.place_id)
+        start = cursor + timedelta(minutes=travel + buffer)
         opening, closing = hours_for_date(place, target_date)
         opening_time = parse_time(opening)
         if opening_time is not None:
@@ -69,10 +77,20 @@ def simulate_route(
             target_date, closing_time, end.tzinfo
         ):
             return None
+        admission_time = parse_time(place.admission_deadline_time)
+        if (
+            place.admission_deadline_status == "PARSED"
+            and admission_time is not None
+            and start > datetime.combine(
+                target_date, admission_time, start.tzinfo
+            )
+        ):
+            return None
         visits.append(ScheduledVisit(place, start, end, travel))
         cursor, previous = end, place.place_id
 
     tail = matrix.get(previous, end_id) if end_id is not None else 0
+    tail += transfer_buffer(previous, end_id)
     if cursor + timedelta(minutes=tail) > available_end:
         return None
     return visits

@@ -1,7 +1,11 @@
 from datetime import date
 
 from app.algorithms.itinerary_generator import _hours_for_date, _is_closed
-from app.external.tour_api.business_hours import parse_business_hours, parse_closed_days
+from app.external.tour_api.business_hours import (
+    parse_admission_deadline,
+    parse_business_hours,
+    parse_closed_days,
+)
 from app.models.place import BusinessRuleStatus, Place, PlaceSource
 
 
@@ -40,6 +44,27 @@ def test_complex_hours_keep_text_but_have_no_rules() -> None:
     assert status == BusinessRuleStatus.COMPLEX
     assert text == "평일 09:00~18:00 (공휴일 별도)"
     assert rules == []
+
+
+def test_parses_hours_and_admission_deadline_separately() -> None:
+    raw = "매일 09:00~18:00 (입장 마감 17:00)"
+    status, text, rules = parse_business_hours(raw)
+    deadline_status, deadline_text, deadline = parse_admission_deadline(raw)
+
+    assert status == BusinessRuleStatus.PARSED
+    assert text == raw
+    assert (rules[0].open_time, rules[0].close_time) == ("09:00", "18:00")
+    assert deadline_status == BusinessRuleStatus.PARSED
+    assert deadline_text == raw
+    assert deadline == "17:00"
+
+
+def test_missing_admission_deadline_is_not_inferred() -> None:
+    status, text, deadline = parse_admission_deadline("매일 09:00~18:00")
+
+    assert status == BusinessRuleStatus.MISSING
+    assert text is None
+    assert deadline is None
 
 
 def test_parses_weekend_closure_for_algorithm() -> None:
