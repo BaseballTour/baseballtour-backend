@@ -10,7 +10,9 @@ from fastapi import (
 
 from app.api.dependencies.auth import get_current_user_id
 from app.schemas.itinerary_plan import (
+    ItineraryPlanAddItemRequest,
     ItineraryPlanRecord,
+    ItineraryPlanReorderRequest,
     ItineraryPlanResponse,
 )
 from app.schemas.place_selection import (
@@ -502,4 +504,121 @@ def delete_active_itinerary_plan(
 
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
+    )
+
+
+
+@router.patch(
+    "/{tripId}/plan/items/order",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 장소 순서 변경",
+    description=(
+        "특정 날짜의 PLACE 항목 순서를 변경하고 "
+        "이동시간과 방문시간을 다시 계산합니다."
+    ),
+)
+async def reorder_itinerary_items(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    request: ItineraryPlanReorderRequest,
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    service = ItineraryPlanService()
+
+    plan = await service.reorder_items(
+        user_id=user_id,
+        trip_id=trip_id,
+        request=request,
+    )
+
+    return SuccessResponse(
+        data=to_itinerary_plan_response(plan)
+    )
+
+
+
+@router.delete(
+    "/{tripId}/plan/items/{itemId}",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 장소 삭제",
+    description=(
+        "현재 ACTIVE 일정에서 특정 PLACE 항목을 삭제하고 "
+        "이동시간과 방문시간을 다시 계산합니다."
+    ),
+)
+async def delete_itinerary_item(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    item_id: Annotated[
+        str,
+        Path(
+            alias="itemId",
+            description="삭제할 일정 항목 ID",
+        ),
+    ],
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    service = ItineraryPlanService()
+
+    plan = await service.delete_item(
+        user_id=user_id,
+        trip_id=trip_id,
+        item_id=item_id,
+    )
+
+    return SuccessResponse(
+        data=to_itinerary_plan_response(plan)
+    )
+
+
+
+@router.post(
+    "/{tripId}/plan/items",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 장소 추가",
+    description=(
+        "특정 날짜의 ACTIVE 일정에 장소를 추가하고 "
+        "이동시간과 방문시간을 다시 계산합니다."
+    ),
+)
+async def add_itinerary_item(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    request: ItineraryPlanAddItemRequest,
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    service = ItineraryPlanService()
+
+    plan = await service.add_item(
+        user_id=user_id,
+        trip_id=trip_id,
+        request=request,
+    )
+
+    return SuccessResponse(
+        data=to_itinerary_plan_response(plan)
     )

@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from app.core.exceptions import AppException
 from app.schemas.itinerary_plan import (
+    ItineraryPlanAddItemRequest,
     ItineraryPlanRecord,
+    ItineraryPlanReorderRequest,
     ItineraryPlanStatus,
 )
 from app.schemas.trip import TripRecord, TripStatus
@@ -225,3 +228,588 @@ def test_delete_active_plan_rejects_generation_in_progress() -> None:
     )
 
     plan_repository.delete_active_plan.assert_not_called()
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+def make_editable_plan() -> ItineraryPlanRecord:
+    return ItineraryPlanRecord(
+        plan_id=PLAN_ID,
+        trip_id=TRIP_ID,
+        user_id=USER_ID,
+        status=ItineraryPlanStatus.ACTIVE,
+        algorithm_version="greedy-anchor-v0.1",
+        total_travel_minutes=0,
+        days=[
+            {
+                "date": "2026-08-15",
+                "dayType": "ARRIVAL_DAY",
+                "items": [
+                    {
+                        "itemId": "arrival",
+                        "type": "ARRIVAL_POINT",
+                        "sequence": 1,
+                        "name": "부산역",
+                        "address": "부산역",
+                        "latitude": 35.1151,
+                        "longitude": 129.0414,
+                        "scheduledStartAt": (
+                            "2026-08-15T12:00:00+09:00"
+                        ),
+                        "scheduledEndAt": (
+                            "2026-08-15T12:20:00+09:00"
+                        ),
+                        "travelMinutesFromPrevious": 0,
+                        "isRequired": True,
+                    },
+                    {
+                        "itemId": "item_a",
+                        "type": "PLACE",
+                        "sequence": 2,
+                        "placeId": "tour_a",
+                        "name": "장소 A",
+                        "address": "장소 A",
+                        "latitude": 35.12,
+                        "longitude": 129.05,
+                        "scheduledStartAt": (
+                            "2026-08-15T13:00:00+09:00"
+                        ),
+                        "scheduledEndAt": (
+                            "2026-08-15T14:00:00+09:00"
+                        ),
+                        "travelMinutesFromPrevious": 0,
+                        "isRequired": True,
+                    },
+                    {
+                        "itemId": "item_b",
+                        "type": "PLACE",
+                        "sequence": 3,
+                        "placeId": "tour_b",
+                        "name": "장소 B",
+                        "address": "장소 B",
+                        "latitude": 35.13,
+                        "longitude": 129.06,
+                        "scheduledStartAt": (
+                            "2026-08-15T15:00:00+09:00"
+                        ),
+                        "scheduledEndAt": (
+                            "2026-08-15T16:00:00+09:00"
+                        ),
+                        "travelMinutesFromPrevious": 0,
+                        "isRequired": True,
+                    },
+                ],
+            }
+        ],
+        excluded_places=[],
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+@pytest.mark.anyio
+async def test_reorder_items_updates_plan() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+
+    plan_repository.update_schedule.side_effect = (
+        lambda **kwargs: plan.model_copy(
+            update={
+                "days": kwargs["days"],
+                "total_travel_minutes": (
+                    kwargs["total_travel_minutes"]
+                ),
+                "updated_at": kwargs["updated_at"],
+            }
+        )
+    )
+
+    async def provider(
+        origin_longitude,
+        origin_latitude,
+        destination_longitude,
+        destination_latitude,
+    ) -> int:
+        return 10
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+    )
+
+    request = ItineraryPlanReorderRequest(
+        date="2026-08-15",
+        item_ids=[
+            "item_b",
+            "item_a",
+        ],
+    )
+
+    result = await service.reorder_items(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        request=request,
+    )
+
+    items = result.days[0].items
+
+    assert [
+        item.item_id
+        for item in items
+    ] == [
+        "arrival",
+        "item_b",
+        "item_a",
+    ]
+
+    assert [
+        item.sequence
+        for item in items
+    ] == [
+        1,
+        2,
+        3,
+    ]
+
+    assert items[1].travel_minutes_from_previous == 10
+    assert items[2].travel_minutes_from_previous == 10
+
+    assert result.total_travel_minutes == 20
+
+    plan_repository.update_schedule.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_reorder_items_rejects_unknown_day() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+    )
+
+    request = ItineraryPlanReorderRequest(
+        date="2026-08-16",
+        item_ids=[
+            "item_b",
+            "item_a",
+        ],
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.reorder_items(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            request=request,
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "ITINERARY_DAY_NOT_FOUND"
+    )
+
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_reorder_items_rejects_invalid_item_ids() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+    )
+
+    request = ItineraryPlanReorderRequest(
+        date="2026-08-15",
+        item_ids=[
+            "item_a",
+        ],
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.reorder_items(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            request=request,
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == (
+        "ITINERARY_EDIT_INVALID"
+    )
+
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_delete_item_removes_place_and_updates_plan() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+
+    plan_repository.update_schedule.side_effect = (
+        lambda **kwargs: plan.model_copy(
+            update={
+                "days": kwargs["days"],
+                "total_travel_minutes": (
+                    kwargs["total_travel_minutes"]
+                ),
+                "updated_at": kwargs["updated_at"],
+            }
+        )
+    )
+
+    async def provider(
+        origin_longitude,
+        origin_latitude,
+        destination_longitude,
+        destination_latitude,
+    ) -> int:
+        return 10
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+    )
+
+    result = await service.delete_item(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        item_id="item_a",
+    )
+
+    items = result.days[0].items
+
+    assert [
+        item.item_id
+        for item in items
+    ] == [
+        "arrival",
+        "item_b",
+    ]
+
+    assert [
+        item.sequence
+        for item in items
+    ] == [
+        1,
+        2,
+    ]
+
+    assert items[1].travel_minutes_from_previous == 10
+    assert result.total_travel_minutes == 10
+
+    plan_repository.update_schedule.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_delete_item_rejects_anchor() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.delete_item(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            item_id="arrival",
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == (
+        "ITINERARY_EDIT_INVALID"
+    )
+
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_delete_item_rejects_unknown_item() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.delete_item(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            item_id="unknown_item",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "ITINERARY_ITEM_NOT_FOUND"
+    )
+
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_add_item_adds_place_and_updates_plan() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+
+    plan_repository.update_schedule.side_effect = (
+        lambda **kwargs: plan.model_copy(
+            update={
+                "days": kwargs["days"],
+                "total_travel_minutes": (
+                    kwargs["total_travel_minutes"]
+                ),
+                "updated_at": kwargs["updated_at"],
+            }
+        )
+    )
+
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock(
+        return_value=SimpleNamespace(
+            place_id="tour_123456",
+            name="새 장소",
+            address="부산 새 장소",
+            latitude=35.14,
+            longitude=129.07,
+            default_stay_minutes=60,
+        )
+    )
+
+    async def provider(
+        origin_longitude,
+        origin_latitude,
+        destination_longitude,
+        destination_latitude,
+    ) -> int:
+        return 10
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+        place_adapter=place_adapter,
+    )
+
+    request = ItineraryPlanAddItemRequest(
+        date="2026-08-15",
+        place_id="tour_123456",
+        is_required=True,
+    )
+
+    result = await service.add_item(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        request=request,
+    )
+
+    items = result.days[0].items
+
+    assert [
+        item.place_id
+        for item in items
+        if item.place_id is not None
+    ] == [
+        "tour_a",
+        "tour_b",
+        "tour_123456",
+    ]
+
+    added = next(
+        item
+        for item in items
+        if item.place_id == "tour_123456"
+    )
+
+    assert added.item_id.startswith("item_")
+    assert added.sequence == 4
+    assert added.is_required is True
+    assert added.travel_minutes_from_previous == 10
+
+    assert result.total_travel_minutes == 30
+
+    place_adapter.get_place_detail.assert_awaited_once_with(
+        "123456"
+    )
+
+    plan_repository.update_schedule.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_add_item_rejects_invalid_place_id() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock()
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+        place_adapter=place_adapter,
+    )
+
+    request = ItineraryPlanAddItemRequest(
+        date="2026-08-15",
+        place_id="place_123456",
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.add_item(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            request=request,
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == (
+        "ITINERARY_PLACE_ID_INVALID"
+    )
+
+    place_adapter.get_place_detail.assert_not_awaited()
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_add_item_rejects_duplicate_place() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock()
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+        place_adapter=place_adapter,
+    )
+
+    request = ItineraryPlanAddItemRequest(
+        date="2026-08-15",
+        place_id="tour_a",
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.add_item(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            request=request,
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == (
+        "ITINERARY_PLACE_ALREADY_EXISTS"
+    )
+
+    place_adapter.get_place_detail.assert_not_awaited()
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_add_item_rejects_missing_place() -> None:
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = make_trip()
+
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = (
+        make_editable_plan()
+    )
+
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock(
+        side_effect=ValueError(
+            "place not found"
+        )
+    )
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=None,
+        place_adapter=place_adapter,
+    )
+
+    request = ItineraryPlanAddItemRequest(
+        date="2026-08-15",
+        place_id="tour_999999",
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.add_item(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            request=request,
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "ITINERARY_PLACE_NOT_FOUND"
+    )
+
+    plan_repository.update_schedule.assert_not_called()

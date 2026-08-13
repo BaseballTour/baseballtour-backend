@@ -861,6 +861,220 @@
         }
       }
     },
+    "/api/v1/trips/{tripId}/plan/items/order": {
+      "patch": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 장소 순서 변경",
+        "description": "특정 날짜의 PLACE 항목 순서를 변경하고 이동시간과 방문시간을 다시 계산합니다.",
+        "operationId": "reorder_itinerary_items_api_v1_trips__tripId__plan_items_order_patch",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryPlanReorderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/plan/items/{itemId}": {
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 장소 삭제",
+        "description": "현재 ACTIVE 일정에서 특정 PLACE 항목을 삭제하고 이동시간과 방문시간을 다시 계산합니다.",
+        "operationId": "delete_itinerary_item_api_v1_trips__tripId__plan_items__itemId__delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "삭제할 일정 항목 ID",
+              "title": "Itemid"
+            },
+            "description": "삭제할 일정 항목 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/plan/items": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 장소 추가",
+        "description": "특정 날짜의 ACTIVE 일정에 장소를 추가하고 이동시간과 방문시간을 다시 계산합니다.",
+        "operationId": "add_itinerary_item_api_v1_trips__tripId__plan_items_post",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryPlanAddItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/bootstrap": {
       "post": {
         "tags": [
@@ -1525,6 +1739,33 @@
         ],
         "title": "ItineraryItemType"
       },
+      "ItineraryPlanAddItemRequest": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "placeId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Placeid"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "placeId"
+        ],
+        "title": "ItineraryPlanAddItemRequest",
+        "description": "특정 날짜에 장소를 추가하는 요청."
+      },
       "ItineraryPlanDay": {
         "properties": {
           "date": {
@@ -1646,6 +1887,31 @@
         ],
         "title": "ItineraryPlanItem",
         "description": "저장 후 개별 수정할 수 있는 일정 항목."
+      },
+      "ItineraryPlanReorderRequest": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "itemIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Itemids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "itemIds"
+        ],
+        "title": "ItineraryPlanReorderRequest",
+        "description": "특정 날짜의 PLACE 항목 순서 변경 요청."
       },
       "ItineraryPlanResponse": {
         "properties": {

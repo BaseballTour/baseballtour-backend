@@ -5,6 +5,7 @@ from google.cloud.firestore_v1.transaction import transactional
 
 from app.core.firebase import get_firestore_client
 from app.schemas.itinerary_plan import (
+    ItineraryPlanDay,
     ItineraryPlanDocument,
     ItineraryPlanRecord,
 )
@@ -151,3 +152,37 @@ class ItineraryPlanRepository:
             )
 
         commit(transaction)
+
+
+
+    def update_schedule(
+        self,
+        *,
+        plan_id: str,
+        days: list[ItineraryPlanDay],
+        total_travel_minutes: int,
+        updated_at: datetime,
+    ) -> ItineraryPlanRecord | None:
+        """편집된 일정과 총 이동시간을 저장합니다."""
+
+        reference = self._collection.document(
+            plan_id
+        )
+
+        reference.update(
+            {
+                "days": [
+                    day.model_dump(
+                        by_alias=True,
+                        exclude_none=False,
+                    )
+                    for day in days
+                ],
+                "totalTravelMinutes": total_travel_minutes,
+                "updatedAt": updated_at,
+            }
+        )
+
+        return self.get_by_id(
+            plan_id
+        )

@@ -1,6 +1,7 @@
+from datetime import date
 from enum import Enum
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, field_validator
 
 from app.models.itinerary import (
     ExcludedPlace,
@@ -63,3 +64,36 @@ class ItineraryPlanResponse(ApiModel):
     excluded_places: list[ExcludedPlace] = Field(
         default_factory=list
     )
+
+
+class ItineraryPlanReorderRequest(ApiModel):
+    """특정 날짜의 PLACE 항목 순서 변경 요청."""
+
+    date: date
+    item_ids: list[str] = Field(min_length=1)
+
+    @field_validator("item_ids")
+    @classmethod
+    def validate_item_ids(
+        cls,
+        value: list[str],
+    ) -> list[str]:
+        if any(not item_id.strip() for item_id in value):
+            raise ValueError(
+                "itemIds에는 빈 itemId를 사용할 수 없습니다."
+            )
+
+        if len(value) != len(set(value)):
+            raise ValueError(
+                "itemIds에는 중복된 itemId를 사용할 수 없습니다."
+            )
+
+        return value
+
+
+class ItineraryPlanAddItemRequest(ApiModel):
+    """특정 날짜에 장소를 추가하는 요청."""
+
+    date: date
+    place_id: str = Field(min_length=1)
+    is_required: bool = True

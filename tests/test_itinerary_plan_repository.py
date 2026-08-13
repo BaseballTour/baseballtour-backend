@@ -328,3 +328,48 @@ def test_delete_active_plan_removes_plan_and_resets_trip() -> None:
     assert trip["status"] == "PLANNING"
     assert trip["activePlanId"] is None
     assert trip["updatedAt"] == NOW
+
+
+def test_update_schedule_updates_editable_fields() -> None:
+    client = FakeClient()
+
+    original = make_plan()
+
+    client.collection(
+        "itineraryPlans"
+    ).documents["plan_001"] = (
+        original.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+    )
+
+    repository = ItineraryPlanRepository(
+        client=client
+    )
+
+    result = repository.update_schedule(
+        plan_id="plan_001",
+        days=original.days,
+        total_travel_minutes=123,
+        updated_at=NOW,
+    )
+
+    assert result is not None
+    assert result.plan_id == "plan_001"
+    assert result.total_travel_minutes == 123
+    assert result.updated_at == NOW
+
+    stored = client.collection(
+        "itineraryPlans"
+    ).documents["plan_001"]
+
+    assert stored["totalTravelMinutes"] == 123
+    assert stored["updatedAt"] == NOW
+    assert stored["days"] == [
+        day.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+        for day in original.days
+    ]
