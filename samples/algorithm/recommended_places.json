@@ -1,0 +1,62 @@
+[
+  {
+    "placeId": "tour_auto_cafe",
+    "name": "추천 해변 카페",
+    "category": "CAFE",
+    "address": "부산광역시 수영구 광안해변로 100",
+    "latitude": 35.154,
+    "longitude": 129.12,
+    "businessHoursStatus": "PARSED",
+    "businessHoursText": "금요일 14:00~18:00",
+    "businessHoursRules": [
+      {
+        "weekdays": ["FRIDAY"],
+        "openTime": "14:00",
+        "closeTime": "18:00"
+      }
+    ],
+    "defaultStayMinutes": 45,
+    "source": "TOUR_API",
+    "sourceContentId": "auto_cafe"
+  },
+  {
+    "placeId": "tour_auto_restaurant",
+    "name": "추천 부산 맛집",
+    "category": "RESTAURANT",
+    "address": "부산광역시 동래구 사직로 20",
+    "latitude": 35.192,
+    "longitude": 129.063,
+    "businessHoursStatus": "PARSED",
+    "businessHoursText": "토요일 11:00~15:00",
+    "businessHoursRules": [
+      {
+        "weekdays": ["SATURDAY"],
+        "openTime": "11:00",
+        "closeTime": "15:00"
+      }
+    ],
+    "defaultStayMinutes": 60,
+    "source": "TOUR_API",
+    "sourceContentId": "auto_restaurant"
+  },
+  {
+    "placeId": "tour_auto_museum",
+    "name": "추천 부산 문화시설",
+    "category": "CULTURAL_FACILITY",
+    "address": "부산광역시 동구 중앙대로 180",
+    "latitude": 35.116,
+    "longitude": 129.04,
+    "businessHoursStatus": "PARSED",
+    "businessHoursText": "일요일 10:00~16:00",
+    "businessHoursRules": [
+      {
+        "weekdays": ["SUNDAY"],
+        "openTime": "10:00",
+        "closeTime": "16:00"
+      }
+    ],
+    "defaultStayMinutes": 90,
+    "source": "TOUR_API",
+    "sourceContentId": "auto_museum"
+  }
+]

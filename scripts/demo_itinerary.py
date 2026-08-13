@@ -24,6 +24,11 @@ async def main() -> None:
         action="store_true",
         help="ODsay 실제 대중교통 시간 사용",
     )
+    parser.add_argument(
+        "--auto-fill",
+        action="store_true",
+        help="추천 후보를 전달해 빈 시간 자동 채우기 시연",
+    )
     args = parser.parse_args()
     trip = TripInput.model_validate_json(
         (ROOT / "samples/algorithm/trip_input.json").read_text(
@@ -38,10 +43,20 @@ async def main() -> None:
             )
         )
     ]
+    recommended_places = []
+    if args.auto_fill:
+        recommended_places = [
+            Place.model_validate(item)
+            for item in json.loads(
+                (ROOT / "samples/algorithm/recommended_places.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+        ]
     if args.live:
         matrix = await build_itinerary_travel_time_matrix(
             trip,
-            places,
+            [*places, *recommended_places],
             get_cached_transit_minutes,
         )
     else:
@@ -51,11 +66,17 @@ async def main() -> None:
             "accommodation",
             "stadium",
             *(place.place_id for place in places),
+            *(place.place_id for place in recommended_places),
         ]
         matrix = TravelTimeMatrix(
             minutes={pair: 15 for pair in permutations(node_ids, 2)}
         )
-    result = generate_itinerary(trip, places, matrix)
+    result = generate_itinerary(
+        trip,
+        places,
+        matrix,
+        recommended_places=recommended_places,
+    )
     print(result.model_dump_json(by_alias=True, indent=2))
 
 

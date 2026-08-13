@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from itertools import permutations
+from pathlib import Path
 
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import TravelTimeMatrix
@@ -9,11 +10,13 @@ from app.models.itinerary import (
     ItineraryItemAddedBy,
     SelectedPlaceInput,
     TripInput,
+    ItineraryResult,
 )
 from app.models.place import Place, PlaceCategory, PlaceSource
 
 
 UTC = timezone.utc
+SAMPLE_ROOT = Path(__file__).resolve().parents[1] / "samples" / "algorithm"
 
 
 def place(place_id: str, **updates) -> Place:
@@ -135,3 +138,20 @@ def test_auto_fill_can_be_disabled() -> None:
     )
 
     assert result.auto_fill_applied is False
+
+
+def test_meeting_auto_fill_result_sample_is_valid() -> None:
+    result = ItineraryResult.model_validate_json(
+        (SAMPLE_ROOT / "auto_filled_itinerary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert result.algorithm_version == "auto-fill-v0.4"
+    assert result.auto_fill_applied is True
+    assert result.auto_recommended_place_count == 3
+    assert sum(
+        item.added_by == ItineraryItemAddedBy.ALGORITHM
+        for day in result.days
+        for item in day.items
+    ) == 3
