@@ -142,8 +142,10 @@ PUT    /users/me/favorite-collections/{collectionId}/items/{placeId}
 DELETE /users/me/favorite-collections/{collectionId}/items/{placeId}
 ```
 
-구단·구장·지역은 자동 분류가 아니라 기본 컬렉션 제안에 사용한다. 한 장소를 여러
-컬렉션에 저장할 수 있으며 컬렉션 Item은 `placeId`만 참조한다.
+구단별 컬렉션은 제공하지 않고 개인 찜 컬렉션만 사용한다. 일정에 컬렉션을
+불러올 때는 선택한 경기·경기장의 지역과 일치하는 TourAPI 장소만 여행 후보로
+자동 포함한다. 컬렉션 Item은 `placeId`만 참조한다. Kakao 검색 결과는 독립
+장소로 저장하지 않고 TourAPI 장소의 부족한 기본 정보 보충에만 사용한다.
 
 ### 일정 이동 구간 계약
 

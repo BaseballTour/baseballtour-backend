@@ -7,6 +7,13 @@
 - iOS: KakaoMapsSDK로 지도를 표시하고 백엔드가 반환한 위도·경도에 마커를
   그린다. REST API 키로 장소 보충을 직접 수행하지 않는다.
 
+## 확정된 사용 제한
+
+- 코스, 자동 추천, 개인 찜 컬렉션은 TourAPI 장소로만 구성한다.
+- Kakao Local 검색 결과를 독립적인 내부 `Place`로 만들거나 찜·일정 후보로
+  제공하지 않는다.
+- Kakao API는 TourAPI 장소의 불충분한 정보를 보충하는 보조 수단으로만 사용한다.
+
 ## 현재 적용 범위
 
 `GET /api/v1/tour/places/{placeId}` 상세 조회에서 다음 중 하나가 부족하면
@@ -41,8 +48,8 @@
 - 이미지, 소개, 운영시간, 휴무일은 Kakao Local 응답의 보장 필드가 아니므로
   보충하지 않고 TourAPI 값 또는 `null`을 유지한다.
 
-카카오 단독 장소를 도입할 때는 `placeId=kakao_{id}`, `source=KAKAO`,
-`sourceContentId={id}` 규칙을 사용한다. 이 기능은 현재 범위에 포함하지 않는다.
+카카오 단독 장소 도입은 현재 제품 정책에서 제외한다. 따라서 보충된 장소도
+TourAPI의 `placeId`, `source=TOUR_API`, `sourceContentId`를 유지한다.
 
 ## 환경변수
 
