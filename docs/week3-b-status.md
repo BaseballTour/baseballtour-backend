@@ -15,6 +15,11 @@
 - ODsay 실패 시 도보 예상시간 fallback
 - 기존 가짜 Matrix는 `TRANSIT/FAKE`로 직렬화
 - 전체 회귀 테스트 157개 통과
+- Kakao Local API 상세 장소 정보 보충
+- 이름 정규화와 200m 거리 기반 동일 장소 판정
+- TourAPI 신분류 `lclsSystm1/2/3`을 내부 `lclsSystem1/2/3`으로 변환
+- 신분류 우선 카페·음식점·숙박 카테고리 매핑
+- 기존 `areaCode`, `sigunguCode`, `cat1/2/3` 내부 Place 필드 제거
 
 ## 기존 구현으로 완료 또는 대부분 완료
 
