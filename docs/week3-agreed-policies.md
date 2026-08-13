@@ -10,9 +10,39 @@
 
 ## 선택 장소
 
-- 요청 형식은 `selectedPlaces[{placeId, isRequired}]`를 사용한다.
+- 찜은 장기 저장 상태이고 `selectedPlaces`는 이번 여행에 사용할 후보다.
+- 구단 컬렉션에서 불러온 장소와 주변 추천 목록에서 직접 선택한 장소는
+  모두 같은 여행 후보로 처리한다.
+- 요청 형식은 `selectedPlaces[{placeId, isRequired, selectionSource}]`를 사용한다.
 - 배열 순서는 우선순위를 의미하지 않는다.
 - 필수 장소를 먼저 고려하고 같은 조건에서는 이동시간이 짧은 장소를 우선한다.
+- `selectionSource`는 `FAVORITE_COLLECTION`, `NEARBY_RECOMMENDATION`,
+  `AUTO_RECOMMENDED` 중 하나다.
+- `isRequired`는 일정 포함 여부이고 일정 생성 후의 `isFixed`와 별개다.
+
+## 구단별 찜 컬렉션
+
+- UI는 한화 원정, 롯데 원정처럼 구단 중심으로 컬렉션을 보여준다.
+- 주소만으로 장소를 특정 구단에 강제 귀속하지 않는다. 백엔드는 경기장 지역에
+  맞는 컬렉션을 제안하고 사용자가 최종 선택한다.
+- 같은 장소를 여러 컬렉션에 저장할 수 있다.
+- 컬렉션 Item에는 장소 전체를 복제하지 않고 공용 `places/{placeId}`의 ID만 저장한다.
+- 일정 생성 시 경기의 홈 구단·구장과 연결된 컬렉션을 불러올지 사용자에게 묻고,
+  사용자가 최종 선택한 장소만 `selectedPlaces`에 포함한다.
+- 컬렉션에서 불러온 뒤 왼쪽 슬라이드로 필수 방문을 설정하면
+  `isRequired=true`로 전달한다.
+
+권장 Firestore 경로:
+
+```text
+users/{userId}/favoriteCollections/{collectionId}
+users/{userId}/favoriteCollections/{collectionId}/items/{placeId}
+places/{placeId}
+```
+
+필수 방문 장소가 시간·Anchor 제약 때문에 불가능하면 강제로 넣거나 전체 요청을
+실패시키지 않는다. 가능한 일정과 함께 `hasRequiredPlaceConflict=true` 및
+`excludedPlaces[].isRequired=true`를 반환한다.
 
 ## 이동시간
 
@@ -40,6 +70,9 @@
 - 개별 Item 시간 수정, 장소 삭제·교체, 드래그 앤 드롭 순서 변경, 수정 후 전체 재생성을 지원하는 방향으로 구현한다.
 - 알고리즘 결과에는 `itemId`가 없고 Firestore 저장 시 백엔드가 생성한다.
 - 저장된 일정의 수정 API는 `itemId`를 사용한다.
+- `isFixed`는 일정 생성 후 날짜·순서를 유지하는 상태다. 필수 방문과 다르며,
+  재생성 시 Anchor, 고정 Item, 필수 장소, 일반 장소, 자동 추천 장소 순으로 보호한다.
+- 초기 고정 정책은 날짜·순서를 고정하고 정확한 시각은 앞뒤 이동에 맞춰 재계산한다.
 
 ## Anchor 정책
 

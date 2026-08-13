@@ -34,6 +34,54 @@ POST /api/v1/trips/{tripId}/itineraries
 
 알고리즘 입력·응답 JSON 예시는 `samples/algorithm`을 사용한다. 오류 응답은 공통 `success=false`, `error.code`, `error.message`, `error.details` 구조를 따른다.
 
+### 여행 후보 장소 계약
+
+```json
+{
+  "selectedPlaces": [
+    {
+      "placeId": "tour_123456",
+      "isRequired": true,
+      "selectionSource": "FAVORITE_COLLECTION"
+    }
+  ]
+}
+```
+
+- `FAVORITE_COLLECTION`: 구단별 찜 컬렉션에서 불러와 사용자가 선택
+- `NEARBY_RECOMMENDATION`: 도착지·경기장 주변 목록에서 사용자가 선택
+- `AUTO_RECOMMENDED`: 빈 시간이나 비효율적인 동선을 백엔드가 보완
+- `isRequired=true`는 일정에 반드시 포함하도록 최우선으로 시도한다.
+- 필수 장소가 불가능하면 결과의 `hasRequiredPlaceConflict`와
+  `excludedPlaces[].isRequired`로 충돌을 전달한다.
+- `isFixed`는 저장 일정 Item의 재생성 정책이며 여행 후보 입력과 분리한다.
+
+저장된 일정 Item에는 다음 필드를 둔다.
+
+```json
+{
+  "itemId": "item_001",
+  "isFixed": true
+}
+```
+
+초기 정책에서 `isFixed=true`는 날짜와 순서를 보존하되 정확한 시작·종료시각은
+앞뒤 이동시간에 맞춰 다시 계산한다.
+
+### 찜 컬렉션 연결 예정
+
+```text
+GET    /users/me/favorite-collections
+POST   /users/me/favorite-collections
+PATCH  /users/me/favorite-collections/{collectionId}
+DELETE /users/me/favorite-collections/{collectionId}
+PUT    /users/me/favorite-collections/{collectionId}/items/{placeId}
+DELETE /users/me/favorite-collections/{collectionId}/items/{placeId}
+```
+
+구단·구장·지역은 자동 분류가 아니라 기본 컬렉션 제안에 사용한다. 한 장소를 여러
+컬렉션에 저장할 수 있으며 컬렉션 Item은 `placeId`만 참조한다.
+
 ### 일정 이동 구간 계약
 
 각 일정 Item은 이전 Item에서 이동한 시간과 수단·출처를 포함한다.

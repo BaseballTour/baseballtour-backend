@@ -85,6 +85,19 @@
 - TourAPI 원문에서 입장·매표 마감시각을 안전하게 하나로 해석할 수 있을 때만
   일정 제약으로 사용한다. 정보가 없거나 불확실하면 추정하지 않고 프론트에서
   `시간 확인 필요`로 안내한다.
+
+## 구단별 찜 컬렉션 연계 계약
+
+- 구단 컬렉션과 주변 추천에서 사용자가 고른 장소는 모두 `selectedPlaces`로
+  알고리즘에 전달한다.
+- `selectionSource`로 `FAVORITE_COLLECTION`, `NEARBY_RECOMMENDATION`,
+  `AUTO_RECOMMENDED`를 구분한다.
+- `isRequired=true`는 필수 방문이며 날짜·순서는 알고리즘이 정한다.
+- 저장 일정의 `isFixed=true`는 재생성 시 현재 날짜·순서를 유지한다.
+- 제외 결과에 `isRequired`, `selectionSource`를 포함하고 결과 전체에
+  `hasRequiredPlaceConflict`를 제공한다.
+- 자동 추천 후보 조회·빈 시간 삽입과 고정 Item 기반 재최적화는 입력 후보를
+  공급하고 Plan을 저장하는 Application Service가 연결된 뒤 구현한다.
 4. 당일치기·1박 2일·2박 3일 및 날짜 중첩 테스트
 5. 일정 편집 후 시간 충돌 검증 함수
 6. 실제 TourAPI·경기·ODsay 데이터 통합 테스트

@@ -88,6 +88,8 @@ def generate_itinerary(
         excluded.append(
             ExcludedPlace(
                 place_id=place.place_id,
+                is_required=selected[place.place_id].is_required,
+                selection_source=selected[place.place_id].selection_source,
                 reason_code=reason_code,
                 message=messages[reason_code],
             )
@@ -99,6 +101,8 @@ def generate_itinerary(
             excluded.append(
                 ExcludedPlace(
                     place_id=selection.place_id,
+                    is_required=selection.is_required,
+                    selection_source=selection.selection_source,
                     reason_code=ExcludedReasonCode.INVALID_PLACE,
                     message="장소 정보를 찾을 수 없습니다.",
                 )
@@ -110,6 +114,8 @@ def generate_itinerary(
             excluded.append(
                 ExcludedPlace(
                     place_id=selection.place_id,
+                    is_required=selection.is_required,
+                    selection_source=selection.selection_source,
                     reason_code=ExcludedReasonCode.DUPLICATE_PLACE,
                     message="같은 장소가 중복 선택되어 한 번만 배정했습니다.",
                 )
@@ -219,6 +225,7 @@ def _schedule_day(
                 travel_mode=matrix.get_mode(previous_id, place.place_id),
                 travel_time_source=matrix.get_source(previous_id, place.place_id),
                 is_required=selections[place.place_id].is_required,
+                selection_source=selections[place.place_id].selection_source,
             )
         )
         cursor, previous_id = visit.end, place.place_id

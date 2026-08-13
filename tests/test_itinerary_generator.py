@@ -94,3 +94,28 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
         item.transfer_buffer_minutes == 15
         for item in travel_items
     )
+    place_item = next(
+        item
+        for day in result.days
+        for item in day.items
+        if item.item_type == ItineraryItemType.PLACE
+    )
+    assert place_item.selection_source == "FAVORITE_COLLECTION"
+
+
+def test_required_missing_place_returns_conflict_metadata() -> None:
+    trip = TripInput.model_validate_json(
+        (SAMPLE_ROOT / "trip_input.json").read_text(encoding="utf-8")
+    )
+    matrix = TravelTimeMatrix(
+        minutes={pair: 15 for pair in permutations(
+            ["arrival", "departure", "accommodation", "stadium"], 2
+        )}
+    )
+
+    result = generate_itinerary(trip, [], matrix)
+    excluded = result.excluded_places[0]
+
+    assert result.has_required_place_conflict is True
+    assert excluded.is_required is True
+    assert excluded.selection_source == "FAVORITE_COLLECTION"
