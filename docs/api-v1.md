@@ -41,20 +41,38 @@ POST /api/v1/trips/{tripId}/itineraries
   "selectedPlaces": [
     {
       "placeId": "tour_123456",
-      "isRequired": true,
-      "selectionSource": "FAVORITE_COLLECTION"
+      "isRequired": true
     }
   ]
 }
 ```
 
-- `FAVORITE_COLLECTION`: 구단별 찜 컬렉션에서 불러와 사용자가 선택
-- `NEARBY_RECOMMENDATION`: 도착지·경기장 주변 목록에서 사용자가 선택
-- `AUTO_RECOMMENDED`: 빈 시간이나 비효율적인 동선을 백엔드가 보완
+- 찜 컬렉션에서 불러오기, 주변 추천에서 선택, 홈·지도에서 직접 추가한 장소는
+  모두 동일한 사용자 선택 후보다.
+- 유입 경로는 알고리즘 요청과 응답에 포함하지 않는다. 분석이 필요하면 별도
+  이벤트 로그로 기록한다.
 - `isRequired=true`는 일정에 반드시 포함하도록 최우선으로 시도한다.
 - 필수 장소가 불가능하면 결과의 `hasRequiredPlaceConflict`와
   `excludedPlaces[].isRequired`로 충돌을 전달한다.
 - `isFixed`는 저장 일정 Item의 재생성 정책이며 여행 후보 입력과 분리한다.
+
+권장 후보 저장 경로:
+
+```text
+trips/{tripId}/placeCandidates/{placeId}
+```
+
+```json
+{
+  "placeId": "tour_123456",
+  "isRequired": false,
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+홈·지도에서 바로 추가하거나 컬렉션에서 불러와도 같은 문서를 생성한다. 문서 ID를
+`placeId`로 사용하여 중복을 방지한다.
 
 장소를 배정하지 못하면 다음 제외 사유를 사용한다.
 

@@ -13,12 +13,12 @@
 - 찜은 장기 저장 상태이고 `selectedPlaces`는 이번 여행에 사용할 후보다.
 - 구단 컬렉션에서 불러온 장소와 주변 추천 목록에서 직접 선택한 장소는
   모두 같은 여행 후보로 처리한다.
-- 요청 형식은 `selectedPlaces[{placeId, isRequired, selectionSource}]`를 사용한다.
+- 요청 형식은 `selectedPlaces[{placeId, isRequired}]`를 사용한다.
 - 배열 순서는 우선순위를 의미하지 않는다.
 - 필수 장소를 먼저 고려하고 같은 조건에서는 이동시간이 짧은 장소를 우선한다.
-- `selectionSource`는 `FAVORITE_COLLECTION`, `NEARBY_RECOMMENDATION`,
-  `AUTO_RECOMMENDED` 중 하나다.
 - `isRequired`는 일정 포함 여부이고 일정 생성 후의 `isFixed`와 별개다.
+- 컬렉션 불러오기, 초기 주변 추천 선택, 홈·지도 직접 추가는 모두 사용자가
+  선택한 같은 여행 후보다. 유입 화면은 알고리즘 우선순위에 사용하지 않는다.
 
 ## 구단별 찜 컬렉션
 
@@ -43,6 +43,10 @@ places/{placeId}
 필수 방문 장소가 시간·Anchor 제약 때문에 불가능하면 강제로 넣거나 전체 요청을
 실패시키지 않는다. 가능한 일정과 함께 `hasRequiredPlaceConflict=true` 및
 `excludedPlaces[].isRequired=true`를 반환한다.
+
+홈이나 지도에서 장소를 추가할 때는 컬렉션 저장을 거치지 않고 특정 여행의 후보에
+바로 추가할 수 있다. 찜 컬렉션은 장기 보관 및 후보 불러오기 수단일 뿐 필수 관문이
+아니다.
 
 ## 이동시간
 

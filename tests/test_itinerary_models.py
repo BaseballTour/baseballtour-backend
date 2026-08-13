@@ -10,7 +10,6 @@ from app.models.itinerary import (
     DayType,
     ItineraryItemType,
     ItineraryResult,
-    PlaceSelectionSource,
     TripInput,
 )
 
@@ -39,9 +38,6 @@ def test_trip_input_sample_is_valid() -> None:
     assert len(trip.selected_places) == 1
     assert trip.selected_places[0].place_id == "tour_123456"
     assert trip.selected_places[0].is_required is True
-    assert trip.selected_places[0].selection_source == (
-        PlaceSelectionSource.FAVORITE_COLLECTION
-    )
 
 
 def test_itinerary_result_sample_is_valid() -> None:

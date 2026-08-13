@@ -44,12 +44,6 @@ class TravelTimeSource(str, Enum):
     FAKE = "FAKE"
 
 
-class PlaceSelectionSource(str, Enum):
-    FAVORITE_COLLECTION = "FAVORITE_COLLECTION"
-    NEARBY_RECOMMENDATION = "NEARBY_RECOMMENDATION"
-    AUTO_RECOMMENDED = "AUTO_RECOMMENDED"
-
-
 class ExcludedReasonCode(str, Enum):
     INSUFFICIENT_TIME = "INSUFFICIENT_TIME"
     OUTSIDE_BUSINESS_HOURS = "OUTSIDE_BUSINESS_HOURS"
@@ -78,9 +72,6 @@ class GameAnchor(GeoPoint):
 class SelectedPlaceInput(AlgorithmModel):
     place_id: str
     is_required: bool = False
-    selection_source: PlaceSelectionSource = (
-        PlaceSelectionSource.NEARBY_RECOMMENDATION
-    )
 
 
 class TripInput(AlgorithmModel):
@@ -114,7 +105,6 @@ class TripInput(AlgorithmModel):
 class ExcludedPlace(AlgorithmModel):
     place_id: str
     is_required: bool = False
-    selection_source: PlaceSelectionSource | None = None
     reason_code: ExcludedReasonCode
     message: str
 
@@ -141,7 +131,6 @@ class ItineraryItem(AlgorithmModel):
     travel_mode: TravelMode | None = None
     travel_time_source: TravelTimeSource | None = None
     is_required: bool = False
-    selection_source: PlaceSelectionSource | None = None
 
     @model_validator(mode="after")
     def validate_schedule(self) -> "ItineraryItem":

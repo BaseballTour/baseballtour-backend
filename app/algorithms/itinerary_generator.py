@@ -95,7 +95,6 @@ def generate_itinerary(
             ExcludedPlace(
                 place_id=place.place_id,
                 is_required=selected[place.place_id].is_required,
-                selection_source=selected[place.place_id].selection_source,
                 reason_code=reason_code,
                 message=messages[reason_code],
             )
@@ -108,7 +107,6 @@ def generate_itinerary(
                 ExcludedPlace(
                     place_id=selection.place_id,
                     is_required=selection.is_required,
-                    selection_source=selection.selection_source,
                     reason_code=ExcludedReasonCode.INVALID_PLACE,
                     message="장소 정보를 찾을 수 없습니다.",
                 )
@@ -121,7 +119,6 @@ def generate_itinerary(
                 ExcludedPlace(
                     place_id=selection.place_id,
                     is_required=selection.is_required,
-                    selection_source=selection.selection_source,
                     reason_code=ExcludedReasonCode.DUPLICATE_PLACE,
                     message="같은 장소가 중복 선택되어 한 번만 배정했습니다.",
                 )
@@ -223,7 +220,6 @@ def _schedule_day(
                 travel_mode=matrix.get_mode(previous_id, place.place_id),
                 travel_time_source=matrix.get_source(previous_id, place.place_id),
                 is_required=selections[place.place_id].is_required,
-                selection_source=selections[place.place_id].selection_source,
             )
         )
         cursor, previous_id = visit.end, place.place_id
@@ -314,12 +310,6 @@ def _assign_places_to_dates(
         value += timedelta(days=1)
     routes = {value: [] for value in dates}
     failures: dict[str, ExcludedReasonCode] = {}
-    source_priority = {
-        "FAVORITE_COLLECTION": 0,
-        "NEARBY_RECOMMENDATION": 0,
-        "AUTO_RECOMMENDED": 1,
-    }
-
     def order_key(place: Place) -> tuple:
         selection = selections[place.place_id]
         closing_values = []
@@ -331,7 +321,6 @@ def _assign_places_to_dates(
         earliest_close = min(closing_values) if closing_values else 24 * 60
         return (
             not selection.is_required,
-            source_priority[selection.selection_source.value],
             earliest_close,
             place.place_id,
         )

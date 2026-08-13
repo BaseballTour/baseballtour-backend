@@ -90,11 +90,10 @@
 
 - 구단 컬렉션과 주변 추천에서 사용자가 고른 장소는 모두 `selectedPlaces`로
   알고리즘에 전달한다.
-- `selectionSource`로 `FAVORITE_COLLECTION`, `NEARBY_RECOMMENDATION`,
-  `AUTO_RECOMMENDED`를 구분한다.
+- 장소 유입 경로는 구분하지 않고 모두 같은 사용자 선택 후보로 처리한다.
 - `isRequired=true`는 필수 방문이며 날짜·순서는 알고리즘이 정한다.
 - 저장 일정의 `isFixed=true`는 재생성 시 현재 날짜·순서를 유지한다.
-- 제외 결과에 `isRequired`, `selectionSource`를 포함하고 결과 전체에
+- 제외 결과에 `isRequired`를 포함하고 결과 전체에
   `hasRequiredPlaceConflict`를 제공한다.
 - 자동 추천 후보 조회·빈 시간 삽입과 고정 Item 기반 재최적화는 입력 후보를
   공급하고 Plan을 저장하는 Application Service가 연결된 뒤 구현한다.

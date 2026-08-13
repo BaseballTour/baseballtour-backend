@@ -33,8 +33,7 @@
   "selectedPlaces": [
     {
       "placeId": "tour_123456",
-      "isRequired": true,
-      "selectionSource": "FAVORITE_COLLECTION"
+      "isRequired": true
     }
   ]
 }
