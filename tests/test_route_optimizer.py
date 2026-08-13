@@ -10,12 +10,14 @@ from app.models.place import Place, PlaceSource
 UTC = timezone.utc
 
 
-def make_place(place_id: str) -> Place:
-    return Place(
+def make_place(place_id: str, **updates) -> Place:
+    values = dict(
         place_id=place_id, name=place_id, latitude=37.5, longitude=127.0,
         source=PlaceSource.TOUR_API, source_content_id=place_id,
         default_stay_minutes=30,
     )
+    values.update(updates)
+    return Place(**values)
 
 
 def complete_matrix(ids: list[str], default: int = 40) -> TravelTimeMatrix:
@@ -110,3 +112,44 @@ def test_too_short_business_window_has_specific_exclusion_reason() -> None:
         "business_hours_rules": rules,
     })
     assert _exclusion_reason(place, [date(2026, 8, 15)]) == ExcludedReasonCode.OUTSIDE_BUSINESS_HOURS
+
+
+def test_admission_deadline_rejects_late_arrival() -> None:
+    place = make_place(
+        "late_entry",
+        admission_deadline_status="PARSED",
+        admission_deadline_time="09:10",
+        admission_deadline_text="입장 마감 09:10",
+    )
+    matrix = complete_matrix(["start", "end", place.place_id], default=1)
+    args = optimizer_args(matrix)
+    args["available_start"] = datetime(2026, 8, 15, 9, tzinfo=UTC)
+
+    route, rejected = greedy_insertion(
+        [place],
+        is_required=lambda _: False,
+        candidate_priority=lambda _: 0,
+        **args,
+    )
+
+    assert route == []
+    assert rejected == [place]
+
+
+def test_transfer_buffer_is_applied_to_each_movement() -> None:
+    place = make_place("buffered")
+    matrix = complete_matrix(["start", "end", place.place_id], default=10)
+    args = optimizer_args(matrix)
+    args["available_start"] = datetime(2026, 8, 15, 9, tzinfo=UTC)
+    args["available_end"] = datetime(2026, 8, 15, 10, 19, tzinfo=UTC)
+
+    route, rejected = greedy_insertion(
+        [place],
+        is_required=lambda _: False,
+        candidate_priority=lambda _: 0,
+        **args,
+    )
+
+    # 10분 이동 + 15분 여유 + 30분 체류 + 10분 이동 + 15분 여유 = 80분
+    assert route == []
+    assert rejected == [place]

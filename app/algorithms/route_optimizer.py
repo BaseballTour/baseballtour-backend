@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Callable
 
 from app.algorithms.travel_time import TravelTimeMatrix
+from app.models.itinerary import ExcludedReasonCode
 from app.models.place import Place
 
 
@@ -14,9 +15,31 @@ class ScheduledVisit:
     travel_minutes: int
 
 
+@dataclass(frozen=True)
+class RouteFailure:
+    reason_code: ExcludedReasonCode
+    place_id: str | None = None
+
+
+@dataclass(frozen=True)
+class RouteSimulationResult:
+    feasible: bool
+    visits: list[ScheduledVisit]
+    failure: RouteFailure | None = None
+    closing_slack_minutes: int | None = None
+    anchor_slack_minutes: int | None = None
+
+
 HoursResolver = Callable[[Place, date], tuple[str | None, str | None]]
 ClosedChecker = Callable[[Place, date], bool]
 TimeParser = Callable[[str | None], object | None]
+TRANSFER_BUFFER_MINUTES = 15
+
+
+def transfer_buffer(origin_id: str, destination_id: str | None) -> int:
+    if destination_id is None or origin_id == destination_id:
+        return 0
+    return TRANSFER_BUFFER_MINUTES
 
 
 def route_travel_minutes(
@@ -35,7 +58,7 @@ def route_travel_minutes(
     return total
 
 
-def simulate_route(
+def simulate_route_detailed(
     route: list[Place],
     *,
     target_date: date,
@@ -47,15 +70,20 @@ def simulate_route(
     hours_for_date: HoursResolver,
     is_closed: ClosedChecker,
     parse_time: TimeParser,
-) -> list[ScheduledVisit] | None:
+) -> RouteSimulationResult:
     cursor = available_start
     previous = start_id
     visits: list[ScheduledVisit] = []
     for place in route:
         if is_closed(place, target_date):
-            return None
+            return RouteSimulationResult(
+                False,
+                [],
+                RouteFailure(ExcludedReasonCode.CLOSED_DAY, place.place_id),
+            )
         travel = matrix.get(previous, place.place_id)
-        start = cursor + timedelta(minutes=travel)
+        buffer = transfer_buffer(previous, place.place_id)
+        start = cursor + timedelta(minutes=travel + buffer)
         opening, closing = hours_for_date(place, target_date)
         opening_time = parse_time(opening)
         if opening_time is not None:
@@ -68,14 +96,70 @@ def simulate_route(
         if closing_time is not None and end > datetime.combine(
             target_date, closing_time, end.tzinfo
         ):
-            return None
+            return RouteSimulationResult(
+                False,
+                [],
+                RouteFailure(
+                    ExcludedReasonCode.OUTSIDE_BUSINESS_HOURS,
+                    place.place_id,
+                ),
+            )
+        admission_time = parse_time(place.admission_deadline_time)
+        if (
+            place.admission_deadline_status == "PARSED"
+            and admission_time is not None
+            and start > datetime.combine(
+                target_date, admission_time, start.tzinfo
+            )
+        ):
+            return RouteSimulationResult(
+                False,
+                [],
+                RouteFailure(
+                    ExcludedReasonCode.ADMISSION_DEADLINE,
+                    place.place_id,
+                ),
+            )
         visits.append(ScheduledVisit(place, start, end, travel))
         cursor, previous = end, place.place_id
 
     tail = matrix.get(previous, end_id) if end_id is not None else 0
+    tail += transfer_buffer(previous, end_id)
     if cursor + timedelta(minutes=tail) > available_end:
-        return None
-    return visits
+        reason = (
+            ExcludedReasonCode.ANCHOR_CONFLICT
+            if end_id in {"stadium", "departure"}
+            else ExcludedReasonCode.INSUFFICIENT_TIME
+        )
+        return RouteSimulationResult(False, [], RouteFailure(reason))
+
+    closing_slacks = []
+    for visit in visits:
+        _, closing = hours_for_date(visit.place, target_date)
+        closing_time = parse_time(closing)
+        if closing_time is not None:
+            closing_at = datetime.combine(
+                target_date, closing_time, visit.end.tzinfo
+            )
+            closing_slacks.append(
+                int((closing_at - visit.end).total_seconds() // 60)
+            )
+    anchor_slack = int(
+        (available_end - cursor - timedelta(minutes=tail)).total_seconds()
+        // 60
+    )
+    return RouteSimulationResult(
+        True,
+        visits,
+        closing_slack_minutes=min(closing_slacks) if closing_slacks else None,
+        anchor_slack_minutes=anchor_slack,
+    )
+
+
+def simulate_route(*args, **kwargs) -> list[ScheduledVisit] | None:
+    """기존 호출부 호환용: 상세 결과에서 방문 목록만 반환한다."""
+    result = simulate_route_detailed(*args, **kwargs)
+    return result.visits if result.feasible else None
 
 
 def greedy_insertion(

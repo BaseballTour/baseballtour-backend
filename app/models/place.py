@@ -15,6 +15,23 @@ class PlaceCategory(str, Enum):
     OTHER = "OTHER"
 
 
+CATEGORY_DEFAULT_STAY_MINUTES = {
+    PlaceCategory.CAFE: 45,
+    PlaceCategory.RESTAURANT: 60,
+    PlaceCategory.TOURIST_SPOT: 90,
+    PlaceCategory.CULTURAL_FACILITY: 90,
+    PlaceCategory.SHOPPING: 60,
+    PlaceCategory.ACTIVITY: 120,
+    PlaceCategory.FESTIVAL: 120,
+    PlaceCategory.OTHER: 60,
+    PlaceCategory.ACCOMMODATION: 30,
+}
+
+
+def default_stay_minutes_for(category: PlaceCategory) -> int:
+    return CATEGORY_DEFAULT_STAY_MINUTES[category]
+
+
 class PlaceSource(str, Enum):
     TOUR_API = "TOUR_API"
     KAKAO = "KAKAO"
@@ -128,6 +145,16 @@ class Place(BaseModel):
     business_hours_status: BusinessRuleStatus = BusinessRuleStatus.MISSING
     business_hours_text: str | None = None
     business_hours_rules: list[BusinessHoursRule] = Field(default_factory=list)
+
+    admission_deadline_time: str | None = Field(
+        default=None,
+        description="안전하게 해석된 최종 입장 가능 시각 HH:MM",
+    )
+    admission_deadline_status: BusinessRuleStatus = BusinessRuleStatus.MISSING
+    admission_deadline_text: str | None = Field(
+        default=None,
+        description="입장 마감 관련 TourAPI 원문",
+    )
 
     closed_days_text: str | None = Field(
         default=None,

@@ -1,7 +1,12 @@
 import logging
 from typing import Any
 
-from app.models.place import Place, PlaceCategory, PlaceSource
+from app.models.place import (
+    Place,
+    PlaceCategory,
+    PlaceSource,
+    default_stay_minutes_for,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,14 +101,15 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
     lcls_system2 = empty_string_to_none(item.get("lclsSystm2"))
     lcls_system3 = empty_string_to_none(item.get("lclsSystm3"))
 
+    category = get_place_category(
+        content_type_id,
+        lcls_system1,
+        lcls_system2,
+    )
     return Place(
         place_id=f"tour_{content_id}",
         name=name,
-        category=get_place_category(
-            content_type_id,
-            lcls_system1,
-            lcls_system2,
-        ),
+        category=category,
         latitude=latitude,
         longitude=longitude,
         address=combine_address(
@@ -125,11 +131,21 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         business_hours_status=item.get("businessHoursStatus", "MISSING"),
         business_hours_text=empty_string_to_none(item.get("businessHoursText")),
         business_hours_rules=item.get("businessHoursRules") or [],
+        admission_deadline_time=empty_string_to_none(
+            item.get("admissionDeadlineTime")
+        ),
+        admission_deadline_status=item.get(
+            "admissionDeadlineStatus", "MISSING"
+        ),
+        admission_deadline_text=empty_string_to_none(
+            item.get("admissionDeadlineText")
+        ),
         closed_days_text=empty_string_to_none(
             item.get("closedDaysText")
         ),
         closed_days_status=item.get("closedDaysStatus", "MISSING"),
         closed_weekdays=item.get("closedWeekdays") or [],
+        default_stay_minutes=default_stay_minutes_for(category),
         distance_meters=(
             float(item["dist"])
             if empty_string_to_none(item.get("dist"))

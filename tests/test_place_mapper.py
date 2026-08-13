@@ -9,7 +9,12 @@ from app.external.tour_api.mapper import (
 )
 from app.external.tour_api.client import extract_items
 from app.external.tour_api.mapper import tour_api_item_to_place
-from app.models.place import Place, PlaceCategory, PlaceSource
+from app.models.place import (
+    Place,
+    PlaceCategory,
+    PlaceSource,
+    default_stay_minutes_for,
+)
 
 
 SAMPLE_PATH = (
@@ -36,11 +41,28 @@ def test_location_sample_maps_to_internal_place() -> None:
     assert place.address == "서울특별시 송파구 올림픽로 25"
     assert place.distance_meters == 350.5
     assert place.model_dump()["placeId"] == "tour_123456"
-    assert place.model_dump()["defaultStayMinutes"] == 60
+    assert place.model_dump()["defaultStayMinutes"] == 45
     assert place.model_dump()["lclsSystem3"] == "FD050100"
     assert "areaCode" not in place.model_dump()
     assert "sigunguCode" not in place.model_dump()
     assert "categoryCode1" not in place.model_dump()
+
+
+@pytest.mark.parametrize(
+    ("category", "minutes"),
+    [
+        (PlaceCategory.CAFE, 45),
+        (PlaceCategory.RESTAURANT, 60),
+        (PlaceCategory.TOURIST_SPOT, 90),
+        (PlaceCategory.CULTURAL_FACILITY, 90),
+        (PlaceCategory.SHOPPING, 60),
+        (PlaceCategory.ACTIVITY, 120),
+        (PlaceCategory.FESTIVAL, 120),
+        (PlaceCategory.OTHER, 60),
+    ],
+)
+def test_category_default_stay_minutes(category, minutes) -> None:
+    assert default_stay_minutes_for(category) == minutes
 
 
 def test_extract_items_accepts_empty_and_single_item_responses() -> None:

@@ -21,6 +21,10 @@ class ItineraryPlanItem(ItineraryItem):
     """저장 후 개별 수정할 수 있는 일정 항목."""
 
     item_id: str = Field(min_length=1)
+    is_fixed: bool = Field(
+        default=False,
+        description="재생성 시 현재 날짜와 순서를 유지할지 여부",
+    )
 
 
 class ItineraryPlanDay(ItineraryDay):

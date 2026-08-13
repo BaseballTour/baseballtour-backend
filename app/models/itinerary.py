@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 def to_camel(value: str) -> str:
@@ -44,6 +44,11 @@ class TravelTimeSource(str, Enum):
     FAKE = "FAKE"
 
 
+class ItineraryItemAddedBy(str, Enum):
+    USER = "USER"
+    ALGORITHM = "ALGORITHM"
+
+
 class ExcludedReasonCode(str, Enum):
     INSUFFICIENT_TIME = "INSUFFICIENT_TIME"
     OUTSIDE_BUSINESS_HOURS = "OUTSIDE_BUSINESS_HOURS"
@@ -51,6 +56,8 @@ class ExcludedReasonCode(str, Enum):
     ROUTE_INEFFICIENT = "ROUTE_INEFFICIENT"
     DUPLICATE_PLACE = "DUPLICATE_PLACE"
     INVALID_PLACE = "INVALID_PLACE"
+    ADMISSION_DEADLINE = "ADMISSION_DEADLINE"
+    ANCHOR_CONFLICT = "ANCHOR_CONFLICT"
 
 
 class GeoPoint(AlgorithmModel):
@@ -83,6 +90,7 @@ class TripInput(AlgorithmModel):
     selected_places: list[SelectedPlaceInput] = Field(
         default_factory=list
     )
+    auto_fill_recommendations: bool = True
 
     @model_validator(mode="after")
     def validate_period_and_timezone(self) -> "TripInput":
@@ -102,6 +110,7 @@ class TripInput(AlgorithmModel):
 
 class ExcludedPlace(AlgorithmModel):
     place_id: str
+    is_required: bool = False
     reason_code: ExcludedReasonCode
     message: str
 
@@ -120,9 +129,15 @@ class ItineraryItem(AlgorithmModel):
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     travel_minutes_from_previous: int = Field(default=0, ge=0)
+    transfer_buffer_minutes: int = Field(
+        default=0,
+        ge=0,
+        description="이동시간과 별도로 확보한 환승·대기 여유시간",
+    )
     travel_mode: TravelMode | None = None
     travel_time_source: TravelTimeSource | None = None
     is_required: bool = False
+    added_by: ItineraryItemAddedBy | None = None
 
     @model_validator(mode="after")
     def validate_schedule(self) -> "ItineraryItem":
@@ -148,6 +163,13 @@ class ItineraryResult(AlgorithmModel):
     total_travel_minutes: int = Field(default=0, ge=0)
     days: list[ItineraryDay] = Field(default_factory=list)
     excluded_places: list[ExcludedPlace] = Field(default_factory=list)
+    auto_fill_applied: bool = False
+    auto_recommended_place_count: int = Field(default=0, ge=0)
+
+    @computed_field
+    @property
+    def has_required_place_conflict(self) -> bool:
+        return any(place.is_required for place in self.excluded_places)
 
     @model_validator(mode="after")
     def validate_total_travel_minutes(self) -> "ItineraryResult":
