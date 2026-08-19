@@ -17,6 +17,7 @@ class UserDocument(ApiModel):
     onboarding_completed: bool
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None = None
 
 
 class UserBootstrapRequest(ApiModel):
