@@ -21,6 +21,25 @@ TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
 }
 
 
+def get_tour_api_content_type_id(
+    category: PlaceCategory | None,
+) -> str | None:
+    """내부 장소 카테고리를 TourAPI contentTypeId로 변환합니다."""
+
+    if category is None:
+        return None
+
+    for (
+        content_type_id,
+        mapped_category,
+    ) in TOUR_API_CATEGORY_MAP.items():
+        if mapped_category == category:
+            return content_type_id
+
+    return None
+
+
+
 def get_place_category(
     content_type_id: str | None,
     lcls_system1: str | None = None,

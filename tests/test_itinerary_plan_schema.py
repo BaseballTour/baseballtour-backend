@@ -7,7 +7,9 @@ from pydantic import ValidationError
 
 from app.models.itinerary import ItineraryResult
 from app.schemas.itinerary_plan import (
+    ItineraryPlanAddItemRequest,
     ItineraryPlanDocument,
+    ItineraryPlanReorderRequest,
     ItineraryPlanStatus,
 )
 
@@ -94,3 +96,70 @@ def test_plan_document_rejects_generation_status() -> None:
 
     with pytest.raises(ValidationError):
         ItineraryPlanDocument.model_validate(data)
+
+
+def test_reorder_request_uses_camel_case() -> None:
+    request = ItineraryPlanReorderRequest(
+        date="2026-08-15",
+        item_ids=[
+            "item_1_2",
+            "item_1_1",
+        ],
+    )
+
+    dumped = request.model_dump(
+        by_alias=True
+    )
+
+    assert dumped["date"].isoformat() == "2026-08-15"
+    assert dumped["itemIds"] == [
+        "item_1_2",
+        "item_1_1",
+    ]
+
+
+def test_reorder_request_rejects_duplicate_item_ids() -> None:
+    with pytest.raises(ValidationError):
+        ItineraryPlanReorderRequest(
+            date="2026-08-15",
+            item_ids=[
+                "item_1_1",
+                "item_1_1",
+            ],
+        )
+
+
+def test_reorder_request_rejects_empty_item_id() -> None:
+    with pytest.raises(ValidationError):
+        ItineraryPlanReorderRequest(
+            date="2026-08-15",
+            item_ids=[
+                "item_1_1",
+                "",
+            ],
+        )
+
+
+def test_add_item_request_uses_camel_case() -> None:
+    request = ItineraryPlanAddItemRequest(
+        date="2026-08-15",
+        place_id="tour_123456",
+        is_required=True,
+    )
+
+    dumped = request.model_dump(
+        by_alias=True
+    )
+
+    assert dumped["date"].isoformat() == "2026-08-15"
+    assert dumped["placeId"] == "tour_123456"
+    assert dumped["isRequired"] is True
+
+
+def test_add_item_request_defaults_to_required() -> None:
+    request = ItineraryPlanAddItemRequest(
+        date="2026-08-15",
+        place_id="tour_123456",
+    )
+
+    assert request.is_required is True

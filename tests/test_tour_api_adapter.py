@@ -99,3 +99,72 @@ async def test_detail_keeps_unknown_hours_and_image_as_none(monkeypatch) -> None
     assert place.business_hours_status == "MISSING"
     assert place.closed_days_status == "MISSING"
     assert place.thumbnail_url is None
+
+
+@pytest.mark.anyio
+async def test_nearby_page_uses_category_pagination_and_cache(
+    monkeypatch,
+) -> None:
+    from app.models.place import PlaceCategory
+
+    calls = []
+
+    async def nearby(**kwargs):
+        calls.append(kwargs)
+
+        return {
+            "response": {
+                "body": {
+                    "pageNo": 2,
+                    "numOfRows": 20,
+                    "totalCount": 45,
+                    "items": {
+                        "item": [
+                            {
+                                "contentid": "123",
+                                "contenttypeid": "39",
+                                "title": "테스트 식당",
+                                "mapx": "127.0",
+                                "mapy": "37.5",
+                                "addr1": "서울특별시",
+                            }
+                        ]
+                    },
+                }
+            }
+        }
+
+    monkeypatch.setattr(
+        adapter_module,
+        "get_nearby_places",
+        nearby,
+    )
+
+    adapter = TourApiAdapter(cache_ttl_seconds=60)
+
+    first = await adapter.get_nearby_place_page(
+        longitude=127.0,
+        latitude=37.5,
+        radius=2000,
+        page_no=2,
+        num_of_rows=20,
+        category=PlaceCategory.RESTAURANT,
+    )
+
+    second = await adapter.get_nearby_place_page(
+        longitude=127.0,
+        latitude=37.5,
+        radius=2000,
+        page_no=2,
+        num_of_rows=20,
+        category=PlaceCategory.RESTAURANT,
+    )
+
+    assert len(first.places) == 1
+    assert first.next_page_token == "3"
+    assert second == first
+
+    assert len(calls) == 1
+    assert calls[0]["page_no"] == 2
+    assert calls[0]["num_of_rows"] == 20
+    assert calls[0]["content_type_id"] == "39"

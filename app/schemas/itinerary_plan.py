@@ -1,6 +1,7 @@
+from datetime import date
 from enum import Enum
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, field_validator
 
 from app.models.itinerary import (
     ExcludedPlace,
@@ -53,3 +54,50 @@ class ItineraryPlanRecord(ItineraryPlanDocument):
     """Firestore 문서 ID가 포함된 일정 계획."""
 
     plan_id: str = Field(min_length=1)
+
+
+class ItineraryPlanResponse(ApiModel):
+    """일정 생성 및 상세 조회 API 응답."""
+
+    plan_id: str = Field(min_length=1)
+    trip_id: str = Field(min_length=1)
+    status: ItineraryPlanStatus
+    algorithm_version: str = Field(min_length=1)
+    total_travel_minutes: int = Field(ge=0)
+    days: list[ItineraryPlanDay] = Field(default_factory=list)
+    excluded_places: list[ExcludedPlace] = Field(
+        default_factory=list
+    )
+
+
+class ItineraryPlanReorderRequest(ApiModel):
+    """특정 날짜의 PLACE 항목 순서 변경 요청."""
+
+    date: date
+    item_ids: list[str] = Field(min_length=1)
+
+    @field_validator("item_ids")
+    @classmethod
+    def validate_item_ids(
+        cls,
+        value: list[str],
+    ) -> list[str]:
+        if any(not item_id.strip() for item_id in value):
+            raise ValueError(
+                "itemIds에는 빈 itemId를 사용할 수 없습니다."
+            )
+
+        if len(value) != len(set(value)):
+            raise ValueError(
+                "itemIds에는 중복된 itemId를 사용할 수 없습니다."
+            )
+
+        return value
+
+
+class ItineraryPlanAddItemRequest(ApiModel):
+    """특정 날짜에 장소를 추가하는 요청."""
+
+    date: date
+    place_id: str = Field(min_length=1)
+    is_required: bool = True

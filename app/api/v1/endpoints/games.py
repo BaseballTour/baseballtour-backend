@@ -1,6 +1,7 @@
 from datetime import date
+from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 
 from app.schemas.game import (
     GameResponse,
@@ -69,13 +70,19 @@ def get_games(
 
 
 @router.get(
-    "/{game_id}",
+    "/{gameId}",
     response_model=SuccessResponse[GameResponse],
     summary="KBO 경기 상세 조회",
     description="경기 ID로 KBO 경기 상세정보를 조회합니다.",
 )
 def get_game(
-    game_id: str,
+    game_id: Annotated[
+        str,
+        Path(
+            alias="gameId",
+            description="경기 ID",
+        ),
+    ],
 ) -> SuccessResponse[GameResponse]:
     service = GameService()
     game = service.get_game(game_id)

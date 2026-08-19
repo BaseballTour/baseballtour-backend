@@ -32,3 +32,6 @@ htmlcov/
 
 # macOS
 .DS_Store
+
+# Firebase Admin SDK service account keys
+*firebase-adminsdk*.json

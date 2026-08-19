@@ -33,6 +33,7 @@ def make_user_response(
         user_id="firebase-user-123",
         email="fan@example.com",
         nickname="테스트사용자",
+        birth_year=2002,
         profile_image_url=None,
         support_team=SupportTeamResponse(
             team_id=team_id,
@@ -75,6 +76,7 @@ def test_bootstrap_user_returns_created_profile(
             "/api/v1/users/me/bootstrap",
             json={
                 "nickname": "테스트사용자",
+                "birthYear": 2002,
                 "supportTeamId": "doosan",
             },
         )
@@ -86,6 +88,7 @@ def test_bootstrap_user_returns_created_profile(
     assert body["success"] is True
     assert body["data"]["userId"] == "firebase-user-123"
     assert body["data"]["nickname"] == "테스트사용자"
+    assert body["data"]["birthYear"] == 2002
     assert body["data"]["supportTeam"]["teamId"] == "doosan"
     assert body["data"]["onboardingCompleted"] is True
 
@@ -96,6 +99,7 @@ def test_bootstrap_user_returns_created_profile(
     assert arguments["authenticated_user"].uid == "firebase-user-123"
     assert arguments["authenticated_user"].email == "fan@example.com"
     assert arguments["request"].nickname == "테스트사용자"
+    assert arguments["request"].birth_year == 2002
     assert arguments["request"].support_team_id == "doosan"
 
 
@@ -159,3 +163,18 @@ def test_update_my_support_team_returns_updated_profile(
         user_id="firebase-user-123",
         support_team_id="lotte",
     )
+
+
+def test_bootstrap_user_requires_birth_year(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.post(
+        "/api/v1/users/me/bootstrap",
+        json={
+            "nickname": "테스트사용자",
+            "supportTeamId": "doosan",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"

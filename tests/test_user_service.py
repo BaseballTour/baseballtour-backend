@@ -43,6 +43,7 @@ def make_user(
     return UserDocument(
         email="fan@example.com",
         nickname="테스트사용자",
+        birth_year=2002,
         support_team_id=support_team_id,
         profile_image_url=None,
         onboarding_completed=True,
@@ -80,6 +81,7 @@ def test_bootstrap_user_creates_profile(
         ),
         request=UserBootstrapRequest(
             nickname="테스트사용자",
+            birth_year=2002,
             support_team_id="doosan",
         ),
     )
@@ -87,10 +89,14 @@ def test_bootstrap_user_creates_profile(
     assert result.user_id == "firebase-user-123"
     assert result.email == "fan@example.com"
     assert result.nickname == "테스트사용자"
+    assert result.birth_year == 2002
     assert result.support_team.team_id == "doosan"
     assert result.onboarding_completed is True
 
     user_repository.create.assert_called_once()
+
+    created_user = user_repository.create.call_args.args[1]
+    assert created_user.birth_year == 2002
 
 
 def test_bootstrap_user_rejects_existing_user(
@@ -112,6 +118,7 @@ def test_bootstrap_user_rejects_existing_user(
             ),
             request=UserBootstrapRequest(
                 nickname="테스트사용자",
+                birth_year=2002,
                 support_team_id="doosan",
             ),
         )
@@ -144,6 +151,7 @@ def test_bootstrap_user_rejects_unknown_team(
             ),
             request=UserBootstrapRequest(
                 nickname="테스트사용자",
+                birth_year=2002,
                 support_team_id="unknown",
             ),
         )

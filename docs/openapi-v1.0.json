@@ -1,0 +1,3506 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "KBO Travel API",
+    "description": "KBO 원정 직관 여행 서비스 백엔드 API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "서버 상태 확인",
+        "description": "백엔드 애플리케이션의 실행 상태를 확인합니다.",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_HealthData_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games": {
+      "get": {
+        "tags": [
+          "Games"
+        ],
+        "summary": "KBO 경기 목록 조회",
+        "description": "날짜, 구단, 구장, 경기 상태 조건으로 KBO 경기 목록을 조회합니다.",
+        "operationId": "get_games_api_v1_games_get",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "한국시간 기준 경기 날짜",
+              "title": "Date"
+            },
+            "description": "한국시간 기준 경기 날짜"
+          },
+          {
+            "name": "teamId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "홈팀 또는 원정팀 구단 ID",
+              "title": "Teamid"
+            },
+            "description": "홈팀 또는 원정팀 구단 ID"
+          },
+          {
+            "name": "stadiumId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "구장 ID",
+              "title": "Stadiumid"
+            },
+            "description": "구장 ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GameStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "경기 진행 상태",
+              "title": "Status"
+            },
+            "description": "경기 진행 상태"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_GameResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{gameId}": {
+      "get": {
+        "tags": [
+          "Games"
+        ],
+        "summary": "KBO 경기 상세 조회",
+        "description": "경기 ID로 KBO 경기 상세정보를 조회합니다.",
+        "operationId": "get_game_api_v1_games__gameId__get",
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "경기 ID",
+              "title": "Gameid"
+            },
+            "description": "경기 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_GameResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams": {
+      "get": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "KBO 구단 목록 조회",
+        "description": "Firestore에 저장된 KBO 구단 목록을 조회합니다.",
+        "operationId": "get_teams_api_v1_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_TeamResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 생성",
+        "description": "경기와 여행 기본정보를 저장하고 로그인 사용자의 여행을 생성합니다.",
+        "operationId": "create_trip_api_v1_trips_post",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TripSummaryResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "내 여행 목록 조회",
+        "description": "로그인 사용자가 소유한 여행 목록을 조회합니다.",
+        "operationId": "get_my_trips_api_v1_trips_get",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_TripSummaryResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 상세 조회",
+        "description": "로그인 사용자가 소유한 여행의 기본정보를 조회합니다.",
+        "operationId": "get_trip_api_v1_trips__tripId__get",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TripDetailResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 기본정보 수정",
+        "description": "로그인 사용자가 소유한 여행의 경기, 시간, 장소, 숙소 정보를 수정합니다.",
+        "operationId": "update_trip_api_v1_trips__tripId__patch",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TripDetailResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 삭제",
+        "description": "로그인 사용자가 소유한 여행을 삭제합니다.",
+        "operationId": "delete_trip_api_v1_trips__tripId__delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/place-selections": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 장소 선택 추가",
+        "description": "로그인 사용자가 소유한 여행에 방문할 장소를 추가합니다.",
+        "operationId": "create_place_selection_api_v1_trips__tripId__place_selections_post",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSelectionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PlaceSelectionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 장소 선택 목록 조회",
+        "description": "로그인 사용자가 소유한 여행에 선택된 장소 목록을 조회합니다.",
+        "operationId": "get_place_selections_api_v1_trips__tripId__place_selections_get",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_PlaceSelectionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/place-selections/{placeId}": {
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 장소 선택 삭제",
+        "description": "로그인 사용자가 소유한 여행에서 선택한 장소를 삭제합니다.",
+        "operationId": "delete_place_selection_api_v1_trips__tripId__place_selections__placeId__delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "placeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "선택한 장소 ID",
+              "title": "Placeid"
+            },
+            "description": "선택한 장소 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/itineraries": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 생성 및 저장",
+        "description": "저장된 여행·경기·구장·선택 장소 정보를 조합하여 여행 일정을 생성하고 ACTIVE Plan으로 저장합니다.",
+        "operationId": "create_itinerary_api_v1_trips__tripId__itineraries_post",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/plan": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 상세 조회",
+        "description": "로그인 사용자가 소유한 여행의 현재 ACTIVE 일정 Plan을 조회합니다.",
+        "operationId": "get_active_itinerary_plan_api_v1_trips__tripId__plan_get",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 삭제",
+        "description": "로그인 사용자가 소유한 여행의 현재 ACTIVE 일정 Plan을 삭제합니다.",
+        "operationId": "delete_active_itinerary_plan_api_v1_trips__tripId__plan_delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/plan/items/order": {
+      "patch": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 장소 순서 변경",
+        "description": "특정 날짜의 PLACE 항목 순서를 변경하고 이동시간과 방문시간을 다시 계산합니다.",
+        "operationId": "reorder_itinerary_items_api_v1_trips__tripId__plan_items_order_patch",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryPlanReorderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/plan/items/{itemId}": {
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 장소 삭제",
+        "description": "현재 ACTIVE 일정에서 특정 PLACE 항목을 삭제하고 이동시간과 방문시간을 다시 계산합니다.",
+        "operationId": "delete_itinerary_item_api_v1_trips__tripId__plan_items__itemId__delete",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "삭제할 일정 항목 ID",
+              "title": "Itemid"
+            },
+            "description": "삭제할 일정 항목 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/plan/items": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "여행 일정 장소 추가",
+        "description": "특정 날짜의 ACTIVE 일정에 장소를 추가하고 이동시간과 방문시간을 다시 계산합니다.",
+        "operationId": "add_itinerary_item_api_v1_trips__tripId__plan_items_post",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "여행 ID",
+              "title": "Tripid"
+            },
+            "description": "여행 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryPlanAddItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/bootstrap": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "최초 사용자 프로필 생성",
+        "description": "Firebase 인증 사용자의 최초 프로필을 생성합니다.",
+        "operationId": "bootstrap_user_api_v1_users_me_bootstrap_post",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserBootstrapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "내 사용자 정보 조회",
+        "description": "인증된 사용자의 프로필을 조회합니다.",
+        "operationId": "get_my_profile_api_v1_users_me_get",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/support-team": {
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "응원팀 설정 및 변경",
+        "description": "인증된 사용자의 응원팀을 설정하거나 변경합니다.",
+        "operationId": "update_my_support_team_api_v1_users_me_support_team_patch",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportTeamUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tour/nearby": {
+      "get": {
+        "tags": [
+          "TourAPI"
+        ],
+        "summary": "Read Nearby Places",
+        "operationId": "read_nearby_places_api_v1_tour_nearby_get",
+        "parameters": [
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 180,
+              "minimum": -180,
+              "description": "경도, TourAPI mapX",
+              "examples": [
+                127.0719
+              ],
+              "default": 127.0719,
+              "title": "Longitude"
+            },
+            "description": "경도, TourAPI mapX"
+          },
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 90,
+              "minimum": -90,
+              "description": "위도, TourAPI mapY",
+              "examples": [
+                37.5122
+              ],
+              "default": 37.5122,
+              "title": "Latitude"
+            },
+            "description": "위도, TourAPI mapY"
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20000,
+              "minimum": 1,
+              "description": "검색 반경, 미터 단위",
+              "examples": [
+                2000
+              ],
+              "default": 2000,
+              "title": "Radius"
+            },
+            "description": "검색 반경, 미터 단위"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "TOURIST_SPOT",
+                    "RESTAURANT",
+                    "ACCOMMODATION",
+                    "CULTURAL_FACILITY",
+                    "SHOPPING",
+                    "FESTIVAL",
+                    "ACTIVITY"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "내부 장소 카테고리 필터",
+              "examples": [
+                "RESTAURANT"
+              ],
+              "title": "Category"
+            },
+            "description": "내부 장소 카테고리 필터"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "페이지당 장소 수",
+              "examples": [
+                20
+              ],
+              "default": 20,
+              "title": "Pagesize"
+            },
+            "description": "페이지당 장소 수"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "이전 응답의 nextPageToken",
+              "examples": [
+                "2"
+              ],
+              "title": "Pagetoken"
+            },
+            "description": "이전 응답의 nextPageToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_Place_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tour/places/{placeId}": {
+      "get": {
+        "tags": [
+          "TourAPI"
+        ],
+        "summary": "Read Place Detail",
+        "operationId": "read_place_detail_api_v1_tour_places__placeId__get",
+        "parameters": [
+          {
+            "name": "placeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "내부 장소 ID, 예: tour_1603175",
+              "examples": [
+                "tour_1603175"
+              ],
+              "title": "Placeid"
+            },
+            "description": "내부 장소 ID, 예: tour_1603175"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Place_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "Root"
+        ],
+        "summary": "API 기본 정보",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_RootData_"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccommodationInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "숙소 이름"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Address",
+            "description": "숙소 주소"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude",
+            "description": "숙소 위도"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude",
+            "description": "숙소 경도"
+          },
+          "checkInAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checkinat"
+          },
+          "checkOutAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checkoutat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "address",
+          "latitude",
+          "longitude",
+          "checkInAt",
+          "checkOutAt"
+        ],
+        "title": "AccommodationInfo",
+        "description": "여행 숙소 정보."
+      },
+      "BusinessHoursRule": {
+        "properties": {
+          "weekdays": {
+            "items": {
+              "$ref": "#/components/schemas/Weekday"
+            },
+            "type": "array",
+            "title": "Weekdays"
+          },
+          "openTime": {
+            "type": "string",
+            "title": "Opentime"
+          },
+          "closeTime": {
+            "type": "string",
+            "title": "Closetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekdays",
+          "openTime",
+          "closeTime"
+        ],
+        "title": "BusinessHoursRule"
+      },
+      "BusinessRuleStatus": {
+        "type": "string",
+        "enum": [
+          "PARSED",
+          "MISSING",
+          "UNPARSABLE",
+          "COMPLEX"
+        ],
+        "title": "BusinessRuleStatus"
+      },
+      "DayType": {
+        "type": "string",
+        "enum": [
+          "ARRIVAL_DAY",
+          "GAME_DAY",
+          "NON_GAME_DAY",
+          "DEPARTURE_DAY"
+        ],
+        "title": "DayType"
+      },
+      "ExcludedPlace": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
+          },
+          "reasonCode": {
+            "$ref": "#/components/schemas/ExcludedReasonCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "reasonCode",
+          "message"
+        ],
+        "title": "ExcludedPlace"
+      },
+      "ExcludedReasonCode": {
+        "type": "string",
+        "enum": [
+          "INSUFFICIENT_TIME",
+          "OUTSIDE_BUSINESS_HOURS",
+          "CLOSED_DAY",
+          "ROUTE_INEFFICIENT",
+          "DUPLICATE_PLACE",
+          "INVALID_PLACE",
+          "ADMISSION_DEADLINE",
+          "ANCHOR_CONFLICT"
+        ],
+        "title": "ExcludedReasonCode"
+      },
+      "GameResponse": {
+        "properties": {
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "gameStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Gamestartat"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GameStatus"
+          },
+          "homeTeam": {
+            "$ref": "#/components/schemas/GameTeamSummaryResponse"
+          },
+          "awayTeam": {
+            "$ref": "#/components/schemas/GameTeamSummaryResponse"
+          },
+          "stadium": {
+            "$ref": "#/components/schemas/StadiumSummaryResponse"
+          },
+          "homeScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homescore"
+          },
+          "awayScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awayscore"
+          },
+          "resultText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resulttext"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gameId",
+          "gameStartAt",
+          "status",
+          "homeTeam",
+          "awayTeam",
+          "stadium"
+        ],
+        "title": "GameResponse",
+        "description": "경기 목록 및 상세 조회 응답.",
+        "examples": [
+          {
+            "awayTeam": {
+              "logoUrl": "https://example.com/teams/doosan.png",
+              "name": "두산 베어스",
+              "teamId": "doosan"
+            },
+            "gameId": "dev_game_20260815_lotte_doosan",
+            "gameStartAt": "2026-08-15T18:00:00+09:00",
+            "homeTeam": {
+              "logoUrl": "https://example.com/teams/lotte.png",
+              "name": "롯데 자이언츠",
+              "teamId": "lotte"
+            },
+            "stadium": {
+              "address": "부산광역시 동래구 사직로 45",
+              "latitude": 35.194,
+              "longitude": 129.0615,
+              "name": "사직야구장",
+              "stadiumId": "sajik"
+            },
+            "status": "SCHEDULED"
+          }
+        ]
+      },
+      "GameStatus": {
+        "type": "string",
+        "enum": [
+          "SCHEDULED",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "CANCELLED",
+          "POSTPONED"
+        ],
+        "title": "GameStatus",
+        "description": "경기 진행 상태."
+      },
+      "GameTeamSummaryResponse": {
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "title": "Teamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "logoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logourl"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "teamId",
+          "name"
+        ],
+        "title": "GameTeamSummaryResponse",
+        "description": "경기 응답에 포함되는 구단 요약 정보."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthData": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "healthy",
+            "title": "Status",
+            "description": "서버 상태",
+            "default": "healthy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HealthData"
+      },
+      "ItineraryItemAddedBy": {
+        "type": "string",
+        "enum": [
+          "USER",
+          "ALGORITHM"
+        ],
+        "title": "ItineraryItemAddedBy"
+      },
+      "ItineraryItemType": {
+        "type": "string",
+        "enum": [
+          "ARRIVAL_POINT",
+          "DEPARTURE_POINT",
+          "ACCOMMODATION",
+          "PLACE",
+          "STADIUM"
+        ],
+        "title": "ItineraryItemType"
+      },
+      "ItineraryPlanAddItemRequest": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "placeId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Placeid"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "placeId"
+        ],
+        "title": "ItineraryPlanAddItemRequest",
+        "description": "특정 날짜에 장소를 추가하는 요청."
+      },
+      "ItineraryPlanDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryPlanItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "dayType"
+        ],
+        "title": "ItineraryPlanDay",
+        "description": "저장용 itemId가 포함된 날짜별 일정."
+      },
+      "ItineraryPlanItem": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ItineraryItemType"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Sequence"
+          },
+          "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Address"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "scheduledStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduledstartat"
+          },
+          "scheduledEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduledendat"
+          },
+          "travelMinutesFromPrevious": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Travelminutesfromprevious",
+            "default": 0
+          },
+          "transferBufferMinutes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Transferbufferminutes",
+            "description": "이동시간과 별도로 확보한 환승·대기 여유시간",
+            "default": 0
+          },
+          "travelMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "travelTimeSource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelTimeSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItineraryItemAddedBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Itemid"
+          },
+          "isFixed": {
+            "type": "boolean",
+            "title": "Isfixed",
+            "description": "재생성 시 현재 날짜와 순서를 유지할지 여부",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sequence",
+          "name",
+          "address",
+          "latitude",
+          "longitude",
+          "scheduledStartAt",
+          "scheduledEndAt",
+          "itemId"
+        ],
+        "title": "ItineraryPlanItem",
+        "description": "저장 후 개별 수정할 수 있는 일정 항목."
+      },
+      "ItineraryPlanReorderRequest": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "itemIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Itemids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "itemIds"
+        ],
+        "title": "ItineraryPlanReorderRequest",
+        "description": "특정 날짜의 PLACE 항목 순서 변경 요청."
+      },
+      "ItineraryPlanResponse": {
+        "properties": {
+          "planId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Planid"
+          },
+          "tripId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tripid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ItineraryPlanStatus"
+          },
+          "algorithmVersion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Algorithmversion"
+          },
+          "totalTravelMinutes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totaltravelminutes"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryPlanDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "excludedPlaces": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedPlace"
+            },
+            "type": "array",
+            "title": "Excludedplaces"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "planId",
+          "tripId",
+          "status",
+          "algorithmVersion",
+          "totalTravelMinutes"
+        ],
+        "title": "ItineraryPlanResponse",
+        "description": "일정 생성 및 상세 조회 API 응답."
+      },
+      "ItineraryPlanStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "ARCHIVED"
+        ],
+        "title": "ItineraryPlanStatus",
+        "description": "생성된 일정 계획의 사용 상태."
+      },
+      "ListMeta": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count",
+            "description": "현재 응답에 포함된 데이터 개수"
+          },
+          "nextPageToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextpagetoken",
+            "description": "다음 페이지 조회 토큰"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "ListMeta"
+      },
+      "ListSuccessResponse_GameResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/GameResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[GameResponse]"
+      },
+      "ListSuccessResponse_PlaceSelectionResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSelectionResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[PlaceSelectionResponse]"
+      },
+      "ListSuccessResponse_Place_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[Place]"
+      },
+      "ListSuccessResponse_TeamResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[TeamResponse]"
+      },
+      "ListSuccessResponse_TripSummaryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TripSummaryResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[TripSummaryResponse]"
+      },
+      "Place": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid",
+            "description": "서비스 내부에서 사용하는 장소 ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "장소 이름"
+          },
+          "category": {
+            "$ref": "#/components/schemas/PlaceCategory",
+            "description": "서비스 내부 장소 카테고리",
+            "default": "OTHER"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude",
+            "description": "위도"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude",
+            "description": "경도"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "전체 주소",
+            "default": ""
+          },
+          "postalCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postalcode",
+            "description": "우편번호"
+          },
+          "telephone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telephone",
+            "description": "전화번호"
+          },
+          "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnailurl",
+            "description": "대표 이미지 URL"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview",
+            "description": "장소 소개"
+          },
+          "openTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opentime",
+            "description": "영업 시작시간 HH:MM"
+          },
+          "closeTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closetime",
+            "description": "영업 종료시간 HH:MM"
+          },
+          "businessHoursStatus": {
+            "$ref": "#/components/schemas/BusinessRuleStatus",
+            "default": "MISSING"
+          },
+          "businessHoursText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Businesshourstext"
+          },
+          "businessHoursRules": {
+            "items": {
+              "$ref": "#/components/schemas/BusinessHoursRule"
+            },
+            "type": "array",
+            "title": "Businesshoursrules"
+          },
+          "admissionDeadlineTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admissiondeadlinetime",
+            "description": "안전하게 해석된 최종 입장 가능 시각 HH:MM"
+          },
+          "admissionDeadlineStatus": {
+            "$ref": "#/components/schemas/BusinessRuleStatus",
+            "default": "MISSING"
+          },
+          "admissionDeadlineText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admissiondeadlinetext",
+            "description": "입장 마감 관련 TourAPI 원문"
+          },
+          "closedDaysText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closeddaystext",
+            "description": "휴무일 원문"
+          },
+          "closedDaysStatus": {
+            "$ref": "#/components/schemas/BusinessRuleStatus",
+            "default": "MISSING"
+          },
+          "closedWeekdays": {
+            "items": {
+              "$ref": "#/components/schemas/Weekday"
+            },
+            "type": "array",
+            "title": "Closedweekdays"
+          },
+          "defaultStayMinutes": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Defaultstayminutes",
+            "description": "기본 예상 체류시간",
+            "default": 60
+          },
+          "distanceMeters": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancemeters",
+            "description": "기준 지점으로부터의 거리, 미터 단위"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PlaceSource",
+            "description": "장소 데이터 출처",
+            "default": "TOUR_API"
+          },
+          "sourceContentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcecontentid",
+            "description": "외부 API의 원본 콘텐츠 ID"
+          },
+          "kakaoPlaceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kakaoplaceid",
+            "description": "정보 보충에 사용된 카카오 장소 ID"
+          },
+          "enrichedBy": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSource"
+            },
+            "type": "array",
+            "title": "Enrichedby",
+            "description": "기본 출처 외에 장소 정보를 보충한 데이터 출처"
+          },
+          "contentTypeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contenttypeid",
+            "description": "TourAPI 콘텐츠 유형 ID"
+          },
+          "lclsSystem1": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lclssystem1",
+            "description": "TourAPI 신분류 대분류 코드"
+          },
+          "lclsSystem2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lclssystem2",
+            "description": "TourAPI 신분류 중분류 코드"
+          },
+          "lclsSystem3": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lclssystem3",
+            "description": "TourAPI 신분류 소분류 코드"
+          }
+        },
+        "type": "object",
+        "required": [
+          "placeId",
+          "name",
+          "latitude",
+          "longitude"
+        ],
+        "title": "Place",
+        "examples": [
+          {
+            "address": "서울특별시 송파구",
+            "areaCode": "1",
+            "category": "TOURIST_SPOT",
+            "closeTime": "20:00",
+            "contentTypeId": "12",
+            "defaultStayMinutes": 60,
+            "distanceMeters": 850.0,
+            "latitude": 37.5122,
+            "longitude": 127.0719,
+            "name": "관광지 예시",
+            "openTime": "10:00",
+            "overview": "TourAPI에서 조회한 장소 소개 예시입니다.",
+            "placeId": "tour_1603175",
+            "sigunguCode": "18",
+            "source": "TOUR_API",
+            "sourceContentId": "1603175",
+            "thumbnailUrl": "https://example.com/place.jpg"
+          }
+        ]
+      },
+      "PlaceCategory": {
+        "type": "string",
+        "enum": [
+          "TOURIST_SPOT",
+          "RESTAURANT",
+          "CAFE",
+          "ACCOMMODATION",
+          "CULTURAL_FACILITY",
+          "SHOPPING",
+          "FESTIVAL",
+          "ACTIVITY",
+          "OTHER"
+        ],
+        "title": "PlaceCategory"
+      },
+      "PlaceSelectionCreateRequest": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Placeid",
+            "description": "선택할 서비스 내부 장소 ID"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "description": "일정에 반드시 포함해야 하는 장소인지 여부",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId"
+        ],
+        "title": "PlaceSelectionCreateRequest",
+        "description": "여행에 장소를 선택하는 요청.",
+        "examples": [
+          {
+            "isRequired": true,
+            "placeId": "tour_123456"
+          }
+        ]
+      },
+      "PlaceSelectionResponse": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "isRequired",
+          "createdAt"
+        ],
+        "title": "PlaceSelectionResponse",
+        "description": "장소 선택 API 응답."
+      },
+      "PlaceSource": {
+        "type": "string",
+        "enum": [
+          "TOUR_API",
+          "KAKAO",
+          "LOCAL_DATA",
+          "USER_PICK"
+        ],
+        "title": "PlaceSource"
+      },
+      "RootData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "애플리케이션 이름"
+          },
+          "environment": {
+            "type": "string",
+            "title": "Environment",
+            "description": "현재 실행 환경"
+          },
+          "status": {
+            "type": "string",
+            "const": "running",
+            "title": "Status",
+            "description": "애플리케이션 실행 상태",
+            "default": "running"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "environment"
+        ],
+        "title": "RootData"
+      },
+      "StadiumSummaryResponse": {
+        "properties": {
+          "stadiumId": {
+            "type": "string",
+            "title": "Stadiumid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stadiumId",
+          "name",
+          "address",
+          "latitude",
+          "longitude"
+        ],
+        "title": "StadiumSummaryResponse",
+        "description": "경기 응답에 포함되는 구장 요약 정보."
+      },
+      "SuccessResponse_GameResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/GameResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[GameResponse]"
+      },
+      "SuccessResponse_HealthData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/HealthData"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[HealthData]"
+      },
+      "SuccessResponse_ItineraryPlanResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/ItineraryPlanResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[ItineraryPlanResponse]"
+      },
+      "SuccessResponse_PlaceSelectionResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlaceSelectionResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[PlaceSelectionResponse]"
+      },
+      "SuccessResponse_Place_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Place"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[Place]"
+      },
+      "SuccessResponse_RootData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/RootData"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[RootData]"
+      },
+      "SuccessResponse_TripDetailResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripDetailResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[TripDetailResponse]"
+      },
+      "SuccessResponse_TripSummaryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripSummaryResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[TripSummaryResponse]"
+      },
+      "SuccessResponse_UserResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[UserResponse]"
+      },
+      "SupportTeamResponse": {
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "title": "Teamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "logoUrl": {
+            "type": "string",
+            "title": "Logourl"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "teamId",
+          "name",
+          "logoUrl"
+        ],
+        "title": "SupportTeamResponse",
+        "description": "사용자 프로필에 포함되는 응원팀 요약 정보."
+      },
+      "SupportTeamUpdateRequest": {
+        "properties": {
+          "supportTeamId": {
+            "type": "string",
+            "title": "Supportteamid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "supportTeamId"
+        ],
+        "title": "SupportTeamUpdateRequest",
+        "description": "응원팀 설정 및 변경 요청.",
+        "examples": [
+          {
+            "supportTeamId": "LG"
+          }
+        ]
+      },
+      "TeamResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "shortName": {
+            "type": "string",
+            "title": "Shortname"
+          },
+          "logoUrl": {
+            "type": "string",
+            "title": "Logourl"
+          },
+          "homeRegion": {
+            "type": "string",
+            "title": "Homeregion"
+          },
+          "stadiumId": {
+            "type": "string",
+            "title": "Stadiumid"
+          },
+          "teamId": {
+            "type": "string",
+            "title": "Teamid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "shortName",
+          "logoUrl",
+          "homeRegion",
+          "stadiumId",
+          "teamId"
+        ],
+        "title": "TeamResponse",
+        "description": "구단 API 응답 모델."
+      },
+      "TravelMode": {
+        "type": "string",
+        "enum": [
+          "WALK",
+          "TRANSIT"
+        ],
+        "title": "TravelMode"
+      },
+      "TravelTimeSource": {
+        "type": "string",
+        "enum": [
+          "ODSAY",
+          "ESTIMATED",
+          "FAKE"
+        ],
+        "title": "TravelTimeSource"
+      },
+      "TripCreateRequest": {
+        "properties": {
+          "gameId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Gameid",
+            "description": "관람할 경기 ID"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title",
+            "description": "여행 제목"
+          },
+          "tripStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripstartat"
+          },
+          "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripendat"
+          },
+          "arrivalPoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "departurePoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accommodation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccommodationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gameId",
+          "title",
+          "tripStartAt",
+          "tripEndAt"
+        ],
+        "title": "TripCreateRequest",
+        "description": "여행 생성 요청.",
+        "examples": [
+          {
+            "arrivalPoint": {
+              "latitude": 37.5547,
+              "longitude": 126.9706,
+              "name": "서울역"
+            },
+            "departurePoint": {
+              "latitude": 37.5547,
+              "longitude": 126.9706,
+              "name": "서울역"
+            },
+            "gameId": "game_20260815_lg_doosan",
+            "title": "잠실 원정 직관 여행",
+            "tripEndAt": "2026-08-15T23:00:00+09:00",
+            "tripStartAt": "2026-08-15T12:00:00+09:00"
+          }
+        ]
+      },
+      "TripDetailResponse": {
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TripStatus"
+          },
+          "tripStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripstartat"
+          },
+          "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripendat"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "arrivalPoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "departurePoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accommodation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccommodationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "activePlanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activeplanid"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tripId",
+          "gameId",
+          "title",
+          "status",
+          "tripStartAt",
+          "tripEndAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "TripDetailResponse",
+        "description": "여행 상세 및 수정 응답."
+      },
+      "TripPoint": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "장소 이름"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude",
+            "description": "위도"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude",
+            "description": "경도"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "latitude",
+          "longitude"
+        ],
+        "title": "TripPoint",
+        "description": "여행의 도착 또는 출발 장소."
+      },
+      "TripStatus": {
+        "type": "string",
+        "enum": [
+          "PLANNING",
+          "GENERATING",
+          "GENERATED",
+          "COMPLETED",
+          "CANCELLED"
+        ],
+        "title": "TripStatus",
+        "description": "여행 진행 상태."
+      },
+      "TripSummaryResponse": {
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TripStatus"
+          },
+          "tripStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripstartat"
+          },
+          "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripendat"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tripId",
+          "gameId",
+          "title",
+          "status",
+          "tripStartAt",
+          "tripEndAt",
+          "createdAt"
+        ],
+        "title": "TripSummaryResponse",
+        "description": "여행 생성 및 목록 조회 응답."
+      },
+      "TripUpdateRequest": {
+        "properties": {
+          "gameId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gameid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "tripStartAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tripstartat"
+          },
+          "tripEndAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tripendat"
+          },
+          "arrivalPoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "departurePoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accommodation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccommodationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TripUpdateRequest",
+        "description": "여행 기본정보 수정 요청.",
+        "examples": [
+          {
+            "accommodation": {
+              "address": "서울특별시 송파구",
+              "checkInAt": "2026-08-15T22:00:00+09:00",
+              "checkOutAt": "2026-08-16T10:00:00+09:00",
+              "latitude": 37.513,
+              "longitude": 127.102,
+              "name": "잠실 호텔"
+            },
+            "title": "잠실 1박 2일 직관 여행",
+            "tripEndAt": "2026-08-16T11:00:00+09:00"
+          }
+        ]
+      },
+      "UserBootstrapRequest": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "birthYear": {
+            "type": "integer",
+            "title": "Birthyear"
+          },
+          "supportTeamId": {
+            "type": "string",
+            "title": "Supportteamid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nickname",
+          "birthYear",
+          "supportTeamId"
+        ],
+        "title": "UserBootstrapRequest",
+        "description": "최초 사용자 프로필 생성 요청.",
+        "examples": [
+          {
+            "birthYear": 2002,
+            "nickname": "민준",
+            "supportTeamId": "LG"
+          }
+        ]
+      },
+      "UserResponse": {
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "Userid"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "birthYear": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthyear"
+          },
+          "profileImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profileimageurl"
+          },
+          "supportTeam": {
+            "$ref": "#/components/schemas/SupportTeamResponse"
+          },
+          "onboardingCompleted": {
+            "type": "boolean",
+            "title": "Onboardingcompleted"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "userId",
+          "email",
+          "nickname",
+          "supportTeam",
+          "onboardingCompleted",
+          "createdAt"
+        ],
+        "title": "UserResponse",
+        "description": "사용자 프로필 API 응답.",
+        "examples": [
+          {
+            "birthYear": 2002,
+            "createdAt": "2026-08-12T15:00:00+09:00",
+            "email": "user@example.com",
+            "nickname": "민준",
+            "onboardingCompleted": true,
+            "supportTeam": {
+              "logoUrl": "https://example.com/lg.png",
+              "name": "LG 트윈스",
+              "teamId": "LG"
+            },
+            "updatedAt": "2026-08-12T15:00:00+09:00",
+            "userId": "firebase_uid_example"
+          }
+        ]
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Weekday": {
+        "type": "string",
+        "enum": [
+          "MONDAY",
+          "TUESDAY",
+          "WEDNESDAY",
+          "THURSDAY",
+          "FRIDAY",
+          "SATURDAY",
+          "SUNDAY"
+        ],
+        "title": "Weekday"
+      }
+    }
+  }
+}

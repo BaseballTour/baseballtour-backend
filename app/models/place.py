@@ -78,6 +78,35 @@ class Place(BaseModel):
         populate_by_name=True,
         serialize_by_alias=True,
         use_enum_values=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "placeId": "tour_1603175",
+                    "name": "관광지 예시",
+                    "category": "TOURIST_SPOT",
+                    "latitude": 37.5122,
+                    "longitude": 127.0719,
+                    "address": "서울특별시 송파구",
+                    "postalCode": None,
+                    "telephone": None,
+                    "thumbnailUrl": "https://example.com/place.jpg",
+                    "overview": "TourAPI에서 조회한 장소 소개 예시입니다.",
+                    "openTime": "10:00",
+                    "closeTime": "20:00",
+                    "closedDaysText": None,
+                    "defaultStayMinutes": 60,
+                    "distanceMeters": 850.0,
+                    "source": "TOUR_API",
+                    "sourceContentId": "1603175",
+                    "contentTypeId": "12",
+                    "areaCode": "1",
+                    "sigunguCode": "18",
+                    "categoryCode1": None,
+                    "categoryCode2": None,
+                    "categoryCode3": None,
+                }
+            ]
+        },
     )
 
     place_id: str = Field(
