@@ -1,7 +1,13 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
+from zoneinfo import ZoneInfo
 
-from pydantic import AwareDatetime, Field, field_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    field_serializer,
+    field_validator,
+)
 
 from app.models.itinerary import (
     ExcludedPlace,
@@ -9,6 +15,9 @@ from app.models.itinerary import (
     ItineraryItem,
 )
 from app.schemas.base import ApiModel
+
+
+KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 class ItineraryPlanStatus(str, Enum):
@@ -26,6 +35,15 @@ class ItineraryPlanItem(ItineraryItem):
         default=False,
         description="재생성 시 현재 날짜와 순서를 유지할지 여부",
     )
+
+    @field_serializer(
+        "scheduled_start_at",
+        "scheduled_end_at",
+        when_used="json",
+    )
+    def serialize_korea_datetime(self, value: datetime) -> str:
+        """일정 API 응답 시간은 사용자가 읽기 쉬운 한국시간으로 표시한다."""
+        return value.astimezone(KOREA_TIMEZONE).isoformat()
 
 
 class ItineraryPlanDay(ItineraryDay):

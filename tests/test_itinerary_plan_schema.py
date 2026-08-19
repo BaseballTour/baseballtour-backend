@@ -81,6 +81,27 @@ def test_plan_document_serializes_storage_metadata() -> None:
     assert "planId" not in data
 
 
+def test_plan_document_serializes_item_times_in_korea_timezone() -> None:
+    document = create_plan_document()
+    item = document.days[0].items[0]
+    item.scheduled_start_at = datetime.fromisoformat(
+        "2026-08-16T07:20:00+00:00"
+    )
+    item.scheduled_end_at = datetime.fromisoformat(
+        "2026-08-16T11:00:00+00:00"
+    )
+
+    data = document.model_dump(mode="json", by_alias=True)
+    serialized_item = data["days"][0]["items"][0]
+
+    assert serialized_item["scheduledStartAt"] == (
+        "2026-08-16T16:20:00+09:00"
+    )
+    assert serialized_item["scheduledEndAt"] == (
+        "2026-08-16T20:00:00+09:00"
+    )
+
+
 def test_algorithm_result_has_no_storage_status() -> None:
     result = ItineraryResult.model_validate_json(
         RESULT_SAMPLE_PATH.read_text(encoding="utf-8")

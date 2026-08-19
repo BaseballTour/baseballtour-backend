@@ -21,8 +21,14 @@ TravelTimeProvider = Callable[
 ]
 
 TRAVEL_TIME_MAX_CONCURRENCY = 8
-TRAVEL_TIME_PROVIDER_TIMEOUT_SECONDS = 3.0
-TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS = 20.0
+TRAVEL_TIME_PROVIDER_TIMEOUT_SECONDS = 8.0
+TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS = 30.0
+ANCHOR_NODE_IDS = {
+    "arrival",
+    "departure",
+    "stadium",
+    "accommodation",
+}
 
 
 @dataclass(frozen=True)
@@ -132,6 +138,19 @@ async def build_travel_time_matrix(
             )
 
     if provider is not None and routes:
+        # 전체 시간 예산이 끝나더라도 일정의 뼈대를 구성하는 Anchor 경로가
+        # 먼저 실제 대중교통 시간으로 보정되도록 처리 순서를 정한다.
+        routes.sort(
+            key=lambda route: (
+                0
+                if route[0] in ANCHOR_NODE_IDS
+                and route[2] in ANCHOR_NODE_IDS
+                else 1
+                if route[0] in ANCHOR_NODE_IDS
+                or route[2] in ANCHOR_NODE_IDS
+                else 2,
+            )
+        )
         semaphore = asyncio.Semaphore(max_concurrency)
 
         async def resolve_route(
