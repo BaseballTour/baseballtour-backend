@@ -64,6 +64,476 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "내 직관 로그 목록 조회",
+        "description": "로그인 사용자가 소유한 삭제되지 않은 직관 로그 목록을 조회합니다.",
+        "operationId": "get_my_attendance_logs_api_v1_attendance_logs_get",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_AttendanceLogResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}": {
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 상세 조회",
+        "description": "로그인 사용자가 소유한 직관 로그와 장소별 Entry 목록을 조회합니다.",
+        "operationId": "get_attendance_log_detail_api_v1_attendance_logs__attendanceLogId__get",
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogDetailResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 수정",
+        "description": "로그인 사용자가 소유한 직관 로그의 제목, 한 줄 요약, 상태를 수정합니다.",
+        "operationId": "update_attendance_log_api_v1_attendance_logs__attendanceLogId__patch",
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceLogUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 삭제",
+        "description": "로그인 사용자가 소유한 직관 로그를 soft delete합니다.",
+        "operationId": "delete_attendance_log_api_v1_attendance_logs__attendanceLogId__delete",
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}/entries/{logEntryId}/media": {
+      "post": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 미디어 저장",
+        "description": "직관 로그 Entry에 사진 또는 동영상 URL 정보를 저장합니다.",
+        "operationId": "create_log_media_api_v1_attendance_logs__attendanceLogId__entries__logEntryId__media_post",
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 ID"
+          },
+          {
+            "name": "logEntryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "로그 Entry ID",
+              "title": "Logentryid"
+            },
+            "description": "로그 Entry ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogMediaCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_LogMediaResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}/entries/{logEntryId}/media/{mediaId}": {
+      "delete": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 미디어 삭제",
+        "description": "직관 로그 Entry에 저장된 미디어 정보를 삭제합니다.",
+        "operationId": "delete_log_media_api_v1_attendance_logs__attendanceLogId__entries__logEntryId__media__mediaId__delete",
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 ID"
+          },
+          {
+            "name": "logEntryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "로그 Entry ID",
+              "title": "Logentryid"
+            },
+            "description": "로그 Entry ID"
+          },
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "로그 미디어 ID",
+              "title": "Mediaid"
+            },
+            "description": "로그 미디어 ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}/entries/{logEntryId}": {
+      "patch": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 Entry 수정",
+        "description": "직관 로그의 장소 또는 경기 Entry에 제목, 후기, 발생 시각을 저장하거나 수정합니다.",
+        "operationId": "update_log_entry_api_v1_attendance_logs__attendanceLogId__entries__logEntryId__patch",
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 ID"
+          },
+          {
+            "name": "logEntryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "로그 Entry ID",
+              "title": "Logentryid"
+            },
+            "description": "로그 Entry ID"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogEntryUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_LogEntryResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/health": {
@@ -1616,6 +2086,85 @@
           }
         ]
       },
+      "AttendanceLogDetailResponse": {
+        "properties": {
+          "attendanceLogId": {
+            "type": "string",
+            "title": "Attendancelogid"
+          },
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "planId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planid"
+          },
+          "logTitle": {
+            "type": "string",
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "logStatus": {
+            "$ref": "#/components/schemas/AttendanceLogStatus"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/AttendanceLogVisibility"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LogEntryResponse"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attendanceLogId",
+          "tripId",
+          "gameId",
+          "logTitle",
+          "logStatus",
+          "visibility",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "AttendanceLogDetailResponse",
+        "description": "직관 로그 상세 응답."
+      },
       "AttendanceLogResponse": {
         "properties": {
           "attendanceLogId": {
@@ -1659,6 +2208,9 @@
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
           },
+          "visibility": {
+            "$ref": "#/components/schemas/AttendanceLogVisibility"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -1678,6 +2230,7 @@
           "gameId",
           "logTitle",
           "logStatus",
+          "visibility",
           "createdAt",
           "updatedAt"
         ],
@@ -1693,6 +2246,67 @@
         ],
         "title": "AttendanceLogStatus",
         "description": "직관 로그 상태."
+      },
+      "AttendanceLogUpdateRequest": {
+        "properties": {
+          "logTitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "logStatus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendanceLogStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendanceLogVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AttendanceLogUpdateRequest",
+        "description": "직관 로그 기본 정보 수정 요청."
+      },
+      "AttendanceLogVisibility": {
+        "type": "string",
+        "enum": [
+          "PRIVATE",
+          "PUBLIC"
+        ],
+        "title": "AttendanceLogVisibility",
+        "description": "직관 로그 공개 범위."
       },
       "BusinessHoursRule": {
         "properties": {
@@ -2261,6 +2875,33 @@
         ],
         "title": "ListMeta"
       },
+      "ListSuccessResponse_AttendanceLogResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceLogResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[AttendanceLogResponse]"
+      },
       "ListSuccessResponse_GameResponse_": {
         "properties": {
           "success": {
@@ -2395,6 +3036,279 @@
           "meta"
         ],
         "title": "ListSuccessResponse[TripSummaryResponse]"
+      },
+      "LogEntryResponse": {
+        "properties": {
+          "logEntryId": {
+            "type": "string",
+            "title": "Logentryid"
+          },
+          "planItemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planitemid"
+          },
+          "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeid"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "title": "Sequenceno"
+          },
+          "entryType": {
+            "$ref": "#/components/schemas/LogEntryType"
+          },
+          "entryTitle": {
+            "type": "string",
+            "title": "Entrytitle"
+          },
+          "reviewText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewtext"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "occurredAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurredat"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/LogMediaResponse"
+            },
+            "type": "array",
+            "title": "Media"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "logEntryId",
+          "sequenceNo",
+          "entryType",
+          "entryTitle",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "LogEntryResponse",
+        "description": "로그 Entry API 응답."
+      },
+      "LogEntryType": {
+        "type": "string",
+        "enum": [
+          "PLACE",
+          "GAME",
+          "MOVE",
+          "NOTE"
+        ],
+        "title": "LogEntryType",
+        "description": "직관 로그 타임라인 항목 종류."
+      },
+      "LogEntryUpdateRequest": {
+        "properties": {
+          "entryTitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entrytitle"
+          },
+          "reviewText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewtext"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "occurredAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurredat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LogEntryUpdateRequest",
+        "description": "직관 로그 타임라인 Entry 수정 요청."
+      },
+      "LogMediaCreateRequest": {
+        "properties": {
+          "mediaType": {
+            "$ref": "#/components/schemas/LogMediaType"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Mediaurl"
+          },
+          "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnailurl"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Sequenceno"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mediaType",
+          "mediaUrl",
+          "sequenceNo"
+        ],
+        "title": "LogMediaCreateRequest",
+        "description": "로그 Entry에 사진 또는 동영상을 추가하는 요청.",
+        "examples": [
+          {
+            "mediaType": "IMAGE",
+            "mediaUrl": "https://example.com/attendance/photo.jpg",
+            "sequenceNo": 1
+          }
+        ]
+      },
+      "LogMediaResponse": {
+        "properties": {
+          "logMediaId": {
+            "type": "string",
+            "title": "Logmediaid"
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/LogMediaType"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "title": "Mediaurl"
+          },
+          "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnailurl"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "title": "Sequenceno"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "logMediaId",
+          "mediaType",
+          "mediaUrl",
+          "sequenceNo",
+          "createdAt"
+        ],
+        "title": "LogMediaResponse",
+        "description": "로그 미디어 API 응답."
+      },
+      "LogMediaType": {
+        "type": "string",
+        "enum": [
+          "IMAGE",
+          "VIDEO"
+        ],
+        "title": "LogMediaType",
+        "description": "직관 로그 미디어 종류."
       },
       "Place": {
         "properties": {
@@ -2858,6 +3772,25 @@
         "title": "StadiumSummaryResponse",
         "description": "경기 응답에 포함되는 구장 요약 정보."
       },
+      "SuccessResponse_AttendanceLogDetailResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AttendanceLogDetailResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[AttendanceLogDetailResponse]"
+      },
       "SuccessResponse_AttendanceLogResponse_": {
         "properties": {
           "success": {
@@ -2933,6 +3866,44 @@
           "data"
         ],
         "title": "SuccessResponse[ItineraryPlanResponse]"
+      },
+      "SuccessResponse_LogEntryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/LogEntryResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[LogEntryResponse]"
+      },
+      "SuccessResponse_LogMediaResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/LogMediaResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[LogMediaResponse]"
       },
       "SuccessResponse_PlaceSelectionResponse_": {
         "properties": {

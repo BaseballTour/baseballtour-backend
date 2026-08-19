@@ -18,6 +18,13 @@ class AttendanceLogStatus(str, Enum):
     ARCHIVED = "ARCHIVED"
 
 
+class AttendanceLogVisibility(str, Enum):
+    """직관 로그 공개 범위."""
+
+    PRIVATE = "PRIVATE"
+    PUBLIC = "PUBLIC"
+
+
 class LogEntryType(str, Enum):
     """직관 로그 타임라인 항목 종류."""
 
@@ -81,6 +88,8 @@ class AttendanceLogUpdateRequest(ApiModel):
 
     log_status: AttendanceLogStatus | None = None
 
+    visibility: AttendanceLogVisibility | None = None
+
     @model_validator(mode="after")
     def validate_at_least_one_field(
         self,
@@ -130,6 +139,10 @@ class AttendanceLogDocument(ApiModel):
 
     log_status: AttendanceLogStatus = (
         AttendanceLogStatus.DRAFT
+    )
+
+    visibility: AttendanceLogVisibility = (
+        AttendanceLogVisibility.PRIVATE
     )
 
     created_at: AwareDatetime
@@ -226,6 +239,12 @@ class LogEntryUpdateRequest(ApiModel):
 
     review_text: str | None = None
 
+    rating: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+    )
+
     occurred_at: AwareDatetime | None = None
 
     @model_validator(mode="after")
@@ -262,6 +281,12 @@ class LogEntryDocument(ApiModel):
     )
 
     review_text: str | None = None
+
+    rating: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+    )
 
     occurred_at: AwareDatetime | None = None
 
@@ -300,6 +325,7 @@ class LogEntryResponse(ApiModel):
     entry_title: str
 
     review_text: str | None = None
+    rating: int | None = None
     occurred_at: AwareDatetime | None = None
 
     media: list[LogMediaResponse] = Field(
@@ -321,6 +347,7 @@ class AttendanceLogResponse(ApiModel):
     log_title: str
     summary_text: str | None = None
     log_status: AttendanceLogStatus
+    visibility: AttendanceLogVisibility
 
     created_at: AwareDatetime
     updated_at: AwareDatetime

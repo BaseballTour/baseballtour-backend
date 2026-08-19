@@ -8,7 +8,11 @@ from app.core.exceptions import AppException
 from app.schemas.attendance_log import (
     AttendanceLogRecord,
     AttendanceLogStatus,
+    AttendanceLogVisibility,
     LogEntryType,
+    LogMediaCreateRequest,
+    LogMediaRecord,
+    LogMediaType,
 )
 from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
@@ -213,6 +217,7 @@ def make_service(
     )
 
     log_entry_repository = Mock()
+    log_media_repository = Mock()
 
     service = AttendanceLogService(
         trip_repository=trip_repository,
@@ -222,6 +227,7 @@ def make_service(
             attendance_log_repository
         ),
         log_entry_repository=log_entry_repository,
+        log_media_repository=log_media_repository,
     )
 
     return SimpleNamespace(
@@ -233,6 +239,7 @@ def make_service(
             attendance_log_repository
         ),
         log_entry_repository=log_entry_repository,
+        log_media_repository=log_media_repository,
     )
 
 
@@ -506,3 +513,863 @@ def test_create_draft_uses_custom_log_title() -> None:
     )
 
     assert document.log_title == "나의 첫 사직 직관"
+
+
+def make_attendance_log_record(
+    *,
+    user_id: str = USER_ID,
+):
+    return AttendanceLogRecord(
+        attendance_log_id="log_001",
+        user_id=user_id,
+        trip_id=TRIP_ID,
+        game_id=GAME_ID,
+        plan_id=PLAN_ID,
+        log_title="부산 직관 여행",
+        summary_text=None,
+        log_status=AttendanceLogStatus.DRAFT,
+        created_at=NOW,
+        updated_at=NOW,
+        deleted_at=None,
+    )
+
+
+def test_get_my_logs_returns_repository_logs() -> None:
+    context = make_service()
+
+    logs = [
+        make_attendance_log_record(),
+    ]
+
+    context.attendance_log_repository.get_by_user_id.return_value = (
+        logs
+    )
+
+    result = context.service.get_my_logs(
+        user_id=USER_ID,
+    )
+
+    assert result == logs
+
+    context.attendance_log_repository.get_by_user_id.assert_called_once_with(
+        USER_ID
+    )
+
+
+def test_get_log_detail_returns_log_and_entries() -> None:
+    context = make_service()
+
+    log = make_attendance_log_record()
+
+    entries = [
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        ),
+        SimpleNamespace(
+            log_entry_id="entry_002",
+        ),
+    ]
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        log
+    )
+    context.log_entry_repository.get_all.return_value = (
+        entries
+    )
+
+    result_log, result_entries = (
+        context.service.get_log_detail(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+    )
+
+    assert result_log == log
+    assert result_entries == entries
+
+    context.log_entry_repository.get_all.assert_called_once_with(
+        "log_001"
+    )
+
+
+def test_get_log_detail_rejects_missing_log() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        None
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_log_detail(
+            user_id=USER_ID,
+            attendance_log_id="log_missing",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "ATTENDANCE_LOG_NOT_FOUND"
+    )
+
+    context.log_entry_repository.get_all.assert_not_called()
+
+
+def test_get_log_detail_rejects_other_user() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record(
+            user_id="another-user",
+        )
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_log_detail(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 403
+    assert captured.value.code == (
+        "ATTENDANCE_LOG_ACCESS_DENIED"
+    )
+
+    context.log_entry_repository.get_all.assert_not_called()
+
+
+def test_update_log_updates_owned_log() -> None:
+    context = make_service()
+
+    current = make_attendance_log_record()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        current
+    )
+
+    def update_log(
+        attendance_log_id,
+        updates,
+    ):
+        return current.model_copy(
+            update={
+                "log_title": updates["logTitle"],
+                "summary_text": updates["summaryText"],
+                "log_status": AttendanceLogStatus.PUBLISHED,
+                "updated_at": updates["updatedAt"],
+            }
+        )
+
+    context.attendance_log_repository.update.side_effect = (
+        update_log
+    )
+
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    request = AttendanceLogUpdateRequest(
+        log_title="수정된 사직 직관 기록",
+        summary_text="정말 재미있었던 경기",
+        log_status=AttendanceLogStatus.PUBLISHED,
+    )
+
+    result = context.service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=request,
+    )
+
+    assert result.log_title == (
+        "수정된 사직 직관 기록"
+    )
+    assert result.summary_text == (
+        "정말 재미있었던 경기"
+    )
+    assert (
+        result.log_status
+        == AttendanceLogStatus.PUBLISHED
+    )
+
+    context.attendance_log_repository.update.assert_called_once()
+
+    arguments = (
+        context.attendance_log_repository
+        .update.call_args
+    )
+
+    assert arguments.args[0] == "log_001"
+
+    updates = arguments.args[1]
+
+    assert updates["logTitle"] == (
+        "수정된 사직 직관 기록"
+    )
+    assert updates["summaryText"] == (
+        "정말 재미있었던 경기"
+    )
+    assert updates["logStatus"] == "PUBLISHED"
+    assert updates["updatedAt"].tzinfo is not None
+
+
+def test_update_log_can_clear_summary_text() -> None:
+    context = make_service()
+
+    current = make_attendance_log_record()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        current
+    )
+
+    context.attendance_log_repository.update.return_value = (
+        current.model_copy(
+            update={
+                "summary_text": None,
+            }
+        )
+    )
+
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    request = AttendanceLogUpdateRequest(
+        summary_text=None,
+    )
+
+    context.service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=request,
+    )
+
+    updates = (
+        context.attendance_log_repository
+        .update.call_args.args[1]
+    )
+
+    assert "summaryText" in updates
+    assert updates["summaryText"] is None
+
+
+def test_update_log_rejects_missing_log() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        None
+    )
+
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    request = AttendanceLogUpdateRequest(
+        log_title="수정",
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.update_log(
+            user_id=USER_ID,
+            attendance_log_id="log_missing",
+            request=request,
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "ATTENDANCE_LOG_NOT_FOUND"
+    )
+
+    context.attendance_log_repository.update.assert_not_called()
+
+
+def test_update_log_rejects_other_user() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record(
+            user_id="another-user",
+        )
+    )
+
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    request = AttendanceLogUpdateRequest(
+        log_title="수정",
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.update_log(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            request=request,
+        )
+
+    assert captured.value.status_code == 403
+    assert captured.value.code == (
+        "ATTENDANCE_LOG_ACCESS_DENIED"
+    )
+
+    context.attendance_log_repository.update.assert_not_called()
+
+
+def test_delete_log_soft_deletes_owned_log() -> None:
+    context = make_service()
+
+    current = make_attendance_log_record()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        current
+    )
+
+    context.attendance_log_repository.soft_delete.return_value = (
+        True
+    )
+
+    context.service.delete_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+    )
+
+    context.attendance_log_repository.soft_delete.assert_called_once()
+
+    arguments = (
+        context.attendance_log_repository
+        .soft_delete.call_args
+    )
+
+    assert arguments.args[0] == "log_001"
+    assert (
+        arguments.kwargs["deleted_at"].tzinfo
+        is not None
+    )
+
+
+def test_delete_log_rejects_missing_log() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        None
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.delete_log(
+            user_id=USER_ID,
+            attendance_log_id="log_missing",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "ATTENDANCE_LOG_NOT_FOUND"
+    )
+
+    context.attendance_log_repository.soft_delete.assert_not_called()
+
+
+def test_delete_log_rejects_other_user() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record(
+            user_id="another-user",
+        )
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.delete_log(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 403
+    assert captured.value.code == (
+        "ATTENDANCE_LOG_ACCESS_DENIED"
+    )
+
+    context.attendance_log_repository.soft_delete.assert_not_called()
+
+
+def test_get_log_detail_with_media_returns_entry_media() -> None:
+    context = make_service()
+
+    log = make_attendance_log_record()
+
+    entry_1 = SimpleNamespace(
+        log_entry_id="entry_001",
+    )
+    entry_2 = SimpleNamespace(
+        log_entry_id="entry_002",
+    )
+
+    media_1 = LogMediaRecord(
+        log_media_id="media_001",
+        media_type=LogMediaType.IMAGE,
+        media_url="https://example.com/photo.jpg",
+        thumbnail_url=None,
+        sequence_no=1,
+        created_at=NOW,
+    )
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        log
+    )
+    context.log_entry_repository.get_all.return_value = [
+        entry_1,
+        entry_2,
+    ]
+
+    context.log_media_repository.get_all.side_effect = [
+        [media_1],
+        [],
+    ]
+
+    (
+        result_log,
+        result_entries,
+        media_by_entry_id,
+    ) = context.service.get_log_detail_with_media(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+    )
+
+    assert result_log == log
+    assert result_entries == [
+        entry_1,
+        entry_2,
+    ]
+
+    assert media_by_entry_id["entry_001"] == [
+        media_1
+    ]
+    assert media_by_entry_id["entry_002"] == []
+
+    assert (
+        context.log_media_repository
+        .get_all.call_count
+        == 2
+    )
+
+
+def test_create_media_stores_media_for_owned_entry() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        )
+    )
+
+    created = LogMediaRecord(
+        log_media_id="media_001",
+        media_type=LogMediaType.IMAGE,
+        media_url="https://example.com/photo.jpg",
+        thumbnail_url=None,
+        sequence_no=1,
+        created_at=NOW,
+    )
+
+    context.log_media_repository.create.return_value = (
+        created
+    )
+
+    request = LogMediaCreateRequest(
+        media_type=LogMediaType.IMAGE,
+        media_url="https://example.com/photo.jpg",
+        sequence_no=1,
+    )
+
+    result = context.service.create_media(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        log_entry_id="entry_001",
+        request=request,
+    )
+
+    assert result == created
+
+    context.log_entry_repository.get_by_id.assert_called_once_with(
+        "log_001",
+        "entry_001",
+    )
+
+    context.log_media_repository.create.assert_called_once()
+
+    arguments = (
+        context.log_media_repository
+        .create.call_args.args
+    )
+
+    assert arguments[0] == "log_001"
+    assert arguments[1] == "entry_001"
+
+    document = arguments[2]
+
+    assert document.media_type == LogMediaType.IMAGE
+    assert document.media_url == (
+        "https://example.com/photo.jpg"
+    )
+    assert document.thumbnail_url is None
+    assert document.sequence_no == 1
+    assert document.created_at.tzinfo is not None
+
+
+def test_create_media_rejects_missing_entry() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        None
+    )
+
+    request = LogMediaCreateRequest(
+        media_type=LogMediaType.IMAGE,
+        media_url="https://example.com/photo.jpg",
+        sequence_no=1,
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.create_media(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            log_entry_id="entry_missing",
+            request=request,
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "LOG_ENTRY_NOT_FOUND"
+    )
+
+    context.log_media_repository.create.assert_not_called()
+
+
+def test_delete_media_removes_existing_media() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        )
+    )
+
+    context.log_media_repository.delete.return_value = (
+        True
+    )
+
+    context.service.delete_media(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        log_entry_id="entry_001",
+        log_media_id="media_001",
+    )
+
+    context.log_media_repository.delete.assert_called_once_with(
+        "log_001",
+        "entry_001",
+        "media_001",
+    )
+
+
+def test_delete_media_rejects_missing_media() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        )
+    )
+
+    context.log_media_repository.delete.return_value = (
+        False
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.delete_media(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            log_entry_id="entry_001",
+            log_media_id="media_missing",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "LOG_MEDIA_NOT_FOUND"
+    )
+
+
+def test_update_entry_updates_review_text() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    current_entry = SimpleNamespace(
+        log_entry_id="entry_game",
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        current_entry
+    )
+
+    from app.schemas.attendance_log import (
+        LogEntryRecord,
+        LogEntryUpdateRequest,
+    )
+
+    updated_entry = LogEntryRecord(
+        log_entry_id="entry_game",
+        plan_item_id="stadium",
+        place_id=None,
+        sequence_no=2,
+        entry_type=LogEntryType.GAME,
+        entry_title="사직야구장",
+        review_text="끝내기 승리라 정말 짜릿했다.",
+        occurred_at=NOW,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    context.log_entry_repository.update.return_value = (
+        updated_entry
+    )
+    context.log_media_repository.get_all.return_value = []
+
+    request = LogEntryUpdateRequest(
+        review_text="끝내기 승리라 정말 짜릿했다.",
+    )
+
+    result_entry, result_media = (
+        context.service.update_entry(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            log_entry_id="entry_game",
+            request=request,
+        )
+    )
+
+    assert result_entry.review_text == (
+        "끝내기 승리라 정말 짜릿했다."
+    )
+    assert result_media == []
+
+    arguments = (
+        context.log_entry_repository
+        .update.call_args.args
+    )
+
+    assert arguments[0] == "log_001"
+    assert arguments[1] == "entry_game"
+
+    updates = arguments[2]
+
+    assert updates["reviewText"] == (
+        "끝내기 승리라 정말 짜릿했다."
+    )
+    assert updates["updatedAt"].tzinfo is not None
+
+
+def test_update_entry_rejects_missing_entry() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        None
+    )
+
+    from app.schemas.attendance_log import (
+        LogEntryUpdateRequest,
+    )
+
+    request = LogEntryUpdateRequest(
+        review_text="경기 후기",
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.update_entry(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            log_entry_id="entry_missing",
+            request=request,
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == (
+        "LOG_ENTRY_NOT_FOUND"
+    )
+
+    context.log_entry_repository.update.assert_not_called()
+
+
+def test_update_log_updates_visibility() -> None:
+    context = make_service()
+
+    current = make_attendance_log_record()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        current
+    )
+
+    context.attendance_log_repository.update.return_value = (
+        current.model_copy(
+            update={
+                "visibility": (
+                    AttendanceLogVisibility.PUBLIC
+                ),
+            }
+        )
+    )
+
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    request = AttendanceLogUpdateRequest(
+        visibility=AttendanceLogVisibility.PUBLIC,
+    )
+
+    result = context.service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=request,
+    )
+
+    assert (
+        result.visibility
+        == AttendanceLogVisibility.PUBLIC
+    )
+
+    updates = (
+        context.attendance_log_repository
+        .update.call_args.args[1]
+    )
+
+    assert updates["visibility"] == "PUBLIC"
+
+
+def test_update_game_entry_updates_rating() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    from app.schemas.attendance_log import (
+        LogEntryRecord,
+        LogEntryUpdateRequest,
+    )
+
+    current_entry = LogEntryRecord(
+        log_entry_id="entry_game",
+        plan_item_id="stadium",
+        place_id=None,
+        sequence_no=2,
+        entry_type=LogEntryType.GAME,
+        entry_title="사직야구장",
+        review_text=None,
+        rating=None,
+        occurred_at=NOW,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    updated_entry = current_entry.model_copy(
+        update={
+            "rating": 5,
+        }
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        current_entry
+    )
+    context.log_entry_repository.update.return_value = (
+        updated_entry
+    )
+    context.log_media_repository.get_all.return_value = []
+
+    request = LogEntryUpdateRequest(
+        rating=5,
+    )
+
+    result, _ = context.service.update_entry(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        log_entry_id="entry_game",
+        request=request,
+    )
+
+    assert result.rating == 5
+
+    updates = (
+        context.log_entry_repository
+        .update.call_args.args[2]
+    )
+
+    assert updates["rating"] == 5
+
+
+def test_update_place_entry_rejects_rating() -> None:
+    context = make_service()
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log_record()
+    )
+
+    from app.schemas.attendance_log import (
+        LogEntryRecord,
+        LogEntryUpdateRequest,
+    )
+
+    place_entry = LogEntryRecord(
+        log_entry_id="entry_place",
+        plan_item_id="place_1",
+        place_id="tour_001",
+        sequence_no=1,
+        entry_type=LogEntryType.PLACE,
+        entry_title="광안리해수욕장",
+        review_text=None,
+        rating=None,
+        occurred_at=NOW,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    context.log_entry_repository.get_by_id.return_value = (
+        place_entry
+    )
+
+    request = LogEntryUpdateRequest(
+        rating=5,
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.update_entry(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            log_entry_id="entry_place",
+            request=request,
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == (
+        "LOG_ENTRY_RATING_NOT_ALLOWED"
+    )
+
+    context.log_entry_repository.update.assert_not_called()
