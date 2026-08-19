@@ -6,6 +6,66 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/attendance-logs": {
+      "post": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 초안 생성",
+        "description": "로그인 사용자의 여행과 현재 ACTIVE 일정을 기반으로 직관 로그 DRAFT와 장소별 Entry를 생성합니다.",
+        "operationId": "create_attendance_log_api_v1_attendance_logs_post",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceLogCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -1519,6 +1579,121 @@
         "title": "AccommodationInfo",
         "description": "여행 숙소 정보."
       },
+      "AttendanceLogCreateRequest": {
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tripid",
+            "description": "직관 로그를 생성할 여행 ID"
+          },
+          "logTitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logtitle",
+            "description": "직관 로그 제목. 생략하면 서버가 여행 정보를 기반으로 생성합니다."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tripId"
+        ],
+        "title": "AttendanceLogCreateRequest",
+        "description": "여행을 기반으로 직관 로그 초안을 생성하는 요청.\n\ngameId와 planId는 서버가 Trip을 통해 결정합니다.",
+        "examples": [
+          {
+            "logTitle": "사직 원정 직관 기록",
+            "tripId": "trip_001"
+          }
+        ]
+      },
+      "AttendanceLogResponse": {
+        "properties": {
+          "attendanceLogId": {
+            "type": "string",
+            "title": "Attendancelogid"
+          },
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "planId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planid"
+          },
+          "logTitle": {
+            "type": "string",
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "logStatus": {
+            "$ref": "#/components/schemas/AttendanceLogStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attendanceLogId",
+          "tripId",
+          "gameId",
+          "logTitle",
+          "logStatus",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "AttendanceLogResponse",
+        "description": "직관 로그 목록용 응답."
+      },
+      "AttendanceLogStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "PUBLISHED",
+          "ARCHIVED"
+        ],
+        "title": "AttendanceLogStatus",
+        "description": "직관 로그 상태."
+      },
       "BusinessHoursRule": {
         "properties": {
           "weekdays": {
@@ -2682,6 +2857,25 @@
         ],
         "title": "StadiumSummaryResponse",
         "description": "경기 응답에 포함되는 구장 요약 정보."
+      },
+      "SuccessResponse_AttendanceLogResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AttendanceLogResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[AttendanceLogResponse]"
       },
       "SuccessResponse_GameResponse_": {
         "properties": {

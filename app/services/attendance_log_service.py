@@ -72,6 +72,7 @@ class AttendanceLogService:
         *,
         user_id: str,
         trip_id: str,
+        log_title: str | None = None,
     ) -> AttendanceLogRecord:
         """여행의 현재 확정 일정을 기반으로 DRAFT 로그를 생성합니다."""
 
@@ -99,7 +100,11 @@ class AttendanceLogService:
             trip_id=trip.trip_id,
             game_id=trip.game_id,
             plan_id=plan.plan_id,
-            log_title=trip.title,
+            log_title=(
+                log_title
+                if log_title is not None
+                else trip.title
+            ),
             summary_text=None,
             log_status=AttendanceLogStatus.DRAFT,
             created_at=now,

@@ -487,3 +487,22 @@ def test_create_draft_skips_non_loggable_anchors() -> None:
         }
         for entry in entries
     )
+
+
+def test_create_draft_uses_custom_log_title() -> None:
+    context = make_service()
+
+    result = context.service.create_draft(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        log_title="나의 첫 사직 직관",
+    )
+
+    assert result.log_title == "나의 첫 사직 직관"
+
+    document = (
+        context.attendance_log_repository
+        .create.call_args.args[0]
+    )
+
+    assert document.log_title == "나의 첫 사직 직관"
