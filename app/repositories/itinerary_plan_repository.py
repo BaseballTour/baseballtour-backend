@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from google.cloud.firestore_v1.client import Client
 from google.cloud.firestore_v1.transaction import transactional
@@ -10,6 +10,29 @@ from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
 )
 from app.schemas.trip import TripStatus
+
+
+def _serialize_days_for_firestore(
+    days: list[ItineraryPlanDay],
+) -> list[dict]:
+    """Firestore가 지원하지 않는 순수 date를 ISO 문자열로 변환합니다."""
+
+    serialized: list[dict] = []
+
+    for day in days:
+        data = day.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+        day_date = data.get("date")
+        if isinstance(day_date, date) and not isinstance(
+            day_date,
+            datetime,
+        ):
+            data["date"] = day_date.isoformat()
+        serialized.append(data)
+
+    return serialized
 
 
 class ItineraryPlanRepository:
@@ -76,6 +99,13 @@ class ItineraryPlanRepository:
         )
 
         transaction = self._client.transaction()
+        plan_data = plan.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+        plan_data["days"] = _serialize_days_for_firestore(
+            plan.days
+        )
 
         @transactional
         def commit(transaction) -> None:
@@ -90,10 +120,7 @@ class ItineraryPlanRepository:
 
             transaction.set(
                 plan_reference,
-                plan.model_dump(
-                    by_alias=True,
-                    exclude_none=False,
-                ),
+                plan_data,
             )
 
             transaction.update(
@@ -171,13 +198,7 @@ class ItineraryPlanRepository:
 
         reference.update(
             {
-                "days": [
-                    day.model_dump(
-                        by_alias=True,
-                        exclude_none=False,
-                    )
-                    for day in days
-                ],
+                "days": _serialize_days_for_firestore(days),
                 "totalTravelMinutes": total_travel_minutes,
                 "updatedAt": updated_at,
             }
