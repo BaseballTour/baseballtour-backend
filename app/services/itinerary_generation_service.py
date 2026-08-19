@@ -40,12 +40,13 @@ from app.schemas.itinerary_plan import (
 )
 from app.schemas.stadium import StadiumResponse
 from app.schemas.trip import TripRecord, TripStatus
+from app.services.recommendation import (
+    RecommendationCenter,
+    RecommendationService,
+)
 
 
-ItineraryGenerator = Callable[
-    [TripInput, list[Place], TravelTimeMatrix],
-    ItineraryResult,
-]
+ItineraryGenerator = Callable[..., ItineraryResult]
 
 
 class ItineraryGenerationService:
@@ -59,6 +60,7 @@ class ItineraryGenerationService:
         place_selection_repository: PlaceSelectionRepository | None = None,
         itinerary_plan_repository: ItineraryPlanRepository | None = None,
         place_adapter: TourApiAdapter | None = None,
+        recommendation_service: RecommendationService | None = None,
         travel_time_provider: TravelTimeProvider = get_cached_transit_minutes,
         generator: ItineraryGenerator = generate_itinerary,
     ) -> None:
@@ -85,6 +87,10 @@ class ItineraryGenerationService:
         self._place_adapter = (
             place_adapter
             or tour_api_adapter
+        )
+        self._recommendation_service = (
+            recommendation_service
+            or RecommendationService(self._place_adapter)
         )
         self._travel_time_provider = travel_time_provider
         self._generator = generator
@@ -139,10 +145,36 @@ class ItineraryGenerationService:
                 selections
             )
 
+            recommended_places = (
+                await self._recommendation_service.get_candidates(
+                    centers=[
+                        RecommendationCenter(
+                            latitude=stadium.latitude,
+                            longitude=stadium.longitude,
+                        ),
+                        RecommendationCenter(
+                            latitude=trip.arrival_point.latitude,
+                            longitude=trip.arrival_point.longitude,
+                        ),
+                    ],
+                    selected_place_ids=(
+                        selection.place_id
+                        for selection in selections
+                    ),
+                )
+            )
+
+            matrix_places = list(
+                {
+                    place.place_id: place
+                    for place in [*places, *recommended_places]
+                }.values()
+            )
+
             matrix = (
                 await build_itinerary_travel_time_matrix(
                     trip_input,
-                    places,
+                    matrix_places,
                     provider=self._travel_time_provider,
                 )
             )
@@ -151,6 +183,7 @@ class ItineraryGenerationService:
                 trip_input,
                 places,
                 matrix,
+                recommended_places=recommended_places,
             )
 
             now = datetime.now(timezone.utc)
