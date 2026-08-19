@@ -8,11 +8,16 @@ from app.api.dependencies.auth import (
     get_current_user_id,
 )
 from app.schemas.response import SuccessResponse
+from app.schemas.term import (
+    TermAgreementsRequest,
+    TermAgreementsResponse,
+)
 from app.schemas.user import (
     SupportTeamUpdateRequest,
     UserBootstrapRequest,
     UserResponse,
 )
+from app.services.term_service import TermService
 from app.services.user_service import UserService
 
 
@@ -82,3 +87,33 @@ def update_my_support_team(
     )
 
     return SuccessResponse(data=user)
+
+
+@router.post(
+    "/me/term-agreements",
+    response_model=SuccessResponse[
+        TermAgreementsResponse
+    ],
+    summary="약관 동의 저장",
+    description=(
+        "인증된 사용자의 약관 동의 상태와 "
+        "동의한 약관 버전을 저장합니다."
+    ),
+)
+def save_my_term_agreements(
+    request: TermAgreementsRequest,
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> SuccessResponse[TermAgreementsResponse]:
+    service = TermService()
+
+    agreements = service.save_agreements(
+        user_id=user_id,
+        request=request,
+    )
+
+    return SuccessResponse(
+        data=agreements,
+    )
