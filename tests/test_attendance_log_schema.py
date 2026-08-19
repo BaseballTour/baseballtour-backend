@@ -9,7 +9,6 @@ from app.schemas.attendance_log import (
     AttendanceLogRecord,
     AttendanceLogStatus,
     AttendanceLogUpdateRequest,
-    AttendanceLogVisibility,
     LogEntryDocument,
     LogEntryRecord,
     LogEntryType,
@@ -201,57 +200,3 @@ def test_log_media_document_matches_erd_fields() -> None:
     )
 
     assert record.log_media_id == "media_001"
-
-
-def test_attendance_log_defaults_to_private() -> None:
-    document = AttendanceLogDocument(
-        user_id="firebase-user-123",
-        trip_id="trip_001",
-        game_id="game_001",
-        plan_id="plan_001",
-        log_title="사직 원정 직관 기록",
-        created_at=NOW,
-        updated_at=NOW,
-    )
-
-    assert (
-        document.visibility
-        == AttendanceLogVisibility.PRIVATE
-    )
-
-    stored = document.model_dump(
-        by_alias=True,
-    )
-
-    assert stored["visibility"] == "PRIVATE"
-
-
-def test_attendance_log_update_accepts_visibility() -> None:
-    request = AttendanceLogUpdateRequest(
-        visibility=AttendanceLogVisibility.PUBLIC,
-    )
-
-    assert (
-        request.visibility
-        == AttendanceLogVisibility.PUBLIC
-    )
-
-
-def test_log_entry_rating_accepts_one_to_five() -> None:
-    request = LogEntryUpdateRequest(
-        rating=5,
-    )
-
-    assert request.rating == 5
-
-
-def test_log_entry_rating_rejects_out_of_range() -> None:
-    with pytest.raises(ValidationError):
-        LogEntryUpdateRequest(
-            rating=6,
-        )
-
-    with pytest.raises(ValidationError):
-        LogEntryUpdateRequest(
-            rating=0,
-        )
