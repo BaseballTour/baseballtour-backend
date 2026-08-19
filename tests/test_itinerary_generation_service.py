@@ -11,6 +11,7 @@ from app.models.itinerary import (
     ItineraryItemType,
     ItineraryResult,
 )
+from app.models.place import Place, PlaceCategory, PlaceSource
 from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
     ItineraryPlanStatus,
@@ -151,6 +152,7 @@ def make_service(
     stadium=None,
     selections=None,
     generator=None,
+    recommendations=None,
 ):
     trip_repository = Mock()
     trip_repository.get_by_id.return_value = (
@@ -196,6 +198,15 @@ def make_service(
     place_adapter = Mock()
     place_adapter.get_place_detail = AsyncMock()
 
+    recommendation_service = Mock()
+    recommendation_service.get_candidates = AsyncMock(
+        return_value=(
+            recommendations
+            if recommendations is not None
+            else []
+        )
+    )
+
     service = ItineraryGenerationService(
         trip_repository=trip_repository,
         game_repository=game_repository,
@@ -203,8 +214,9 @@ def make_service(
         place_selection_repository=selection_repository,
         itinerary_plan_repository=plan_repository,
         place_adapter=place_adapter,
+        recommendation_service=recommendation_service,
         travel_time_provider=None,
-        generator=generator or (lambda *_: make_result()),
+        generator=generator or (lambda *_, **__: make_result()),
     )
 
     return SimpleNamespace(
@@ -215,6 +227,7 @@ def make_service(
         selection_repository=selection_repository,
         plan_repository=plan_repository,
         place_adapter=place_adapter,
+        recommendation_service=recommendation_service,
     )
 
 
@@ -247,6 +260,45 @@ async def test_generate_saves_active_plan() -> None:
     assert arguments["previous_plan_id"] is None
     assert arguments["plan"].trip_id == TRIP_ID
     assert arguments["plan"].user_id == USER_ID
+
+
+@pytest.mark.anyio
+async def test_generate_supplies_real_recommendation_candidates() -> None:
+    recommendation = Place(
+        place_id="tour_987654",
+        name="추천 관광지",
+        category=PlaceCategory.TOURIST_SPOT,
+        latitude=35.18,
+        longitude=129.07,
+        source=PlaceSource.TOUR_API,
+        source_content_id="987654",
+    )
+    generator = Mock(return_value=make_result())
+    context = make_service(
+        generator=generator,
+        recommendations=[recommendation],
+    )
+
+    await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    request = context.recommendation_service.get_candidates.await_args.kwargs
+    assert set(request["selected_place_ids"]) == set()
+    assert len(request["centers"]) == 2
+    assert request["centers"][0].latitude == 35.194
+    assert request["centers"][1].latitude == 35.1151
+
+    generator.assert_called_once()
+    assert generator.call_args.kwargs["recommended_places"] == [
+        recommendation
+    ]
+    matrix = generator.call_args.args[2]
+    assert any(
+        "tour_987654" in route
+        for route in matrix.minutes
+    )
 
 
 @pytest.mark.anyio
