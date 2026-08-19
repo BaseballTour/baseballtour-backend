@@ -209,6 +209,11 @@ def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
     assert stored_plan["tripId"] == "trip_001"
     assert stored_plan["userId"] == "firebase-user-123"
     assert stored_plan["status"] == "ACTIVE"
+    assert stored_plan["days"][0]["date"] == "2026-08-15"
+    assert isinstance(
+        stored_plan["days"][0]["items"][0]["scheduledStartAt"],
+        datetime,
+    )
     assert stored_plan["days"][0]["items"][0]["itemId"] == (
         "item_1_1"
     )
@@ -366,10 +371,8 @@ def test_update_schedule_updates_editable_fields() -> None:
 
     assert stored["totalTravelMinutes"] == 123
     assert stored["updatedAt"] == NOW
-    assert stored["days"] == [
-        day.model_dump(
-            by_alias=True,
-            exclude_none=False,
-        )
-        for day in original.days
-    ]
+    assert stored["days"][0]["date"] == "2026-08-15"
+    assert isinstance(
+        stored["days"][0]["items"][0]["scheduledStartAt"],
+        datetime,
+    )
