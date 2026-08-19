@@ -1519,6 +1519,42 @@
         "title": "AccommodationInfo",
         "description": "여행 숙소 정보."
       },
+      "BusinessHoursRule": {
+        "properties": {
+          "weekdays": {
+            "items": {
+              "$ref": "#/components/schemas/Weekday"
+            },
+            "type": "array",
+            "title": "Weekdays"
+          },
+          "openTime": {
+            "type": "string",
+            "title": "Opentime"
+          },
+          "closeTime": {
+            "type": "string",
+            "title": "Closetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekdays",
+          "openTime",
+          "closeTime"
+        ],
+        "title": "BusinessHoursRule"
+      },
+      "BusinessRuleStatus": {
+        "type": "string",
+        "enum": [
+          "PARSED",
+          "MISSING",
+          "UNPARSABLE",
+          "COMPLEX"
+        ],
+        "title": "BusinessRuleStatus"
+      },
       "DayType": {
         "type": "string",
         "enum": [
@@ -1534,6 +1570,11 @@
           "placeId": {
             "type": "string",
             "title": "Placeid"
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
           },
           "reasonCode": {
             "$ref": "#/components/schemas/ExcludedReasonCode"
@@ -1560,7 +1601,9 @@
           "CLOSED_DAY",
           "ROUTE_INEFFICIENT",
           "DUPLICATE_PLACE",
-          "INVALID_PLACE"
+          "INVALID_PLACE",
+          "ADMISSION_DEADLINE",
+          "ANCHOR_CONFLICT"
         ],
         "title": "ExcludedReasonCode"
       },
@@ -1728,6 +1771,14 @@
         "type": "object",
         "title": "HealthData"
       },
+      "ItineraryItemAddedBy": {
+        "type": "string",
+        "enum": [
+          "USER",
+          "ALGORITHM"
+        ],
+        "title": "ItineraryItemAddedBy"
+      },
       "ItineraryItemType": {
         "type": "string",
         "enum": [
@@ -1851,6 +1902,23 @@
             "title": "Travelminutesfromprevious",
             "default": 0
           },
+          "transferBufferMinutes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Transferbufferminutes",
+            "description": "이동시간과 별도로 확보한 환승·대기 여유시간",
+            "default": 0
+          },
+          "travelMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "travelTimeSource": {
             "anyOf": [
               {
@@ -1866,10 +1934,26 @@
             "title": "Isrequired",
             "default": false
           },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItineraryItemAddedBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "itemId": {
             "type": "string",
             "minLength": 1,
             "title": "Itemid"
+          },
+          "isFixed": {
+            "type": "boolean",
+            "title": "Isfixed",
+            "description": "재생성 시 현재 날짜와 순서를 유지할지 여부",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -2247,6 +2331,56 @@
             "title": "Closetime",
             "description": "영업 종료시간 HH:MM"
           },
+          "businessHoursStatus": {
+            "$ref": "#/components/schemas/BusinessRuleStatus",
+            "default": "MISSING"
+          },
+          "businessHoursText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Businesshourstext"
+          },
+          "businessHoursRules": {
+            "items": {
+              "$ref": "#/components/schemas/BusinessHoursRule"
+            },
+            "type": "array",
+            "title": "Businesshoursrules"
+          },
+          "admissionDeadlineTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admissiondeadlinetime",
+            "description": "안전하게 해석된 최종 입장 가능 시각 HH:MM"
+          },
+          "admissionDeadlineStatus": {
+            "$ref": "#/components/schemas/BusinessRuleStatus",
+            "default": "MISSING"
+          },
+          "admissionDeadlineText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admissiondeadlinetext",
+            "description": "입장 마감 관련 TourAPI 원문"
+          },
           "closedDaysText": {
             "anyOf": [
               {
@@ -2258,6 +2392,17 @@
             ],
             "title": "Closeddaystext",
             "description": "휴무일 원문"
+          },
+          "closedDaysStatus": {
+            "$ref": "#/components/schemas/BusinessRuleStatus",
+            "default": "MISSING"
+          },
+          "closedWeekdays": {
+            "items": {
+              "$ref": "#/components/schemas/Weekday"
+            },
+            "type": "array",
+            "title": "Closedweekdays"
           },
           "defaultStayMinutes": {
             "type": "integer",
@@ -2296,6 +2441,26 @@
             "title": "Sourcecontentid",
             "description": "외부 API의 원본 콘텐츠 ID"
           },
+          "kakaoPlaceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kakaoplaceid",
+            "description": "정보 보충에 사용된 카카오 장소 ID"
+          },
+          "enrichedBy": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSource"
+            },
+            "type": "array",
+            "title": "Enrichedby",
+            "description": "기본 출처 외에 장소 정보를 보충한 데이터 출처"
+          },
           "contentTypeId": {
             "anyOf": [
               {
@@ -2308,7 +2473,7 @@
             "title": "Contenttypeid",
             "description": "TourAPI 콘텐츠 유형 ID"
           },
-          "areaCode": {
+          "lclsSystem1": {
             "anyOf": [
               {
                 "type": "string"
@@ -2317,10 +2482,10 @@
                 "type": "null"
               }
             ],
-            "title": "Areacode",
-            "description": "TourAPI 지역 코드"
+            "title": "Lclssystem1",
+            "description": "TourAPI 신분류 대분류 코드"
           },
-          "sigunguCode": {
+          "lclsSystem2": {
             "anyOf": [
               {
                 "type": "string"
@@ -2329,10 +2494,10 @@
                 "type": "null"
               }
             ],
-            "title": "Sigungucode",
-            "description": "TourAPI 시군구 코드"
+            "title": "Lclssystem2",
+            "description": "TourAPI 신분류 중분류 코드"
           },
-          "categoryCode1": {
+          "lclsSystem3": {
             "anyOf": [
               {
                 "type": "string"
@@ -2341,32 +2506,8 @@
                 "type": "null"
               }
             ],
-            "title": "Categorycode1",
-            "description": "TourAPI 대분류 코드 cat1"
-          },
-          "categoryCode2": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Categorycode2",
-            "description": "TourAPI 중분류 코드 cat2"
-          },
-          "categoryCode3": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Categorycode3",
-            "description": "TourAPI 소분류 코드 cat3"
+            "title": "Lclssystem3",
+            "description": "TourAPI 신분류 소분류 코드"
           }
         },
         "type": "object",
@@ -2797,6 +2938,14 @@
         ],
         "title": "TeamResponse",
         "description": "구단 API 응답 모델."
+      },
+      "TravelMode": {
+        "type": "string",
+        "enum": [
+          "WALK",
+          "TRANSIT"
+        ],
+        "title": "TravelMode"
       },
       "TravelTimeSource": {
         "type": "string",
@@ -3338,6 +3487,19 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Weekday": {
+        "type": "string",
+        "enum": [
+          "MONDAY",
+          "TUESDAY",
+          "WEDNESDAY",
+          "THURSDAY",
+          "FRIDAY",
+          "SATURDAY",
+          "SUNDAY"
+        ],
+        "title": "Weekday"
       }
     }
   }

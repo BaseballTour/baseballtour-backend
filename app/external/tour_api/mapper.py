@@ -1,8 +1,12 @@
-from typing import Any
 import logging
 from typing import Any
 
-from app.models.place import Place, PlaceCategory, PlaceSource
+from app.models.place import (
+    Place,
+    PlaceCategory,
+    PlaceSource,
+    default_stay_minutes_for,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,21 +21,38 @@ TOUR_API_CATEGORY_MAP: dict[str, PlaceCategory] = {
 }
 
 
-
 def get_tour_api_content_type_id(
     category: PlaceCategory | None,
 ) -> str | None:
+    """내부 장소 카테고리를 TourAPI contentTypeId로 변환합니다."""
+
     if category is None:
         return None
 
-    for content_type_id, mapped_category in TOUR_API_CATEGORY_MAP.items():
+    for (
+        content_type_id,
+        mapped_category,
+    ) in TOUR_API_CATEGORY_MAP.items():
         if mapped_category == category:
             return content_type_id
 
     return None
 
 
-def get_place_category(content_type_id: str | None) -> PlaceCategory:
+
+def get_place_category(
+    content_type_id: str | None,
+    lcls_system1: str | None = None,
+    lcls_system2: str | None = None,
+) -> PlaceCategory:
+    """신분류를 우선 적용하고 관광타입을 대분류 fallback으로 쓴다."""
+    if lcls_system2 and lcls_system2.startswith("FD05"):
+        return PlaceCategory.CAFE
+    if lcls_system1 == "FD":
+        return PlaceCategory.RESTAURANT
+    if lcls_system1 == "AC":
+        return PlaceCategory.ACCOMMODATION
+
     if not content_type_id:
         return PlaceCategory.OTHER
 
@@ -94,11 +115,20 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
     content_type_id = empty_string_to_none(
         item.get("contenttypeid")
     )
+    # TourAPI 원본 키는 System이 아닌 Systm 철자를 사용한다.
+    lcls_system1 = empty_string_to_none(item.get("lclsSystm1"))
+    lcls_system2 = empty_string_to_none(item.get("lclsSystm2"))
+    lcls_system3 = empty_string_to_none(item.get("lclsSystm3"))
 
+    category = get_place_category(
+        content_type_id,
+        lcls_system1,
+        lcls_system2,
+    )
     return Place(
         place_id=f"tour_{content_id}",
         name=name,
-        category=get_place_category(content_type_id),
+        category=category,
         latitude=latitude,
         longitude=longitude,
         address=combine_address(
@@ -117,9 +147,24 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         overview=empty_string_to_none(item.get("overview")),
         open_time=empty_string_to_none(item.get("openTime")),
         close_time=empty_string_to_none(item.get("closeTime")),
+        business_hours_status=item.get("businessHoursStatus", "MISSING"),
+        business_hours_text=empty_string_to_none(item.get("businessHoursText")),
+        business_hours_rules=item.get("businessHoursRules") or [],
+        admission_deadline_time=empty_string_to_none(
+            item.get("admissionDeadlineTime")
+        ),
+        admission_deadline_status=item.get(
+            "admissionDeadlineStatus", "MISSING"
+        ),
+        admission_deadline_text=empty_string_to_none(
+            item.get("admissionDeadlineText")
+        ),
         closed_days_text=empty_string_to_none(
             item.get("closedDaysText")
         ),
+        closed_days_status=item.get("closedDaysStatus", "MISSING"),
+        closed_weekdays=item.get("closedWeekdays") or [],
+        default_stay_minutes=default_stay_minutes_for(category),
         distance_meters=(
             float(item["dist"])
             if empty_string_to_none(item.get("dist"))
@@ -128,21 +173,9 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         source=PlaceSource.TOUR_API,
         source_content_id=content_id,
         content_type_id=content_type_id,
-        area_code=empty_string_to_none(
-            item.get("areacode")
-        ),
-        sigungu_code=empty_string_to_none(
-            item.get("sigungucode")
-        ),
-        category_code1=empty_string_to_none(
-            item.get("cat1")
-        ),
-        category_code2=empty_string_to_none(
-            item.get("cat2")
-        ),
-        category_code3=empty_string_to_none(
-            item.get("cat3")
-        ),
+        lcls_system1=lcls_system1,
+        lcls_system2=lcls_system2,
+        lcls_system3=lcls_system3,
     )
 
 

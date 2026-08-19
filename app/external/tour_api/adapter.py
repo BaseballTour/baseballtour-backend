@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-import re
 from time import monotonic
 from typing import Any, Awaitable, Callable
 
@@ -23,6 +22,11 @@ from app.external.tour_api.mapper import (
     tour_api_items_to_places,
 )
 from app.models.place import Place, PlaceCategory
+from app.external.tour_api.business_hours import (
+    parse_admission_deadline,
+    parse_business_hours,
+    parse_closed_days,
+)
 
 
 DEFAULT_CACHE_TTL_SECONDS = 300
@@ -77,9 +81,14 @@ class TourApiAdapter:
         *,
         client: httpx.AsyncClient | None = None,
     ) -> NearbyPlacePage:
-        content_type_id = get_tour_api_content_type_id(category)
+        content_type_id = get_tour_api_content_type_id(
+            category
+        )
 
-        if category is not None and content_type_id is None:
+        if (
+            category is not None
+            and content_type_id is None
+        ):
             return NearbyPlacePage(
                 places=[],
                 next_page_token=None,
@@ -90,7 +99,9 @@ class TourApiAdapter:
             longitude,
             latitude,
             radius,
-            category.value if category is not None else None,
+            category.value
+            if category is not None
+            else None,
             page_no,
             num_of_rows,
         )
@@ -107,25 +118,38 @@ class TourApiAdapter:
             )
 
             raw_items = extract_items(raw)
+
             places = deduplicate_places(
-                tour_api_items_to_places(raw_items)
+                tour_api_items_to_places(
+                    raw_items
+                )
             )
 
-            body = raw.get("response", {}).get("body", {})
+            body = (
+                raw.get("response", {})
+                .get("body", {})
+            )
+
             total_count: int | None = None
 
             if isinstance(body, dict):
                 try:
-                    total_count = int(body.get("totalCount"))
+                    total_count = int(
+                        body.get("totalCount")
+                    )
                 except (TypeError, ValueError):
                     total_count = None
 
             if total_count is not None:
                 has_next = (
-                    page_no * num_of_rows < total_count
+                    page_no * num_of_rows
+                    < total_count
                 )
             else:
-                has_next = len(raw_items) == num_of_rows
+                has_next = (
+                    len(raw_items)
+                    == num_of_rows
+                )
 
             return NearbyPlacePage(
                 places=places,
@@ -136,7 +160,10 @@ class TourApiAdapter:
                 ),
             )
 
-        return await self._cached(key, load)
+        return await self._cached(
+            key,
+            load,
+        )
 
     async def get_nearby_place_list(
         self,
@@ -152,6 +179,7 @@ class TourApiAdapter:
             radius=radius,
             client=client,
         )
+
         return page.places
 
     async def get_place_detail(
@@ -227,31 +255,25 @@ def _normalize_intro(item: dict[str, Any]) -> dict[str, Any]:
             "playtime",
         ),
     )
-    opening, closing = _split_hours(hours)
+    hours_status, hours_text, hours_rules = parse_business_hours(hours)
+    admission_status, admission_text, admission_time = parse_admission_deadline(hours)
+    closed_raw = _first_non_empty(item, ("restdatefood", "restdateshopping", "restdateculture", "restdateleports", "restdate"))
+    closed_status, closed_text, closed_weekdays = parse_closed_days(closed_raw)
+    opening = hours_rules[0].open_time if len(hours_rules) == 1 else None
+    closing = hours_rules[0].close_time if len(hours_rules) == 1 else None
     return {
         "openTime": opening or _first_non_empty(item, ("checkintime",)),
         "closeTime": closing or _first_non_empty(item, ("checkouttime",)),
-        "closedDaysText": _first_non_empty(
-            item,
-            (
-                "restdatefood",
-                "restdateshopping",
-                "restdateculture",
-                "restdateleports",
-                "restdate",
-            ),
-        ),
+        "businessHoursStatus": hours_status,
+        "businessHoursText": hours_text,
+        "businessHoursRules": [rule.model_dump() for rule in hours_rules],
+        "admissionDeadlineTime": admission_time,
+        "admissionDeadlineStatus": admission_status,
+        "admissionDeadlineText": admission_text,
+        "closedDaysText": closed_text,
+        "closedDaysStatus": closed_status,
+        "closedWeekdays": closed_weekdays,
     }
-
-
-def _split_hours(value: str | None) -> tuple[str | None, str | None]:
-    if not value:
-        return None, None
-    matches = re.findall(r"\b(\d{1,2}):([0-5]\d)\b", value)
-    normalized = [f"{int(hour):02d}:{minute}" for hour, minute in matches]
-    if not normalized:
-        return None, None
-    return normalized[0], normalized[-1] if len(normalized) > 1 else None
 
 
 def _first_image_url(items: list[dict[str, Any]]) -> str | None:

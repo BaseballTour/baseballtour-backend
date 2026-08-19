@@ -18,8 +18,10 @@
           "scheduledStartAt": "2026-08-14T10:30:00+09:00",
           "scheduledEndAt": "2026-08-14T10:50:00+09:00",
           "travelMinutesFromPrevious": 0,
+          "travelMode": null,
+          "travelTimeSource": null,
           "isRequired": true,
-          "travelTimeSource": null
+          "addedBy": null
         },
         {
           "type": "PLACE",
@@ -32,8 +34,10 @@
           "scheduledStartAt": "2026-08-14T11:30:00+09:00",
           "scheduledEndAt": "2026-08-14T13:00:00+09:00",
           "travelMinutesFromPrevious": 40,
+          "travelMode": "TRANSIT",
+          "travelTimeSource": "FAKE",
           "isRequired": true,
-          "travelTimeSource": "FAKE"
+          "addedBy": "USER"
         }
       ]
     },
@@ -52,11 +56,15 @@
           "scheduledStartAt": "2026-08-15T17:50:00+09:00",
           "scheduledEndAt": "2026-08-15T22:00:00+09:00",
           "travelMinutesFromPrevious": 35,
+          "travelMode": "TRANSIT",
+          "travelTimeSource": "FAKE",
           "isRequired": true,
-          "travelTimeSource": "FAKE"
+          "addedBy": null
         }
       ]
     }
   ],
-  "excludedPlaces": []
+  "excludedPlaces": [],
+  "autoFillApplied": false,
+  "autoRecommendedPlaceCount": 0
 }

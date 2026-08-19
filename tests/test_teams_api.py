@@ -30,9 +30,9 @@ def test_get_teams_returns_team_list() -> None:
     ]
 
     with patch(
-        "app.api.v1.endpoints.teams.TeamService.get_teams",
-        return_value=teams,
-    ):
+        "app.api.v1.endpoints.teams.TeamService"
+    ) as service_class:
+        service_class.return_value.get_teams.return_value = teams
         response = client.get("/api/v1/teams")
 
     assert response.status_code == 200
@@ -56,9 +56,9 @@ def test_get_teams_returns_team_list() -> None:
 
 def test_get_teams_returns_empty_list() -> None:
     with patch(
-        "app.api.v1.endpoints.teams.TeamService.get_teams",
-        return_value=[],
-    ):
+        "app.api.v1.endpoints.teams.TeamService"
+    ) as service_class:
+        service_class.return_value.get_teams.return_value = []
         response = client.get("/api/v1/teams")
 
     assert response.status_code == 200

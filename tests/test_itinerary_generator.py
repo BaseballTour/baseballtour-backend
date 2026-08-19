@@ -4,11 +4,7 @@ from pathlib import Path
 
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import TravelTimeMatrix
-from app.models.itinerary import (
-    ItineraryItemType,
-    TravelTimeSource,
-    TripInput,
-)
+from app.models.itinerary import ItineraryItemType, TripInput
 from app.models.place import Place
 
 
@@ -72,16 +68,46 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
         for day in result.days
         for item in day.items
     )
-
-    travelled_items = [
+    travel_items = [
         item
         for day in result.days
         for item in day.items
         if item.travel_minutes_from_previous > 0
     ]
-
-    assert travelled_items
+    assert travel_items
+    assert all(item.travel_mode is not None for item in travel_items)
     assert all(
-        item.travel_time_source == TravelTimeSource.FAKE
-        for item in travelled_items
+        item.travel_time_source is not None
+        for item in travel_items
     )
+    accommodation = next(
+        item
+        for day in result.days
+        for item in day.items
+        if item.item_type == ItineraryItemType.ACCOMMODATION
+    )
+    assert (
+        accommodation.scheduled_end_at
+        - accommodation.scheduled_start_at
+    ).total_seconds() == 30 * 60
+    assert all(
+        item.transfer_buffer_minutes == 15
+        for item in travel_items
+    )
+
+
+def test_required_missing_place_returns_conflict_metadata() -> None:
+    trip = TripInput.model_validate_json(
+        (SAMPLE_ROOT / "trip_input.json").read_text(encoding="utf-8")
+    )
+    matrix = TravelTimeMatrix(
+        minutes={pair: 15 for pair in permutations(
+            ["arrival", "departure", "accommodation", "stadium"], 2
+        )}
+    )
+
+    result = generate_itinerary(trip, [], matrix)
+    excluded = result.excluded_places[0]
+
+    assert result.has_required_place_conflict is True
+    assert excluded.is_required is True

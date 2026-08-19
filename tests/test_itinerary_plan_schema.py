@@ -77,6 +77,7 @@ def test_plan_document_serializes_storage_metadata() -> None:
     assert data["days"][0]["items"][0]["itemId"] == (
         "item_1_1"
     )
+    assert data["days"][0]["items"][0]["isFixed"] is False
     assert "planId" not in data
 
 
