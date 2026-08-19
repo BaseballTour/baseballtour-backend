@@ -4,12 +4,9 @@ from app.schemas.base import ApiModel
 
 
 class FavoriteCollectionDocument(ApiModel):
-    """사용자별 찜 컬렉션 문서."""
+    """구단 구분 없이 사용하는 사용자 개인 찜 컬렉션 문서."""
 
     name: str = Field(min_length=1)
-    team_id: str | None = None
-    stadium_ids: list[str] = Field(default_factory=list)
-    region_codes: list[str] = Field(default_factory=list)
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

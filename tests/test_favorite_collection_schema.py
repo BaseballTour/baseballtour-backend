@@ -6,19 +6,19 @@ from app.schemas.favorite_collection import (
 )
 
 
-def test_team_collection_can_reference_regions_and_stadiums() -> None:
+def test_personal_collection_does_not_store_team_or_region_metadata() -> None:
     now = datetime.now(timezone.utc)
     collection = FavoriteCollectionDocument(
-        name="한화 원정",
-        team_id="hanwha",
-        stadium_ids=["daejeon"],
-        region_codes=["daejeon"],
+        name="가보고 싶은 장소",
         created_at=now,
         updated_at=now,
     )
 
-    assert collection.team_id == "hanwha"
-    assert collection.stadium_ids == ["daejeon"]
+    assert collection.model_dump() == {
+        "name": "가보고 싶은 장소",
+        "createdAt": now,
+        "updatedAt": now,
+    }
 
 
 def test_favorite_item_only_references_place() -> None:
