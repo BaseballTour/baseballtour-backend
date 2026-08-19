@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Header, status
+from fastapi import Depends, Request, Security, status
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
 from firebase_admin import auth as firebase_auth
 
 from app.core.exceptions import AppException
@@ -11,6 +15,15 @@ from app.core.firebase import initialize_firebase
 AUTHENTICATE_HEADERS = {
     "WWW-Authenticate": "Bearer",
 }
+
+bearer_auth = HTTPBearer(
+    auto_error=False,
+    bearerFormat="Firebase ID Token",
+    description=(
+        "Firebase Authentication에서 발급받은 ID Token을 입력합니다. "
+        "Swagger에서는 Bearer 접두사 없이 토큰 값만 입력합니다."
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -35,12 +48,15 @@ def create_auth_exception(
 
 
 async def get_current_user(
-    authorization: Annotated[
-        str | None,
-        Header(alias="Authorization"),
+    request: Request,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Security(bearer_auth),
     ] = None,
 ) -> AuthenticatedUser:
     """Firebase ID Token을 검증하고 인증 사용자 정보를 반환한다."""
+
+    authorization = request.headers.get("Authorization")
 
     if authorization is None:
         raise create_auth_exception(
@@ -48,13 +64,15 @@ async def get_current_user(
             message="인증 토큰이 필요합니다.",
         )
 
-    scheme, separator, token = authorization.partition(" ")
+    if credentials is None:
+        raise create_auth_exception(
+            code="AUTH_TOKEN_INVALID",
+            message="인증 토큰 형식이 올바르지 않습니다.",
+        )
 
-    if (
-        scheme.lower() != "bearer"
-        or not separator
-        or not token.strip()
-    ):
+    token = credentials.credentials.strip()
+
+    if credentials.scheme.lower() != "bearer" or not token:
         raise create_auth_exception(
             code="AUTH_TOKEN_INVALID",
             message="인증 토큰 형식이 올바르지 않습니다.",
@@ -62,7 +80,7 @@ async def get_current_user(
 
     try:
         decoded_token = firebase_auth.verify_id_token(
-            token.strip(),
+            token,
             app=initialize_firebase(),
             check_revoked=True,
         )

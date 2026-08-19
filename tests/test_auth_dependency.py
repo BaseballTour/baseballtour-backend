@@ -195,6 +195,25 @@ def test_valid_token_returns_user_uid(
     assert received["check_revoked"] is True
 
 
+def test_openapi_exposes_bearer_authorization(
+    client: TestClient,
+) -> None:
+    schema = client.get("/openapi.json").json()
+
+    assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
+        "type": "http",
+        "description": (
+            "Firebase Authentication에서 발급받은 ID Token을 입력합니다. "
+            "Swagger에서는 Bearer 접두사 없이 토큰 값만 입력합니다."
+        ),
+        "scheme": "bearer",
+        "bearerFormat": "Firebase ID Token",
+    }
+    assert schema["paths"]["/protected"]["get"]["security"] == [
+        {"HTTPBearer": []}
+    ]
+
+
 @pytest.fixture
 def authenticated_user_client() -> TestClient:
     app = FastAPI()

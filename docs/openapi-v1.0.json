@@ -203,6 +203,31 @@
       }
     },
     "/api/v1/trips": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "내 여행 목록 조회",
+        "description": "로그인 사용자가 소유한 여행 목록을 조회합니다.",
+        "operationId": "get_my_trips_api_v1_trips_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_TripSummaryResponse_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "Trips"
@@ -210,33 +235,15 @@
         "summary": "여행 생성",
         "description": "경기와 여행 기본정보를 저장하고 로그인 사용자의 여행을 생성합니다.",
         "operationId": "create_trip_api_v1_trips_post",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TripCreateRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -259,55 +266,12 @@
               }
             }
           }
-        }
-      },
-      "get": {
-        "tags": [
-          "Trips"
-        ],
-        "summary": "내 여행 목록 조회",
-        "description": "로그인 사용자가 소유한 여행 목록을 조회합니다.",
-        "operationId": "get_my_trips_api_v1_trips_get",
-        "parameters": [
+        },
+        "security": [
           {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
+            "HTTPBearer": []
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListSuccessResponse_TripSummaryResponse_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/v1/trips/{tripId}": {
@@ -318,6 +282,11 @@
         "summary": "여행 상세 조회",
         "description": "로그인 사용자가 소유한 여행의 기본정보를 조회합니다.",
         "operationId": "get_trip_api_v1_trips__tripId__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -329,22 +298,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -377,6 +330,11 @@
         "summary": "여행 기본정보 수정",
         "description": "로그인 사용자가 소유한 여행의 경기, 시간, 장소, 숙소 정보를 수정합니다.",
         "operationId": "update_trip_api_v1_trips__tripId__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -388,22 +346,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -446,6 +388,11 @@
         "summary": "여행 삭제",
         "description": "로그인 사용자가 소유한 여행을 삭제합니다.",
         "operationId": "delete_trip_api_v1_trips__tripId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -457,22 +404,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -500,6 +431,11 @@
         "summary": "여행 장소 선택 추가",
         "description": "로그인 사용자가 소유한 여행에 방문할 장소를 추가합니다.",
         "operationId": "create_place_selection_api_v1_trips__tripId__place_selections_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -511,22 +447,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -569,6 +489,11 @@
         "summary": "여행 장소 선택 목록 조회",
         "description": "로그인 사용자가 소유한 여행에 선택된 장소 목록을 조회합니다.",
         "operationId": "get_place_selections_api_v1_trips__tripId__place_selections_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -580,22 +505,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -630,6 +539,11 @@
         "summary": "여행 장소 선택 삭제",
         "description": "로그인 사용자가 소유한 여행에서 선택한 장소를 삭제합니다.",
         "operationId": "delete_place_selection_api_v1_trips__tripId__place_selections__placeId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -652,22 +566,6 @@
               "title": "Placeid"
             },
             "description": "선택한 장소 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -695,6 +593,11 @@
         "summary": "여행 일정 생성 및 저장",
         "description": "저장된 여행·경기·구장·선택 장소 정보를 조합하여 여행 일정을 생성하고 ACTIVE Plan으로 저장합니다.",
         "operationId": "create_itinerary_api_v1_trips__tripId__itineraries_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -706,22 +609,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -756,6 +643,11 @@
         "summary": "여행 일정 상세 조회",
         "description": "로그인 사용자가 소유한 여행의 현재 ACTIVE 일정 Plan을 조회합니다.",
         "operationId": "get_active_itinerary_plan_api_v1_trips__tripId__plan_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -767,22 +659,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -815,6 +691,11 @@
         "summary": "여행 일정 삭제",
         "description": "로그인 사용자가 소유한 여행의 현재 ACTIVE 일정 Plan을 삭제합니다.",
         "operationId": "delete_active_itinerary_plan_api_v1_trips__tripId__plan_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -826,22 +707,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -869,6 +734,11 @@
         "summary": "여행 일정 장소 순서 변경",
         "description": "특정 날짜의 PLACE 항목 순서를 변경하고 이동시간과 방문시간을 다시 계산합니다.",
         "operationId": "reorder_itinerary_items_api_v1_trips__tripId__plan_items_order_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -880,22 +750,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -940,6 +794,11 @@
         "summary": "여행 일정 장소 삭제",
         "description": "현재 ACTIVE 일정에서 특정 PLACE 항목을 삭제하고 이동시간과 방문시간을 다시 계산합니다.",
         "operationId": "delete_itinerary_item_api_v1_trips__tripId__plan_items__itemId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -962,22 +821,6 @@
               "title": "Itemid"
             },
             "description": "삭제할 일정 항목 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -1012,6 +855,11 @@
         "summary": "여행 일정 장소 추가",
         "description": "특정 날짜의 ACTIVE 일정에 장소를 추가하고 이동시간과 방문시간을 다시 계산합니다.",
         "operationId": "add_itinerary_item_api_v1_trips__tripId__plan_items_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "tripId",
@@ -1023,22 +871,6 @@
               "title": "Tripid"
             },
             "description": "여행 ID"
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -1083,33 +915,15 @@
         "summary": "최초 사용자 프로필 생성",
         "description": "Firebase 인증 사용자의 최초 프로필을 생성합니다.",
         "operationId": "bootstrap_user_api_v1_users_me_bootstrap_post",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserBootstrapRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -1132,7 +946,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/users/me": {
@@ -1143,24 +962,6 @@
         "summary": "내 사용자 정보 조회",
         "description": "인증된 사용자의 프로필을 조회합니다.",
         "operationId": "get_my_profile_api_v1_users_me_get",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1171,18 +972,13 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/users/me/support-team": {
@@ -1193,33 +989,15 @@
         "summary": "응원팀 설정 및 변경",
         "description": "인증된 사용자의 응원팀을 설정하거나 변경합니다.",
         "operationId": "update_my_support_team_api_v1_users_me_support_team_patch",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SupportTeamUpdateRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1242,7 +1020,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/tour/nearby": {
@@ -3500,6 +3283,14 @@
           "SUNDAY"
         ],
         "title": "Weekday"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "Firebase Authentication에서 발급받은 ID Token을 입력합니다. Swagger에서는 Bearer 접두사 없이 토큰 값만 입력합니다.",
+        "scheme": "bearer",
+        "bearerFormat": "Firebase ID Token"
       }
     }
   }
