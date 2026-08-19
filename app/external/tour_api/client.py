@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import httpx
@@ -7,6 +8,7 @@ from app.core.exceptions import AppException
 from app.external.tour_api.mapper import tour_api_items_to_places
 from app.models.place import Place
 
+logger = logging.getLogger(__name__)
 
 TOUR_API_BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 TOUR_API_SUCCESS_CODE = "0000"
@@ -179,6 +181,11 @@ async def _request_tour_api(
         )
         response.raise_for_status()
     except httpx.TimeoutException as exc:
+        logger.error(
+            "TourAPI timeout: type=%s endpoint=%s",
+            type(exc).__name__,
+            endpoint,
+        )
         raise AppException(
             status_code=503,
             code="EXTERNAL_API_TIMEOUT",
