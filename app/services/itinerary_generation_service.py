@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
 
@@ -47,6 +48,7 @@ from app.services.recommendation import (
 
 
 ItineraryGenerator = Callable[..., ItineraryResult]
+RECOMMENDATION_TIMEOUT_SECONDS = 20.0
 
 
 class ItineraryGenerationService:
@@ -145,24 +147,28 @@ class ItineraryGenerationService:
                 selections
             )
 
-            recommended_places = (
-                await self._recommendation_service.get_candidates(
-                    centers=[
-                        RecommendationCenter(
-                            latitude=stadium.latitude,
-                            longitude=stadium.longitude,
+            try:
+                recommended_places = await asyncio.wait_for(
+                    self._recommendation_service.get_candidates(
+                        centers=[
+                            RecommendationCenter(
+                                latitude=stadium.latitude,
+                                longitude=stadium.longitude,
+                            ),
+                            RecommendationCenter(
+                                latitude=trip.arrival_point.latitude,
+                                longitude=trip.arrival_point.longitude,
+                            ),
+                        ],
+                        selected_place_ids=(
+                            selection.place_id
+                            for selection in selections
                         ),
-                        RecommendationCenter(
-                            latitude=trip.arrival_point.latitude,
-                            longitude=trip.arrival_point.longitude,
-                        ),
-                    ],
-                    selected_place_ids=(
-                        selection.place_id
-                        for selection in selections
                     ),
+                    timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )
-            )
+            except asyncio.TimeoutError:
+                recommended_places = []
 
             matrix_places = list(
                 {
@@ -203,6 +209,13 @@ class ItineraryGenerationService:
                 )
             )
 
+        except asyncio.CancelledError:
+            if generation_started:
+                self._restore_trip_status(
+                    trip_id=trip_id,
+                    original_status=original_status,
+                )
+            raise
         except Exception:
             if generation_started:
                 self._restore_trip_status(
