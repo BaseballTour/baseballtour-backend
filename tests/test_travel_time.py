@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.algorithms.travel_time import (
@@ -80,4 +82,49 @@ async def test_matrix_prefers_walking_when_faster() -> None:
 
     assert matrix.get("a", "b") < 30
     assert matrix.get_mode("a", "b").value == "WALK"
+    assert matrix.get_source("a", "b").value == "ESTIMATED"
+
+
+@pytest.mark.anyio
+async def test_matrix_limits_provider_concurrency() -> None:
+    active = 0
+    maximum_active = 0
+
+    async def provider(*coordinates: float) -> int:
+        nonlocal active, maximum_active
+        active += 1
+        maximum_active = max(maximum_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return 1
+
+    await build_travel_time_matrix(
+        [
+            MatrixNode(str(index), 37.5 + index / 100, 127.0)
+            for index in range(5)
+        ],
+        provider,
+        max_concurrency=2,
+    )
+
+    assert maximum_active == 2
+
+
+@pytest.mark.anyio
+async def test_matrix_uses_fallback_after_total_timeout() -> None:
+    async def slow_provider(*coordinates: float) -> int:
+        await asyncio.sleep(1)
+        return 1
+
+    matrix = await build_travel_time_matrix(
+        [
+            MatrixNode("a", 37.5, 127.0),
+            MatrixNode("b", 37.6, 127.1),
+        ],
+        slow_provider,
+        provider_timeout_seconds=1,
+        matrix_timeout_seconds=0.01,
+    )
+
+    assert matrix.get("a", "b") >= 5
     assert matrix.get_source("a", "b").value == "ESTIMATED"

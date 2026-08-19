@@ -81,7 +81,12 @@ async def test_returns_only_unique_unselected_tour_api_candidates() -> None:
         }[content_id]
     )
 
-    service = RecommendationService(adapter, radius=5000, page_size=20)
+    service = RecommendationService(
+        adapter,
+        radius=5000,
+        page_size=20,
+        max_pages_per_center=2,
+    )
     result = await service.get_candidates(
         centers=[RecommendationCenter(latitude=35.19, longitude=129.06)],
         selected_place_ids=[selected.place_id],
@@ -174,3 +179,36 @@ async def test_duplicate_centers_are_queried_once() -> None:
     )
 
     adapter.get_nearby_place_page.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_default_candidate_pool_is_limited_before_detail_lookup() -> None:
+    places = [
+        make_place(f"tour_{index}", distance=float(index))
+        for index in range(20, 0, -1)
+    ]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(
+            places=places,
+            next_page_token="2",
+        )
+    )
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: next(
+            place
+            for place in places
+            if place.source_content_id == content_id
+        )
+    )
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=35.19, longitude=129.06)]
+    )
+
+    assert len(result) == 15
+    assert [place.distance_meters for place in result] == list(
+        map(float, range(1, 16))
+    )
+    assert adapter.get_nearby_place_page.await_count == 1
+    assert adapter.get_place_detail.await_count == 15

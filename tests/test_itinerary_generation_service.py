@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -446,3 +447,38 @@ async def test_generate_restores_generated_status_on_regeneration_failure() -> N
 
     assert updates[0].args[1]["status"] == "GENERATING"
     assert updates[-1].args[1]["status"] == "GENERATED"
+
+
+@pytest.mark.anyio
+async def test_generate_continues_without_recommendations_after_timeout() -> None:
+    generator = Mock(return_value=make_result())
+    context = make_service(generator=generator)
+    context.recommendation_service.get_candidates.side_effect = (
+        asyncio.TimeoutError
+    )
+
+    result = await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    assert result.plan_id == "plan_001"
+    assert generator.call_args.kwargs["recommended_places"] == []
+
+
+@pytest.mark.anyio
+async def test_generate_restores_status_when_request_is_cancelled() -> None:
+    context = make_service()
+    context.recommendation_service.get_candidates.side_effect = (
+        asyncio.CancelledError
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await context.service.generate(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+        )
+
+    updates = context.trip_repository.update.call_args_list
+    assert updates[0].args[1]["status"] == "GENERATING"
+    assert updates[-1].args[1]["status"] == "PLANNING"

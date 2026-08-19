@@ -17,7 +17,9 @@ from app.models.place import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_RECOMMENDATION_RADIUS_METERS = 10_000
-DEFAULT_RECOMMENDATION_PAGE_SIZE = 100
+DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
+DEFAULT_MAX_PAGES_PER_CENTER = 1
+DEFAULT_MAX_CANDIDATES = 15
 DETAIL_CONCURRENCY = 5
 
 
@@ -38,10 +40,14 @@ class RecommendationService:
         *,
         radius: int = DEFAULT_RECOMMENDATION_RADIUS_METERS,
         page_size: int = DEFAULT_RECOMMENDATION_PAGE_SIZE,
+        max_pages_per_center: int = DEFAULT_MAX_PAGES_PER_CENTER,
+        max_candidates: int = DEFAULT_MAX_CANDIDATES,
     ) -> None:
         self._place_adapter = place_adapter or tour_api_adapter
         self._radius = radius
         self._page_size = page_size
+        self._max_pages_per_center = max_pages_per_center
+        self._max_candidates = max_candidates
 
     async def get_candidates(
         self,
@@ -57,10 +63,13 @@ class RecommendationService:
         for center in _deduplicate_centers(centers):
             nearby_places.extend(await self._load_all_nearby_pages(center))
 
-        filtered = _filter_and_deduplicate(
-            nearby_places,
-            excluded_ids=selected_ids,
-        )
+        filtered = sorted(
+            _filter_and_deduplicate(
+                nearby_places,
+                excluded_ids=selected_ids,
+            ),
+            key=_recommendation_sort_key,
+        )[: self._max_candidates]
         detailed = await self._resolve_details(filtered)
 
         return sorted(detailed, key=_recommendation_sort_key)
@@ -72,7 +81,7 @@ class RecommendationService:
         places: list[Place] = []
         page_no = 1
 
-        while True:
+        while page_no <= self._max_pages_per_center:
             try:
                 page = await self._place_adapter.get_nearby_place_page(
                     longitude=center.longitude,

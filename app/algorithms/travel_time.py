@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 from typing import Awaitable, Callable, Protocol
@@ -18,6 +19,10 @@ TravelTimeProvider = Callable[
     [float, float, float, float],
     Awaitable[int],
 ]
+
+TRAVEL_TIME_MAX_CONCURRENCY = 8
+TRAVEL_TIME_PROVIDER_TIMEOUT_SECONDS = 3.0
+TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS = 20.0
 
 
 @dataclass(frozen=True)
@@ -97,11 +102,19 @@ def fallback_travel_minutes(origin: Coordinate, destination: Coordinate) -> int:
 async def build_travel_time_matrix(
     nodes: list[MatrixNode],
     provider: TravelTimeProvider | None = None,
+    *,
+    max_concurrency: int = TRAVEL_TIME_MAX_CONCURRENCY,
+    provider_timeout_seconds: float = (
+        TRAVEL_TIME_PROVIDER_TIMEOUT_SECONDS
+    ),
+    matrix_timeout_seconds: float = TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS,
 ) -> TravelTimeMatrix:
     unique = {node.node_id: node for node in nodes}
     minutes: dict[tuple[str, str], int] = {}
     modes: dict[tuple[str, str], TravelMode] = {}
     sources: dict[tuple[str, str], TravelTimeSource] = {}
+
+    routes: list[tuple[str, MatrixNode, str, MatrixNode]] = []
 
     for origin_id, origin in unique.items():
         for destination_id, destination in unique.items():
@@ -111,26 +124,54 @@ async def build_travel_time_matrix(
             if key in minutes:
                 continue
             walk_minutes = estimated_walking_minutes(origin, destination)
-            value = walk_minutes
-            mode = TravelMode.WALK
-            source = TravelTimeSource.ESTIMATED
-            if provider is not None:
-                try:
-                    transit_minutes = await provider(
-                        origin.longitude,
-                        origin.latitude,
-                        destination.longitude,
-                        destination.latitude,
+            minutes[key] = walk_minutes
+            modes[key] = TravelMode.WALK
+            sources[key] = TravelTimeSource.ESTIMATED
+            routes.append(
+                (origin_id, origin, destination_id, destination)
+            )
+
+    if provider is not None and routes:
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def resolve_route(
+            origin_id: str,
+            origin: MatrixNode,
+            destination_id: str,
+            destination: MatrixNode,
+        ) -> None:
+            try:
+                async with semaphore:
+                    transit_minutes = await asyncio.wait_for(
+                        provider(
+                            origin.longitude,
+                            origin.latitude,
+                            destination.longitude,
+                            destination.latitude,
+                        ),
+                        timeout=provider_timeout_seconds,
                     )
-                    if transit_minutes < walk_minutes:
-                        value = transit_minutes
-                        mode = TravelMode.TRANSIT
-                        source = TravelTimeSource.ODSAY
-                except Exception:
-                    pass
-            minutes[key] = value
-            modes[key] = mode
-            sources[key] = source
+            except Exception:
+                return
+
+            key = (origin_id, destination_id)
+            if transit_minutes < minutes[key]:
+                minutes[key] = transit_minutes
+                modes[key] = TravelMode.TRANSIT
+                sources[key] = TravelTimeSource.ODSAY
+
+        tasks = [
+            resolve_route(*route)
+            for route in routes
+        ]
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*tasks),
+                timeout=matrix_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            # 완료되지 않은 경로는 미리 채운 직선거리 기반 값으로 유지합니다.
+            pass
 
     return TravelTimeMatrix(
         minutes=minutes,
