@@ -9,12 +9,25 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
+
+    cors_origins: str = (
+        "http://localhost:5173,http://localhost:3000"
+    )
+
     tour_api_key: str = ""
     kakao_rest_api_key: str = ""
     odsay_api_key: str = ""
     firebase_credentials_path: str = (
         "secrets/firebase-service-account.json"
     )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
     model_config = SettingsConfigDict(
         env_file=".env",
