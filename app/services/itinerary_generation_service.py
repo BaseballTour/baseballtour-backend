@@ -45,6 +45,7 @@ from app.schemas.itinerary_plan import (
 from app.schemas.stadium import StadiumResponse
 from app.schemas.trip import TripRecord, TripStatus
 from app.services.recommendation import (
+    ExcludedRecommendationPlace,
     RecommendationCenter,
     RecommendationService,
 )
@@ -177,6 +178,13 @@ class ItineraryGenerationService:
                             ),
                         ],
                         selected_place_ids=recommendation_excluded_ids,
+                        excluded_places=[
+                            ExcludedRecommendationPlace(
+                                name=stadium.name,
+                                latitude=stadium.latitude,
+                                longitude=stadium.longitude,
+                            )
+                        ],
                     ),
                     timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )

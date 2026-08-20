@@ -10,6 +10,7 @@ from app.models.place import (
     PlaceSource,
 )
 from app.services.recommendation import (
+    ExcludedRecommendationPlace,
     RecommendationCenter,
     RecommendationService,
 )
@@ -105,6 +106,37 @@ async def test_returns_only_unique_unselected_tour_api_candidates() -> None:
         "page_no": 1,
         "num_of_rows": 20,
     }
+
+
+@pytest.mark.anyio
+async def test_excludes_stadium_anchor_from_recommendations() -> None:
+    stadium = make_place("tour_gocheok", distance=0)
+    stadium.name = "고척 스카이돔"
+    stadium.latitude = 37.4982
+    stadium.longitude = 126.8671
+    attraction = make_place("tour_attraction", distance=200)
+
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(
+            places=[stadium, attraction],
+            next_page_token=None,
+        )
+    )
+    adapter.get_place_detail = AsyncMock(return_value=attraction)
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=37.4982, longitude=126.8671)],
+        excluded_places=[
+            ExcludedRecommendationPlace(
+                name="고척스카이돔",
+                latitude=37.4982,
+                longitude=126.8671,
+            )
+        ],
+    )
+
+    assert [place.place_id for place in result] == ["tour_attraction"]
 
 
 @pytest.mark.anyio

@@ -296,6 +296,9 @@ async def test_generate_supplies_real_recommendation_candidates() -> None:
     assert len(request["centers"]) == 2
     assert request["centers"][0].latitude == 35.194
     assert request["centers"][1].latitude == 35.1151
+    assert len(request["excluded_places"]) == 1
+    assert request["excluded_places"][0].name == "사직야구장"
+    assert request["excluded_places"][0].latitude == 35.194
 
     generator.assert_called_once()
     assert generator.call_args.kwargs["recommended_places"] == [
