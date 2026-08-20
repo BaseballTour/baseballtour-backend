@@ -164,6 +164,8 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         ),
         closed_days_status=item.get("closedDaysStatus", "MISSING"),
         closed_weekdays=item.get("closedWeekdays") or [],
+        event_start_date=item.get("eventStartDate"),
+        event_end_date=item.get("eventEndDate"),
         default_stay_minutes=default_stay_minutes_for(category),
         distance_meters=(
             float(item["dist"])

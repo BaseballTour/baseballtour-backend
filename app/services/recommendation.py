@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date
 
 from app.external.tour_api.adapter import TourApiAdapter, tour_api_adapter
 from app.models.place import (
@@ -22,12 +25,27 @@ DEFAULT_MAX_PAGES_PER_CENTER = 1
 DEFAULT_MAX_CANDIDATES = 15
 DETAIL_CONCURRENCY = 5
 DINING_CATEGORY_MINIMUM = 2
+CATEGORY_MAXIMUMS = {
+    PlaceCategory.RESTAURANT: 4,
+    PlaceCategory.CAFE: 2,
+    PlaceCategory.SHOPPING: 2,
+    PlaceCategory.FESTIVAL: 1,
+}
 
 
 @dataclass(frozen=True)
 class RecommendationCenter:
     """TourAPI 위치 기반 추천 조회의 기준점."""
 
+    latitude: float
+    longitude: float
+
+
+@dataclass(frozen=True)
+class ExcludedRecommendationPlace:
+    """자동 추천에서 제외할 Anchor 장소 정보."""
+
+    name: str
     latitude: float
     longitude: float
 
@@ -55,10 +73,14 @@ class RecommendationService:
         *,
         centers: Iterable[RecommendationCenter],
         selected_place_ids: Iterable[str] = (),
+        excluded_places: Iterable[ExcludedRecommendationPlace] = (),
+        travel_start_date: date | None = None,
+        travel_end_date: date | None = None,
     ) -> list[Place]:
         """기준점 주변의 중복되지 않은 TourAPI 추천 후보를 반환합니다."""
 
         selected_ids = set(selected_place_ids)
+        excluded_anchors = tuple(excluded_places)
         nearby_places: list[Place] = []
 
         for center in _deduplicate_centers(centers):
@@ -68,12 +90,24 @@ class RecommendationService:
             _filter_and_deduplicate(
                 nearby_places,
                 excluded_ids=selected_ids,
+                excluded_places=excluded_anchors,
             ),
             max_candidates=self._max_candidates,
         )
         detailed = await self._resolve_details(filtered)
 
-        return sorted(detailed, key=_recommendation_sort_key)
+        return sorted(
+            (
+                place
+                for place in detailed
+                if _is_available_during_trip(
+                    place,
+                    travel_start_date=travel_start_date,
+                    travel_end_date=travel_end_date,
+                )
+            ),
+            key=_recommendation_sort_key,
+        )
 
     async def _load_all_nearby_pages(
         self,
@@ -170,15 +204,23 @@ def _filter_and_deduplicate(
     places: Iterable[Place],
     *,
     excluded_ids: set[str],
+    excluded_places: tuple[ExcludedRecommendationPlace, ...] = (),
 ) -> list[Place]:
     unique: dict[str, Place] = {}
 
     for place in places:
         if place.place_id in excluded_ids:
             continue
+        if any(
+            _matches_excluded_place(place, excluded)
+            for excluded in excluded_places
+        ):
+            continue
         if place.source != PlaceSource.TOUR_API:
             continue
         if place.category == PlaceCategory.ACCOMMODATION:
+            continue
+        if (place.lcls_system2 or "").startswith("VE10"):
             continue
 
         current = unique.get(place.place_id)
@@ -186,6 +228,52 @@ def _filter_and_deduplicate(
             unique[place.place_id] = place
 
     return list(unique.values())
+
+
+def _matches_excluded_place(
+    place: Place,
+    excluded: ExcludedRecommendationPlace,
+) -> bool:
+    """이름이 같거나 좌표가 사실상 동일한 Anchor 후보를 제외한다."""
+
+    if _normalize_place_name(place.name) == _normalize_place_name(
+        excluded.name
+    ):
+        return True
+
+    return _coordinate_distance_meters(
+        place.latitude,
+        place.longitude,
+        excluded.latitude,
+        excluded.longitude,
+    ) <= 30
+
+
+def _normalize_place_name(value: str) -> str:
+    return re.sub(r"[^0-9a-z가-힣]", "", value.casefold())
+
+
+def _coordinate_distance_meters(
+    latitude1: float,
+    longitude1: float,
+    latitude2: float,
+    longitude2: float,
+) -> float:
+    radius_meters = 6_371_000
+    lat1 = math.radians(latitude1)
+    lat2 = math.radians(latitude2)
+    delta_lat = math.radians(latitude2 - latitude1)
+    delta_lon = math.radians(longitude2 - longitude1)
+    haversine = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat1)
+        * math.cos(lat2)
+        * math.sin(delta_lon / 2) ** 2
+    )
+    return radius_meters * 2 * math.atan2(
+        math.sqrt(haversine),
+        math.sqrt(1 - haversine),
+    )
 
 
 def _select_diverse_candidates(
@@ -216,10 +304,32 @@ def _select_diverse_candidates(
             break
         if place.place_id in selected_ids:
             continue
+        maximum = CATEGORY_MAXIMUMS.get(place.category)
+        if maximum is not None and sum(
+            item.category == place.category for item in selected
+        ) >= maximum:
+            continue
         selected.append(place)
         selected_ids.add(place.place_id)
 
     return sorted(selected, key=_recommendation_sort_key)
+
+
+def _is_available_during_trip(
+    place: Place,
+    *,
+    travel_start_date: date | None,
+    travel_end_date: date | None,
+) -> bool:
+    if place.category != PlaceCategory.FESTIVAL:
+        return True
+    if travel_start_date is None or travel_end_date is None:
+        return True
+    if place.event_end_date is not None and place.event_end_date < travel_start_date:
+        return False
+    if place.event_start_date is not None and place.event_start_date > travel_end_date:
+        return False
+    return True
 
 
 CATEGORY_PRIORITY = {

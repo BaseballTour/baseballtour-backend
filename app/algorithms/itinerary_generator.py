@@ -230,6 +230,7 @@ def _schedule_day(
                 type=ItineraryItemType.PLACE,
                 sequence=len(items) + 1,
                 place_id=place.place_id,
+                category=place.category,
                 name=place.name,
                 address=place.address or place.name,
                 latitude=place.latitude,

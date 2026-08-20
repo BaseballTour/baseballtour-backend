@@ -3,6 +3,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
+from app.models.place import PlaceCategory
+
 
 def to_camel(value: str) -> str:
     parts = value.split("_")
@@ -123,6 +125,10 @@ class ItineraryItem(AlgorithmModel):
     )
     sequence: int = Field(ge=1)
     place_id: str | None = None
+    category: PlaceCategory | None = Field(
+        default=None,
+        description="PLACE 항목의 내부 장소 카테고리",
+    )
     name: str
     address: str = Field(min_length=1)
     latitude: float = Field(ge=-90, le=90)

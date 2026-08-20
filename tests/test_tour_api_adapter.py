@@ -102,6 +102,41 @@ async def test_detail_keeps_unknown_hours_and_image_as_none(monkeypatch) -> None
 
 
 @pytest.mark.anyio
+async def test_detail_maps_festival_event_dates(monkeypatch) -> None:
+    async def common(*args, **kwargs):
+        return response_with(
+            {
+                "contentid": "festival-1",
+                "contenttypeid": "15",
+                "title": "기간이 있는 축제",
+                "mapx": "127.0",
+                "mapy": "37.5",
+            }
+        )
+
+    async def intro(*args, **kwargs):
+        return response_with(
+            {
+                "eventstartdate": "20260801",
+                "eventenddate": "20260810",
+                "playtime": "10:00~20:00",
+            }
+        )
+
+    async def images(*args, **kwargs):
+        return response_with([])
+
+    monkeypatch.setattr(adapter_module, "get_place_common_info", common)
+    monkeypatch.setattr(adapter_module, "get_place_intro_info", intro)
+    monkeypatch.setattr(adapter_module, "get_place_images", images)
+
+    place = await TourApiAdapter().get_place_detail("festival-1")
+
+    assert place.event_start_date.isoformat() == "2026-08-01"
+    assert place.event_end_date.isoformat() == "2026-08-10"
+
+
+@pytest.mark.anyio
 async def test_nearby_page_uses_category_pagination_and_cache(
     monkeypatch,
 ) -> None:
