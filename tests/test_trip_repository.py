@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 from typing import Any
 
+import app.repositories.trip_repository as trip_repository_module
 from app.repositories.trip_repository import TripRepository
 from app.schemas.trip import (
     AccommodationInfo,
     TripDocument,
     TripPoint,
+    TripStatus,
 )
 
 
@@ -35,7 +37,10 @@ class FakeDocumentReference:
         self._documents = documents
         self.id = document_id
 
-    def get(self) -> FakeDocumentSnapshot:
+    def get(
+        self,
+        transaction=None,
+    ) -> FakeDocumentSnapshot:
         return FakeDocumentSnapshot(
             self.id,
             self._documents.get(self.id),
@@ -107,6 +112,15 @@ class FakeCollectionReference:
         )
 
 
+class FakeTransaction:
+    def update(
+        self,
+        document_reference: FakeDocumentReference,
+        updates: dict[str, Any],
+    ) -> None:
+        document_reference.update(updates)
+
+
 class FakeFirestoreClient:
     def __init__(self) -> None:
         self.collections: dict[
@@ -117,6 +131,9 @@ class FakeFirestoreClient:
             str,
             FakeCollectionReference,
         ] = {}
+
+    def transaction(self) -> FakeTransaction:
+        return FakeTransaction()
 
     def collection(
         self,
@@ -360,3 +377,52 @@ def test_delete_existing_and_missing_trip() -> None:
     assert repository.delete(trip.trip_id) is True
     assert repository.get_by_id(trip.trip_id) is None
     assert repository.delete(trip.trip_id) is False
+
+
+def test_claim_generation_only_updates_expected_status(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+
+    trip = repository.create(
+        create_trip_document()
+    )
+
+    updated_at = datetime(
+        2026,
+        8,
+        20,
+        3,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    claimed = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.PLANNING,
+        updated_at=updated_at,
+    )
+
+    assert claimed is not None
+    assert claimed.status == TripStatus.GENERATING
+    assert claimed.updated_at == updated_at
+
+    stored = repository.get_by_id(trip.trip_id)
+
+    assert stored is not None
+    assert stored.status == TripStatus.GENERATING
+
+    duplicate_claim = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.PLANNING,
+        updated_at=updated_at,
+    )
+
+    assert duplicate_claim is None

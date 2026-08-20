@@ -161,9 +161,22 @@ def make_service(
     recommendations=None,
 ):
     trip_repository = Mock()
-    trip_repository.get_by_id.return_value = (
+
+    source_trip = (
         trip if trip is not None else make_trip()
     )
+
+    trip_repository.get_by_id.return_value = source_trip
+
+    trip_repository.claim_generation.side_effect = (
+        lambda **kwargs: source_trip.model_copy(
+            update={
+                "status": TripStatus.GENERATING,
+                "updated_at": kwargs["updated_at"],
+            }
+        )
+    )
+
     trip_repository.update.side_effect = (
         lambda trip_id, updates: make_trip(
             trip_status=TripStatus(
@@ -253,7 +266,7 @@ async def test_generate_saves_active_plan() -> None:
 
     updates = context.trip_repository.update.call_args_list
 
-    assert updates[0].args[1]["status"] == "GENERATING"
+    context.trip_repository.claim_generation.assert_called_once()
 
     context.plan_repository.commit_generated_plan.assert_called_once()
 
@@ -438,6 +451,7 @@ async def test_generate_rejects_generation_in_progress() -> None:
         "TRIP_GENERATION_IN_PROGRESS"
     )
 
+    context.trip_repository.claim_generation.assert_not_called()
     context.trip_repository.update.assert_not_called()
 
 
@@ -481,7 +495,7 @@ async def test_generate_restores_status_when_game_missing() -> None:
 
     updates = context.trip_repository.update.call_args_list
 
-    assert updates[0].args[1]["status"] == "GENERATING"
+    context.trip_repository.claim_generation.assert_called_once()
     assert updates[-1].args[1]["status"] == "PLANNING"
 
 
@@ -506,7 +520,7 @@ async def test_generate_restores_generated_status_on_regeneration_failure() -> N
 
     updates = context.trip_repository.update.call_args_list
 
-    assert updates[0].args[1]["status"] == "GENERATING"
+    context.trip_repository.claim_generation.assert_called_once()
     assert updates[-1].args[1]["status"] == "GENERATED"
 
 
@@ -541,5 +555,40 @@ async def test_generate_restores_status_when_request_is_cancelled() -> None:
         )
 
     updates = context.trip_repository.update.call_args_list
-    assert updates[0].args[1]["status"] == "GENERATING"
+    context.trip_repository.claim_generation.assert_called_once()
     assert updates[-1].args[1]["status"] == "PLANNING"
+
+
+@pytest.mark.anyio
+async def test_generate_rejects_concurrent_generation_claim() -> None:
+    original = make_trip(
+        trip_status=TripStatus.PLANNING,
+    )
+    generating = make_trip(
+        trip_status=TripStatus.GENERATING,
+    )
+
+    context = make_service(
+        trip=original,
+    )
+
+    context.trip_repository.get_by_id.side_effect = [
+        original,
+        generating,
+    ]
+
+    context.trip_repository.claim_generation.side_effect = None
+    context.trip_repository.claim_generation.return_value = None
+
+    with pytest.raises(AppException) as captured:
+        await context.service.generate(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == (
+        "TRIP_GENERATION_IN_PROGRESS"
+    )
+
+    context.plan_repository.commit_generated_plan.assert_not_called()
