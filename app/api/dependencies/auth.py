@@ -11,6 +11,7 @@ from firebase_admin import auth as firebase_auth
 from app.core.exceptions import AppException
 from app.core.firebase import initialize_firebase
 from app.repositories.user_repository import UserRepository
+from app.schemas.user import UserDocument
 
 
 AUTHENTICATE_HEADERS = {
@@ -154,13 +155,21 @@ async def get_current_user_id(
 
 
 
-async def get_current_active_user_id(
+@dataclass(frozen=True)
+class ActiveUserContext:
+    """인증된 활성 사용자의 UID와 Firestore 사용자 문서."""
+
+    user_id: str
+    user: UserDocument
+
+
+async def get_current_active_user_context(
     user_id: Annotated[
         str,
         Depends(get_current_user_id),
     ],
-) -> str:
-    """서비스에 등록된 활성 사용자의 Firebase UID를 반환한다."""
+) -> ActiveUserContext:
+    """활성 사용자 문서를 한 번 조회해 컨텍스트로 반환한다."""
 
     repository = UserRepository()
     user = repository.get_by_id(user_id)
@@ -179,4 +188,18 @@ async def get_current_active_user_id(
             message="탈퇴한 사용자 계정입니다.",
         )
 
-    return user_id
+    return ActiveUserContext(
+        user_id=user_id,
+        user=user,
+    )
+
+
+async def get_current_active_user_id(
+    active_user: Annotated[
+        ActiveUserContext,
+        Depends(get_current_active_user_context),
+    ],
+) -> str:
+    """서비스에 등록된 활성 사용자의 Firebase UID를 반환한다."""
+
+    return active_user.user_id

@@ -155,6 +155,9 @@ def test_create_trip_returns_created_summary(
         response = authenticated_client.post(
             "/api/v1/trips",
             json=make_create_body(),
+            headers={
+                "Idempotency-Key": "trip-create-request-001",
+            },
         )
 
     assert response.status_code == 201
@@ -179,6 +182,10 @@ def test_create_trip_returns_created_summary(
 
     assert arguments["user_id"] == USER_ID
     assert arguments["request"].game_id == GAME_ID
+    assert (
+        arguments["idempotency_key"]
+        == "trip-create-request-001"
+    )
 
 
 def test_get_my_trips_returns_list_response(
@@ -316,3 +323,18 @@ def test_trips_api_requires_authentication() -> None:
 
     assert body["success"] is False
     assert body["error"]["code"] == "AUTH_TOKEN_MISSING"
+
+
+def test_create_trip_requires_idempotency_key(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.post(
+        "/api/v1/trips",
+        json=make_create_body(),
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["error"]["code"]
+        == "VALIDATION_ERROR"
+    )

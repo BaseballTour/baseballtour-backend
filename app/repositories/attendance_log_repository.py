@@ -111,6 +111,33 @@ class AttendanceLogRepository:
             reverse=True,
         )
 
+    def soft_delete_all_by_user_id(
+        self,
+        user_id: str,
+        *,
+        deleted_at: datetime,
+    ) -> int:
+        """사용자의 활성 직관 로그를 모두 soft delete합니다."""
+
+        logs = self.get_by_user_id(
+            user_id
+        )
+
+        for log in logs:
+            self._collection.document(
+                log.attendance_log_id
+            ).update(
+                {
+                    "logStatus": (
+                        AttendanceLogStatus.ARCHIVED.value
+                    ),
+                    "updatedAt": deleted_at,
+                    "deletedAt": deleted_at,
+                }
+            )
+
+        return len(logs)
+
     def get_active_by_trip_id(
         self,
         trip_id: str,

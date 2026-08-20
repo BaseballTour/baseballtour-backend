@@ -1,11 +1,22 @@
 from datetime import datetime, timezone
+from hashlib import sha256
+import json
 
 from fastapi import status
 from pydantic import ValidationError
 
 from app.core.exceptions import AppException
 from app.repositories.game_repository import GameRepository
-from app.repositories.trip_repository import TripRepository
+from app.repositories.itinerary_plan_repository import (
+    ItineraryPlanRepository,
+)
+from app.repositories.place_selection_repository import (
+    PlaceSelectionRepository,
+)
+from app.repositories.trip_repository import (
+    TripIdempotencyConflictError,
+    TripRepository,
+)
 from app.schemas.game import GameRecord
 from app.schemas.trip import (
     TripCreateRequest,
@@ -23,6 +34,12 @@ class TripService:
         self,
         trip_repository: TripRepository | None = None,
         game_repository: GameRepository | None = None,
+        place_selection_repository: (
+            PlaceSelectionRepository | None
+        ) = None,
+        itinerary_plan_repository: (
+            ItineraryPlanRepository | None
+        ) = None,
     ) -> None:
         self._trip_repository = (
             trip_repository
@@ -32,12 +49,21 @@ class TripService:
             game_repository
             or GameRepository()
         )
+        self._place_selection_repository = (
+            place_selection_repository
+            or PlaceSelectionRepository()
+        )
+        self._itinerary_plan_repository = (
+            itinerary_plan_repository
+            or ItineraryPlanRepository()
+        )
 
     def create_trip(
         self,
         *,
         user_id: str,
         request: TripCreateRequest,
+        idempotency_key: str,
     ) -> TripRecord:
         """로그인 사용자의 여행을 생성합니다."""
 
@@ -53,6 +79,21 @@ class TripService:
 
         now = datetime.now(timezone.utc)
 
+        request_payload = request.model_dump(
+            mode="json",
+            by_alias=True,
+            exclude_none=False,
+        )
+        request_json = json.dumps(
+            request_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        request_hash = sha256(
+            request_json.encode("utf-8")
+        ).hexdigest()
+
         trip = TripDocument(
             user_id=user_id,
             game_id=request.game_id,
@@ -64,11 +105,25 @@ class TripService:
             accommodation=request.accommodation,
             status=TripStatus.PLANNING,
             active_plan_id=None,
+            idempotency_request_hash=request_hash,
             created_at=now,
             updated_at=now,
         )
 
-        return self._trip_repository.create(trip)
+        try:
+            return self._trip_repository.create_idempotent(
+                trip=trip,
+                idempotency_key=idempotency_key,
+            )
+        except TripIdempotencyConflictError as error:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="TRIP_IDEMPOTENCY_CONFLICT",
+                message=(
+                    "같은 Idempotency-Key가 "
+                    "다른 여행 생성 요청에 사용되었습니다."
+                ),
+            ) from error
 
     def get_my_trips(
         self,
@@ -182,16 +237,17 @@ class TripService:
             trip_id=trip_id,
         )
 
-        deleted = self._trip_repository.delete(
-            trip_id
+        self._place_selection_repository.delete_all(
+            trip_id=trip_id,
         )
 
-        if not deleted:
-            raise AppException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                code="TRIP_NOT_FOUND",
-                message="여행 정보를 찾을 수 없습니다.",
-            )
+        self._itinerary_plan_repository.delete_all_by_trip_id(
+            trip_id=trip_id,
+        )
+
+        self._trip_repository.delete(
+            trip_id
+        )
 
     def _get_game_or_raise(
         self,

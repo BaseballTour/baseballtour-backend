@@ -302,3 +302,43 @@ def test_delete_missing_selection_returns_false() -> None:
     )
 
     assert deleted is False
+
+
+def test_delete_all_removes_all_trip_selections() -> None:
+    client = FakeFirestoreClient()
+    repository = PlaceSelectionRepository(
+        client=client
+    )
+
+    repository.create(
+        trip_id="trip_001",
+        selection=make_selection(
+            place_id="tour_001",
+        ),
+    )
+    repository.create(
+        trip_id="trip_001",
+        selection=make_selection(
+            place_id="tour_002",
+        ),
+    )
+    repository.create(
+        trip_id="trip_002",
+        selection=make_selection(
+            place_id="tour_other",
+        ),
+    )
+
+    deleted_count = repository.delete_all(
+        trip_id="trip_001",
+    )
+
+    assert deleted_count == 2
+    assert repository.get_all(
+        trip_id="trip_001"
+    ) == []
+    assert len(
+        repository.get_all(
+            trip_id="trip_002"
+        )
+    ) == 1

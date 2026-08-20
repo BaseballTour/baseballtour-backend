@@ -1,11 +1,19 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from app.repositories.trip_repository import TripRepository
+import pytest
+from google.cloud.exceptions import NotFound
+
+import app.repositories.trip_repository as trip_repository_module
+from app.repositories.trip_repository import (
+    TripIdempotencyConflictError,
+    TripRepository,
+)
 from app.schemas.trip import (
     AccommodationInfo,
     TripDocument,
     TripPoint,
+    TripStatus,
 )
 
 
@@ -35,7 +43,10 @@ class FakeDocumentReference:
         self._documents = documents
         self.id = document_id
 
-    def get(self) -> FakeDocumentSnapshot:
+    def get(
+        self,
+        transaction=None,
+    ) -> FakeDocumentSnapshot:
         return FakeDocumentSnapshot(
             self.id,
             self._documents.get(self.id),
@@ -45,6 +56,9 @@ class FakeDocumentReference:
         self._documents[self.id] = dict(data)
 
     def update(self, updates: dict[str, Any]) -> None:
+        if self.id not in self._documents:
+            raise NotFound("document not found")
+
         self._documents[self.id].update(updates)
 
     def delete(self) -> None:
@@ -61,16 +75,46 @@ class FakeQuery:
         self._documents = documents
         self._field_path = field_path
         self._expected_value = expected_value
+        self._order_field: str | None = None
+        self._order_direction = "ASCENDING"
+
+    def order_by(
+        self,
+        field_path: str,
+        direction: str = "ASCENDING",
+    ) -> "FakeQuery":
+        self._order_field = field_path
+        self._order_direction = direction
+        return self
 
     def stream(self) -> list[FakeDocumentSnapshot]:
-        return [
-            FakeDocumentSnapshot(
+        documents = [
+            (
                 document_id,
                 data,
             )
             for document_id, data in self._documents.items()
             if data.get(self._field_path)
             == self._expected_value
+        ]
+
+        if self._order_field is not None:
+            documents.sort(
+                key=lambda item: item[1][
+                    self._order_field
+                ],
+                reverse=(
+                    self._order_direction
+                    == "DESCENDING"
+                ),
+            )
+
+        return [
+            FakeDocumentSnapshot(
+                document_id,
+                data,
+            )
+            for document_id, data in documents
         ]
 
 
@@ -107,6 +151,22 @@ class FakeCollectionReference:
         )
 
 
+class FakeTransaction:
+    def set(
+        self,
+        document_reference: FakeDocumentReference,
+        data: dict[str, Any],
+    ) -> None:
+        document_reference.set(data)
+
+    def update(
+        self,
+        document_reference: FakeDocumentReference,
+        updates: dict[str, Any],
+    ) -> None:
+        document_reference.update(updates)
+
+
 class FakeFirestoreClient:
     def __init__(self) -> None:
         self.collections: dict[
@@ -117,6 +177,9 @@ class FakeFirestoreClient:
             str,
             FakeCollectionReference,
         ] = {}
+
+    def transaction(self) -> FakeTransaction:
+        return FakeTransaction()
 
     def collection(
         self,
@@ -200,26 +263,53 @@ def create_trip_document(
     )
 
 
-def test_create_uses_auto_id_and_returns_record() -> None:
-    client = FakeFirestoreClient()
-    repository = TripRepository(client=client)
+def seed_trip(
+    repository: TripRepository,
+    client: FakeFirestoreClient,
+    trip: TripDocument,
+):
+    """Repository 동작 테스트를 위한 Trip 문서를 직접 저장합니다."""
 
-    trip = repository.create(
-        create_trip_document()
+    document_reference = (
+        client.collection("trips").document()
+    )
+    document_reference.set(
+        trip.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
     )
 
-    assert trip.trip_id == "trip_auto_001"
-    assert trip.user_id == "user-001"
-    assert trip.status.value == "PLANNING"
-    assert repository.get_by_id(trip.trip_id) is not None
+    stored = repository.get_by_id(
+        document_reference.id
+    )
+
+    assert stored is not None
+
+    return stored
 
 
-def test_create_stores_camel_case_and_datetime() -> None:
+def test_create_idempotent_stores_camel_case_and_datetime(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
-        create_trip_document()
+    trip_document = create_trip_document().model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-1",
+        }
+    )
+
+    trip = repository.create_idempotent(
+        trip=trip_document,
+        idempotency_key="request-key-1",
     )
 
     stored = client.collections["trips"][
@@ -233,13 +323,20 @@ def test_create_stores_camel_case_and_datetime() -> None:
     assert "arrivalPoint" in stored
     assert "departurePoint" in stored
     assert "activePlanId" in stored
+    assert "idempotencyRequestHash" in stored
     assert "createdAt" in stored
     assert "updatedAt" in stored
 
     assert "user_id" not in stored
     assert "trip_start_at" not in stored
 
-    assert isinstance(stored["tripStartAt"], datetime)
+    assert stored["idempotencyRequestHash"] == (
+        "request-hash-1"
+    )
+    assert isinstance(
+        stored["tripStartAt"],
+        datetime,
+    )
     assert isinstance(
         stored["accommodation"]["checkInAt"],
         datetime,
@@ -257,7 +354,9 @@ def test_get_by_user_id_filters_and_sorts_newest_first() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    repository.create(
+    seed_trip(
+        repository,
+        client,
         create_trip_document(
             user_id="user-001",
             title="이전 여행",
@@ -269,7 +368,9 @@ def test_get_by_user_id_filters_and_sorts_newest_first() -> None:
             ),
         )
     )
-    repository.create(
+    seed_trip(
+        repository,
+        client,
         create_trip_document(
             user_id="user-002",
             title="다른 사용자 여행",
@@ -281,7 +382,9 @@ def test_get_by_user_id_filters_and_sorts_newest_first() -> None:
             ),
         )
     )
-    repository.create(
+    seed_trip(
+        repository,
+        client,
         create_trip_document(
             user_id="user-001",
             title="최근 여행",
@@ -309,7 +412,9 @@ def test_update_changes_only_provided_fields() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
+    trip = seed_trip(
+        repository,
+        client,
         create_trip_document()
     )
     updated_at = datetime(
@@ -349,14 +454,141 @@ def test_update_missing_trip_returns_none() -> None:
     assert result is None
 
 
-def test_delete_existing_and_missing_trip() -> None:
+def test_delete_removes_trip_and_is_safe_when_missing() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
+    trip = seed_trip(
+        repository,
+        client,
         create_trip_document()
     )
 
-    assert repository.delete(trip.trip_id) is True
+    repository.delete(trip.trip_id)
+
     assert repository.get_by_id(trip.trip_id) is None
-    assert repository.delete(trip.trip_id) is False
+
+    repository.delete(trip.trip_id)
+
+    assert repository.get_by_id(trip.trip_id) is None
+
+
+def test_claim_generation_only_updates_expected_status(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+
+    trip = seed_trip(
+        repository,
+        client,
+        create_trip_document()
+    )
+
+    updated_at = datetime(
+        2026,
+        8,
+        20,
+        3,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    claimed = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.PLANNING,
+        updated_at=updated_at,
+    )
+
+    assert claimed is not None
+    assert claimed.status == TripStatus.GENERATING
+    assert claimed.updated_at == updated_at
+
+    stored = repository.get_by_id(trip.trip_id)
+
+    assert stored is not None
+    assert stored.status == TripStatus.GENERATING
+
+    duplicate_claim = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.PLANNING,
+        updated_at=updated_at,
+    )
+
+    assert duplicate_claim is None
+
+
+def test_create_idempotent_reuses_same_trip(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+
+    trip = create_trip_document().model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-1",
+        }
+    )
+
+    first = repository.create_idempotent(
+        trip=trip,
+        idempotency_key="request-key-1",
+    )
+    second = repository.create_idempotent(
+        trip=trip,
+        idempotency_key="request-key-1",
+    )
+
+    assert first.trip_id == second.trip_id
+    assert len(client.collections["trips"]) == 1
+
+
+def test_create_idempotent_rejects_key_reuse_with_other_request(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+
+    first_trip = create_trip_document().model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-1",
+        }
+    )
+    other_trip = create_trip_document(
+        title="다른 여행",
+    ).model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-2",
+        }
+    )
+
+    repository.create_idempotent(
+        trip=first_trip,
+        idempotency_key="request-key-1",
+    )
+
+    with pytest.raises(TripIdempotencyConflictError):
+        repository.create_idempotent(
+            trip=other_trip,
+            idempotency_key="request-key-1",
+        )
+
+    assert len(client.collections["trips"]) == 1

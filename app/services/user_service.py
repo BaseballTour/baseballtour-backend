@@ -79,10 +79,16 @@ class UserService:
             team=team,
         )
 
-    def get_user(self, user_id: str) -> UserResponse:
+    def get_user(
+        self,
+        user_id: str,
+        *,
+        user: UserDocument | None = None,
+    ) -> UserResponse:
         """인증된 사용자의 프로필을 조회합니다."""
 
-        user = self._user_repository.get_by_id(user_id)
+        if user is None:
+            user = self._user_repository.get_by_id(user_id)
 
         if user is None:
             raise AppException(
@@ -103,10 +109,13 @@ class UserService:
         self,
         user_id: str,
         support_team_id: str,
+        *,
+        user: UserDocument | None = None,
     ) -> UserResponse:
         """사용자의 응원팀을 설정하거나 변경합니다."""
 
-        user = self._user_repository.get_by_id(user_id)
+        if user is None:
+            user = self._user_repository.get_by_id(user_id)
 
         if user is None:
             raise AppException(

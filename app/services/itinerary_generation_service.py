@@ -122,9 +122,8 @@ class ItineraryGenerationService:
         generation_started = False
 
         try:
-            self._update_trip_status(
-                trip_id=trip_id,
-                trip_status=TripStatus.GENERATING,
+            trip = self._claim_generation_or_raise(
+                trip=trip,
             )
             generation_started = True
 
@@ -489,26 +488,41 @@ class ItineraryGenerationService:
 
         return places
 
-    def _update_trip_status(
+    def _claim_generation_or_raise(
         self,
         *,
-        trip_id: str,
-        trip_status: TripStatus,
-    ) -> None:
-        updated = self._trip_repository.update(
-            trip_id,
-            {
-                "status": trip_status.value,
-                "updatedAt": datetime.now(timezone.utc),
-            },
+        trip: TripRecord,
+    ) -> TripRecord:
+        claimed = self._trip_repository.claim_generation(
+            trip_id=trip.trip_id,
+            expected_status=trip.status,
+            updated_at=datetime.now(timezone.utc),
         )
 
-        if updated is None:
+        if claimed is not None:
+            return claimed
+
+        current = self._trip_repository.get_by_id(
+            trip.trip_id
+        )
+
+        if current is None:
             raise AppException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 code="TRIP_NOT_FOUND",
                 message="여행 정보를 찾을 수 없습니다.",
             )
+
+        self._validate_generation_status(current)
+
+        raise AppException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="TRIP_GENERATION_STATE_CHANGED",
+            message=(
+                "여행 상태가 변경되어 "
+                "일정 생성을 시작할 수 없습니다."
+            ),
+        )
 
     def _restore_trip_status(
         self,

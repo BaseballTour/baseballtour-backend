@@ -31,6 +31,7 @@ app.add_middleware(
         "Authorization",
         "Content-Type",
         "Accept",
+        "Idempotency-Key",
     ],
 )
 
