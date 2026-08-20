@@ -60,6 +60,7 @@ def make_trip(
     active_plan_id: str | None = None,
     arrival=True,
     departure=True,
+    rejected_recommendation_place_ids=None,
 ) -> TripRecord:
     return TripRecord(
         trip_id=TRIP_ID,
@@ -89,6 +90,9 @@ def make_trip(
         accommodation=None,
         status=trip_status,
         active_plan_id=active_plan_id,
+        rejected_recommendation_place_ids=(
+            rejected_recommendation_place_ids or []
+        ),
         created_at=NOW,
         updated_at=NOW,
     )
@@ -333,6 +337,7 @@ async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
         trip=make_trip(
             trip_status=TripStatus.GENERATED,
             active_plan_id="plan_old",
+            rejected_recommendation_place_ids=["tour_older_rejected"],
         )
     )
     context.plan_repository.get_by_id.return_value = SimpleNamespace(
@@ -368,7 +373,17 @@ async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
     )
 
     request = context.recommendation_service.get_candidates.await_args.kwargs
-    assert set(request["selected_place_ids"]) == {"tour_rejected"}
+    assert set(request["selected_place_ids"]) == {
+        "tour_older_rejected",
+        "tour_rejected",
+    }
+    commit_request = (
+        context.plan_repository.commit_generated_plan.call_args.kwargs
+    )
+    assert commit_request["rejected_recommendation_place_ids"] == [
+        "tour_older_rejected",
+        "tour_rejected",
+    ]
 
 
 @pytest.mark.anyio

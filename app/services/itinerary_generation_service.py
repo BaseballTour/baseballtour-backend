@@ -149,14 +149,17 @@ class ItineraryGenerationService:
                 selections
             )
 
-            recommendation_excluded_ids = {
-                selection.place_id for selection in selections
-            }
-            recommendation_excluded_ids.update(
+            rejected_recommendation_ids = set(
+                trip.rejected_recommendation_place_ids
+            )
+            rejected_recommendation_ids.update(
                 self._get_previous_unfixed_recommendation_ids(
                     trip.active_plan_id
                 )
             )
+            recommendation_excluded_ids = {
+                selection.place_id for selection in selections
+            } | rejected_recommendation_ids
 
             try:
                 recommended_places = await asyncio.wait_for(
@@ -214,6 +217,9 @@ class ItineraryGenerationService:
                     trip_id=trip_id,
                     plan=plan,
                     previous_plan_id=trip.active_plan_id,
+                    rejected_recommendation_place_ids=sorted(
+                        rejected_recommendation_ids
+                    ),
                 )
             )
 
