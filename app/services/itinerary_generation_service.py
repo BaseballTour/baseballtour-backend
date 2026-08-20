@@ -185,6 +185,8 @@ class ItineraryGenerationService:
                                 longitude=stadium.longitude,
                             )
                         ],
+                        travel_start_date=trip_input.trip_start_at.date(),
+                        travel_end_date=trip_input.trip_end_at.date(),
                     ),
                     timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )

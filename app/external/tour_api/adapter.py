@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any, Awaitable, Callable
@@ -273,7 +274,19 @@ def _normalize_intro(item: dict[str, Any]) -> dict[str, Any]:
         "closedDaysText": closed_text,
         "closedDaysStatus": closed_status,
         "closedWeekdays": closed_weekdays,
+        "eventStartDate": _normalize_event_date(item.get("eventstartdate")),
+        "eventEndDate": _normalize_event_date(item.get("eventenddate")),
     }
+
+
+def _normalize_event_date(value: Any) -> str | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y%m%d").date().isoformat()
+    except ValueError:
+        return None
 
 
 def _first_image_url(items: list[dict[str, Any]]) -> str | None:

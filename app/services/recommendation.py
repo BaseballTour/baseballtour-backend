@@ -6,6 +6,7 @@ import math
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date
 
 from app.external.tour_api.adapter import TourApiAdapter, tour_api_adapter
 from app.models.place import (
@@ -24,6 +25,12 @@ DEFAULT_MAX_PAGES_PER_CENTER = 1
 DEFAULT_MAX_CANDIDATES = 15
 DETAIL_CONCURRENCY = 5
 DINING_CATEGORY_MINIMUM = 2
+CATEGORY_MAXIMUMS = {
+    PlaceCategory.RESTAURANT: 4,
+    PlaceCategory.CAFE: 2,
+    PlaceCategory.SHOPPING: 2,
+    PlaceCategory.FESTIVAL: 1,
+}
 
 
 @dataclass(frozen=True)
@@ -67,6 +74,8 @@ class RecommendationService:
         centers: Iterable[RecommendationCenter],
         selected_place_ids: Iterable[str] = (),
         excluded_places: Iterable[ExcludedRecommendationPlace] = (),
+        travel_start_date: date | None = None,
+        travel_end_date: date | None = None,
     ) -> list[Place]:
         """기준점 주변의 중복되지 않은 TourAPI 추천 후보를 반환합니다."""
 
@@ -87,7 +96,18 @@ class RecommendationService:
         )
         detailed = await self._resolve_details(filtered)
 
-        return sorted(detailed, key=_recommendation_sort_key)
+        return sorted(
+            (
+                place
+                for place in detailed
+                if _is_available_during_trip(
+                    place,
+                    travel_start_date=travel_start_date,
+                    travel_end_date=travel_end_date,
+                )
+            ),
+            key=_recommendation_sort_key,
+        )
 
     async def _load_all_nearby_pages(
         self,
@@ -200,6 +220,8 @@ def _filter_and_deduplicate(
             continue
         if place.category == PlaceCategory.ACCOMMODATION:
             continue
+        if (place.lcls_system2 or "").startswith("VE10"):
+            continue
 
         current = unique.get(place.place_id)
         if current is None or _distance(place) < _distance(current):
@@ -282,10 +304,32 @@ def _select_diverse_candidates(
             break
         if place.place_id in selected_ids:
             continue
+        maximum = CATEGORY_MAXIMUMS.get(place.category)
+        if maximum is not None and sum(
+            item.category == place.category for item in selected
+        ) >= maximum:
+            continue
         selected.append(place)
         selected_ids.add(place.place_id)
 
     return sorted(selected, key=_recommendation_sort_key)
+
+
+def _is_available_during_trip(
+    place: Place,
+    *,
+    travel_start_date: date | None,
+    travel_end_date: date | None,
+) -> bool:
+    if place.category != PlaceCategory.FESTIVAL:
+        return True
+    if travel_start_date is None or travel_end_date is None:
+        return True
+    if place.event_end_date is not None and place.event_end_date < travel_start_date:
+        return False
+    if place.event_start_date is not None and place.event_start_date > travel_end_date:
+        return False
+    return True
 
 
 CATEGORY_PRIORITY = {

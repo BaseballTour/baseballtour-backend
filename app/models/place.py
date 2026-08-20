@@ -1,3 +1,4 @@
+from datetime import date
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -192,6 +193,15 @@ class Place(BaseModel):
 
     closed_days_status: BusinessRuleStatus = BusinessRuleStatus.MISSING
     closed_weekdays: list[Weekday] = Field(default_factory=list)
+
+    event_start_date: date | None = Field(
+        default=None,
+        description="축제·행사 시작일",
+    )
+    event_end_date: date | None = Field(
+        default=None,
+        description="축제·행사 종료일",
+    )
 
     default_stay_minutes: int = Field(
         default=60,

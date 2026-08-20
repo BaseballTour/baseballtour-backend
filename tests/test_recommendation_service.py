@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, Mock
+from datetime import date
 
 import pytest
 
@@ -28,9 +29,10 @@ def make_place(
     distance: float | None = 100,
     source: PlaceSource = PlaceSource.TOUR_API,
     business_hours_status: BusinessRuleStatus = BusinessRuleStatus.MISSING,
+    **updates,
 ) -> Place:
     source_content_id = place_id.removeprefix("tour_")
-    return Place(
+    values = dict(
         place_id=place_id,
         name=place_id,
         category=category,
@@ -41,6 +43,8 @@ def make_place(
         source_content_id=source_content_id,
         business_hours_status=business_hours_status,
     )
+    values.update(updates)
+    return Place(**values)
 
 
 @pytest.mark.anyio
@@ -137,6 +141,86 @@ async def test_excludes_stadium_anchor_from_recommendations() -> None:
     )
 
     assert [place.place_id for place in result] == ["tour_attraction"]
+
+
+@pytest.mark.anyio
+async def test_excludes_ve10_sports_facility() -> None:
+    sports_complex = make_place(
+        "tour_sports_complex",
+        category=PlaceCategory.ACTIVITY,
+        lcls_system2="VE10",
+        lcls_system3="VE100100",
+    )
+    attraction = make_place("tour_attraction")
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(
+            places=[sports_complex, attraction],
+            next_page_token=None,
+        )
+    )
+    adapter.get_place_detail = AsyncMock(return_value=attraction)
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)]
+    )
+
+    assert [place.place_id for place in result] == ["tour_attraction"]
+
+
+@pytest.mark.anyio
+async def test_excludes_festival_ended_before_trip() -> None:
+    past_festival = make_place(
+        "tour_past_festival",
+        category=PlaceCategory.FESTIVAL,
+        business_hours_status=BusinessRuleStatus.PARSED,
+        event_start_date=date(2025, 8, 1),
+        event_end_date=date(2025, 8, 3),
+    )
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(
+            places=[past_festival],
+            next_page_token=None,
+        )
+    )
+    adapter.get_place_detail = AsyncMock(return_value=past_festival)
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=36.3, longitude=127.4)],
+        travel_start_date=date(2026, 8, 15),
+        travel_end_date=date(2026, 8, 17),
+    )
+
+    assert result == []
+
+
+@pytest.mark.anyio
+async def test_caps_food_shopping_and_festival_candidates() -> None:
+    candidates = [
+        *(make_place(f"tour_restaurant_{index}", category=PlaceCategory.RESTAURANT, distance=index) for index in range(8)),
+        *(make_place(f"tour_cafe_{index}", category=PlaceCategory.CAFE, distance=20 + index) for index in range(4)),
+        *(make_place(f"tour_shopping_{index}", category=PlaceCategory.SHOPPING, distance=30 + index) for index in range(4)),
+        *(make_place(f"tour_spot_{index}", distance=40 + index) for index in range(6)),
+    ]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(places=candidates, next_page_token=None)
+    )
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: next(
+            item for item in candidates if item.source_content_id == content_id
+        )
+    )
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)]
+    )
+
+    assert sum(item.category == PlaceCategory.RESTAURANT for item in result) == 4
+    assert sum(item.category == PlaceCategory.CAFE for item in result) == 2
+    assert sum(item.category == PlaceCategory.SHOPPING for item in result) == 2
+    assert sum(item.category == PlaceCategory.TOURIST_SPOT for item in result) == 6
 
 
 @pytest.mark.anyio
