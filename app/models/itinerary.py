@@ -164,6 +164,22 @@ class ItineraryDay(AlgorithmModel):
     items: list[ItineraryItem] = Field(default_factory=list)
 
 
+class RecommendationSummary(AlgorithmModel):
+    """자동 추천 후보 준비와 일정 삽입 결과 요약."""
+
+    fetched_count: int = Field(default=0, ge=0)
+    candidate_count: int = Field(default=0, ge=0)
+    scheduled_count: int = Field(default=0, ge=0)
+    category_distribution: dict[str, int] = Field(default_factory=dict)
+    filtered_counts: dict[str, int] = Field(default_factory=dict)
+    placement_rejected_attempts: dict[str, int] = Field(
+        default_factory=dict,
+        description=(
+            "장소 고유 개수가 아니라 날짜·삽입 위치별 실패 시도 횟수"
+        ),
+    )
+
+
 class ItineraryResult(AlgorithmModel):
     trip_id: str
     algorithm_version: str = "draft-v0.1"
@@ -172,6 +188,7 @@ class ItineraryResult(AlgorithmModel):
     excluded_places: list[ExcludedPlace] = Field(default_factory=list)
     auto_fill_applied: bool = False
     auto_recommended_place_count: int = Field(default=0, ge=0)
+    recommendation_summary: RecommendationSummary | None = None
 
     @computed_field
     @property

@@ -77,6 +77,7 @@ class RecommendationService:
         excluded_places: Iterable[ExcludedRecommendationPlace] = (),
         travel_start_date: date | None = None,
         travel_end_date: date | None = None,
+        diagnostics: dict[str, object] | None = None,
     ) -> list[Place]:
         """기준점 주변의 중복되지 않은 TourAPI 추천 후보를 반환합니다."""
 
@@ -123,6 +124,19 @@ class RecommendationService:
             dict(sorted(rejected.items())),
             dict(sorted(Counter(str(item.category) for item in available).items())),
         )
+        if diagnostics is not None:
+            diagnostics.update(
+                {
+                    "fetchedCount": len(nearby_places),
+                    "candidateCount": len(available),
+                    "categoryDistribution": dict(
+                        sorted(
+                            Counter(str(item.category) for item in available).items()
+                        )
+                    ),
+                    "filteredCounts": dict(sorted(rejected.items())),
+                }
+            )
         return available
 
     async def _load_all_nearby_pages(

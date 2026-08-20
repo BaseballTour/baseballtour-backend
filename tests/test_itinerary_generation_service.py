@@ -270,6 +270,7 @@ async def test_generate_saves_active_plan() -> None:
     assert arguments["previous_plan_id"] is None
     assert arguments["plan"].trip_id == TRIP_ID
     assert arguments["plan"].user_id == USER_ID
+    assert arguments["plan"].recommendation_summary is not None
 
 
 @pytest.mark.anyio

@@ -181,5 +181,27 @@
   ],
   "excludedPlaces": [],
   "autoFillApplied": true,
-  "autoRecommendedPlaceCount": 3
+  "autoRecommendedPlaceCount": 3,
+  "recommendationSummary": {
+    "fetchedCount": 40,
+    "candidateCount": 12,
+    "scheduledCount": 3,
+    "categoryDistribution": {
+      "CAFE": 2,
+      "CULTURAL_FACILITY": 2,
+      "RESTAURANT": 4,
+      "TOURIST_SPOT": 4
+    },
+    "filteredCounts": {
+      "ACCOMMODATION": 3,
+      "CATEGORY_LIMIT": 6,
+      "DUPLICATE_PLACE": 2,
+      "SPORTS_FACILITY": 1
+    },
+    "placementRejectedAttempts": {
+      "INSUFFICIENT_TIME": 8,
+      "OUTSIDE_BUSINESS_HOURS": 3,
+      "ROUTE_INEFFICIENT": 4
+    }
+  }
 }

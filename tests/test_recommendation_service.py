@@ -161,8 +161,10 @@ async def test_excludes_ve10_sports_facility() -> None:
     )
     adapter.get_place_detail = AsyncMock(return_value=attraction)
 
+    diagnostics = {}
     result = await RecommendationService(adapter).get_candidates(
-        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)]
+        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)],
+        diagnostics=diagnostics,
     )
 
     assert [place.place_id for place in result] == ["tour_attraction"]
@@ -213,14 +215,19 @@ async def test_caps_food_shopping_and_festival_candidates() -> None:
         )
     )
 
+    diagnostics = {}
     result = await RecommendationService(adapter).get_candidates(
-        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)]
+        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)],
+        diagnostics=diagnostics,
     )
 
     assert sum(item.category == PlaceCategory.RESTAURANT for item in result) == 4
     assert sum(item.category == PlaceCategory.CAFE for item in result) == 2
     assert sum(item.category == PlaceCategory.SHOPPING for item in result) == 2
     assert sum(item.category == PlaceCategory.TOURIST_SPOT for item in result) == 6
+    assert diagnostics["fetchedCount"] == len(candidates)
+    assert diagnostics["candidateCount"] == len(result)
+    assert diagnostics["filteredCounts"]["CATEGORY_LIMIT"] > 0
 
 
 @pytest.mark.anyio

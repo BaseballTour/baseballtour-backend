@@ -80,6 +80,7 @@ def to_itinerary_plan_response(
         total_travel_minutes=plan.total_travel_minutes,
         days=plan.days,
         excluded_places=plan.excluded_places,
+        recommendation_summary=plan.recommendation_summary,
     )
 
 

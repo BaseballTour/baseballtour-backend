@@ -53,6 +53,7 @@ def generate_itinerary(
     matrix: TravelTimeMatrix,
     *,
     recommended_places: list[Place] | None = None,
+    recommendation_diagnostics: dict[str, object] | None = None,
 ) -> ItineraryResult:
     """Anchor와 가까운 장소 우선 규칙을 적용하는 1차 일정 생성기."""
     selected = {item.place_id: item for item in trip.selected_places}
@@ -76,6 +77,7 @@ def generate_itinerary(
             recommended_places,
             matrix,
             excluded_ids=set(selected),
+            diagnostics=recommendation_diagnostics,
         )
 
     current_date = trip.trip_start_at.date()
@@ -427,6 +429,7 @@ def _fill_routes_with_recommendations(
     matrix: TravelTimeMatrix,
     *,
     excluded_ids: set[str],
+    diagnostics: dict[str, object] | None = None,
 ) -> tuple[dict[date, list[Place]], set[str]]:
     """사용자 후보를 보존하면서 실행 가능한 추천 장소를 반복 삽입한다."""
     remaining = {
@@ -529,6 +532,11 @@ def _fill_routes_with_recommendations(
         len(added),
         dict(sorted(rejected.items())),
     )
+    if diagnostics is not None:
+        diagnostics["scheduledCount"] = len(added)
+        diagnostics["placementRejectedAttempts"] = dict(
+            sorted(rejected.items())
+        )
 
     return routes, added
 

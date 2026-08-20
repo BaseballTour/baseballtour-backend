@@ -13,6 +13,7 @@ from app.models.itinerary import (
     ExcludedPlace,
     ItineraryDay,
     ItineraryItem,
+    RecommendationSummary,
 )
 from app.schemas.base import ApiModel
 
@@ -64,6 +65,7 @@ class ItineraryPlanDocument(ApiModel):
     excluded_places: list[ExcludedPlace] = Field(
         default_factory=list
     )
+    recommendation_summary: RecommendationSummary | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
 
@@ -86,6 +88,7 @@ class ItineraryPlanResponse(ApiModel):
     excluded_places: list[ExcludedPlace] = Field(
         default_factory=list
     )
+    recommendation_summary: RecommendationSummary | None = None
 
 
 class ItineraryPlanReorderRequest(ApiModel):

@@ -24,6 +24,7 @@ from app.models.itinerary import (
     ItineraryItemAddedBy,
     ItineraryItemType,
     ItineraryResult,
+    RecommendationSummary,
     SelectedPlaceInput,
     TripInput,
 )
@@ -174,6 +175,7 @@ class ItineraryGenerationService:
             } | rejected_recommendation_ids | fixed_place_ids
 
             try:
+                recommendation_diagnostics: dict[str, object] = {}
                 recommended_places = await asyncio.wait_for(
                     self._recommendation_service.get_candidates(
                         centers=[
@@ -196,11 +198,15 @@ class ItineraryGenerationService:
                         ],
                         travel_start_date=trip_input.trip_start_at.date(),
                         travel_end_date=trip_input.trip_end_at.date(),
+                        diagnostics=recommendation_diagnostics,
                     ),
                     timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError:
                 recommended_places = []
+                recommendation_diagnostics = {
+                    "filteredCounts": {"RECOMMENDATION_TIMEOUT": 1}
+                }
 
             matrix_places = list(
                 {
@@ -222,6 +228,40 @@ class ItineraryGenerationService:
                 places,
                 matrix,
                 recommended_places=recommended_places,
+                recommendation_diagnostics=recommendation_diagnostics,
+            )
+            result = result.model_copy(
+                update={
+                    "recommendation_summary": RecommendationSummary(
+                        fetched_count=int(
+                            recommendation_diagnostics.get("fetchedCount", 0)
+                        ),
+                        candidate_count=int(
+                            recommendation_diagnostics.get(
+                                "candidateCount", len(recommended_places)
+                            )
+                        ),
+                        scheduled_count=int(
+                            recommendation_diagnostics.get(
+                                "scheduledCount",
+                                result.auto_recommended_place_count,
+                            )
+                        ),
+                        category_distribution=dict(
+                            recommendation_diagnostics.get(
+                                "categoryDistribution", {}
+                            )
+                        ),
+                        filtered_counts=dict(
+                            recommendation_diagnostics.get("filteredCounts", {})
+                        ),
+                        placement_rejected_attempts=dict(
+                            recommendation_diagnostics.get(
+                                "placementRejectedAttempts", {}
+                            )
+                        ),
+                    )
+                }
             )
 
             now = datetime.now(timezone.utc)
@@ -685,6 +725,7 @@ class ItineraryGenerationService:
             ),
             days=stored_days,
             excluded_places=result.excluded_places,
+            recommendation_summary=result.recommendation_summary,
             created_at=now,
             updated_at=now,
         )
