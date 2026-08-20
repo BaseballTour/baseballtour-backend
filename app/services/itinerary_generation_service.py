@@ -20,6 +20,8 @@ from app.external.tour_api.adapter import (
 from app.models.itinerary import (
     GameAnchor,
     GeoPoint,
+    ItineraryItemAddedBy,
+    ItineraryItemType,
     ItineraryResult,
     SelectedPlaceInput,
     TripInput,
@@ -147,6 +149,18 @@ class ItineraryGenerationService:
                 selections
             )
 
+            rejected_recommendation_ids = set(
+                trip.rejected_recommendation_place_ids
+            )
+            rejected_recommendation_ids.update(
+                self._get_previous_unfixed_recommendation_ids(
+                    trip.active_plan_id
+                )
+            )
+            recommendation_excluded_ids = {
+                selection.place_id for selection in selections
+            } | rejected_recommendation_ids
+
             try:
                 recommended_places = await asyncio.wait_for(
                     self._recommendation_service.get_candidates(
@@ -160,10 +174,7 @@ class ItineraryGenerationService:
                                 longitude=trip.arrival_point.longitude,
                             ),
                         ],
-                        selected_place_ids=(
-                            selection.place_id
-                            for selection in selections
-                        ),
+                        selected_place_ids=recommendation_excluded_ids,
                     ),
                     timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )
@@ -206,6 +217,9 @@ class ItineraryGenerationService:
                     trip_id=trip_id,
                     plan=plan,
                     previous_plan_id=trip.active_plan_id,
+                    rejected_recommendation_place_ids=sorted(
+                        rejected_recommendation_ids
+                    ),
                 )
             )
 
@@ -223,6 +237,28 @@ class ItineraryGenerationService:
                     original_status=original_status,
                 )
             raise
+
+    def _get_previous_unfixed_recommendation_ids(
+        self,
+        plan_id: str | None,
+    ) -> set[str]:
+        """재생성 시 사용자가 고정하지 않은 이전 자동 추천을 반복하지 않는다."""
+        if plan_id is None:
+            return set()
+
+        plan = self._itinerary_plan_repository.get_by_id(plan_id)
+        if plan is None:
+            return set()
+
+        return {
+            item.place_id
+            for day in plan.days
+            for item in day.items
+            if item.item_type == ItineraryItemType.PLACE
+            and item.added_by == ItineraryItemAddedBy.ALGORITHM
+            and not item.is_fixed
+            and item.place_id is not None
+        }
 
     def _get_owned_trip_or_raise(
         self,

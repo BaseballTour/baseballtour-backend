@@ -201,6 +201,10 @@ class TripDocument(ApiModel):
 
     status: TripStatus = TripStatus.PLANNING
     active_plan_id: str | None = None
+    rejected_recommendation_place_ids: list[str] = Field(
+        default_factory=list,
+        description="재생성에서 다시 제안하지 않을 자동 추천 장소 ID",
+    )
 
     created_at: AwareDatetime
     updated_at: AwareDatetime

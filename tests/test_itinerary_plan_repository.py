@@ -197,6 +197,7 @@ def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
         trip_id="trip_001",
         plan=make_plan(),
         previous_plan_id=None,
+        rejected_recommendation_place_ids=["tour_rejected"],
     )
 
     assert result.plan_id == "plan_auto_1"
@@ -224,6 +225,9 @@ def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
 
     assert stored_trip["status"] == "GENERATED"
     assert stored_trip["activePlanId"] == "plan_auto_1"
+    assert stored_trip["rejectedRecommendationPlaceIds"] == [
+        "tour_rejected"
+    ]
     assert stored_trip["updatedAt"] == NOW
 
 
@@ -248,6 +252,7 @@ def test_commit_generated_plan_archives_previous_plan() -> None:
         trip_id="trip_001",
         plan=make_plan(),
         previous_plan_id="plan_old",
+        rejected_recommendation_place_ids=[],
     )
 
     previous = client.collection(

@@ -78,6 +78,7 @@ class ItineraryPlanRepository:
         trip_id: str,
         plan: ItineraryPlanDocument,
         previous_plan_id: str | None,
+        rejected_recommendation_place_ids: list[str],
     ) -> ItineraryPlanRecord:
         """
         새 일정 Plan 저장과 Trip 상태 갱신을 transaction으로 처리합니다.
@@ -128,6 +129,9 @@ class ItineraryPlanRepository:
                 {
                     "status": TripStatus.GENERATED.value,
                     "activePlanId": plan_reference.id,
+                    "rejectedRecommendationPlaceIds": (
+                        rejected_recommendation_place_ids
+                    ),
                     "updatedAt": plan.updated_at,
                 },
             )

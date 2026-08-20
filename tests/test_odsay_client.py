@@ -17,9 +17,29 @@ def test_parse_transit_minutes_uses_fastest_path() -> None:
 
 
 def test_parse_transit_minutes_rejects_error_response() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match=r"code=500 message=\[ApiKeyAuthFailed\]",
+    ):
         odsay_client.parse_transit_minutes(
-            {"error": [{"code": "500"}]}
+            {
+                "error": [
+                    {
+                        "code": "500",
+                        "message": "[ApiKeyAuthFailed] authentication failed.",
+                    }
+                ]
+            }
+        )
+
+
+def test_parse_transit_minutes_supports_object_error() -> None:
+    with pytest.raises(
+        ValueError,
+        match="code=-1 message=컴포넌트 에러",
+    ):
+        odsay_client.parse_transit_minutes(
+            {"error": {"code": "-1", "msg": "컴포넌트 에러"}}
         )
 
 
