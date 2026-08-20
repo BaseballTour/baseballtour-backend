@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    Header,
     Path,
     Response,
     status,
@@ -130,12 +131,24 @@ def create_trip(
         str,
         Depends(get_current_active_user_id),
     ],
+    idempotency_key: Annotated[
+        str,
+        Header(
+            alias="Idempotency-Key",
+            min_length=1,
+            max_length=128,
+            description=(
+                "여행 생성 요청 재시도 시 동일하게 사용하는 고유 키"
+            ),
+        ),
+    ],
 ) -> SuccessResponse[TripSummaryResponse]:
     service = TripService()
 
     trip = service.create_trip(
         user_id=user_id,
         request=request,
+        idempotency_key=idempotency_key,
     )
 
     return SuccessResponse(

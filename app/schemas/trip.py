@@ -205,6 +205,10 @@ class TripDocument(ApiModel):
         default_factory=list,
         description="재생성에서 다시 제안하지 않을 자동 추천 장소 ID",
     )
+    idempotency_request_hash: str | None = Field(
+        default=None,
+        description="여행 생성 중복 요청 검증용 요청 해시",
+    )
 
     created_at: AwareDatetime
     updated_at: AwareDatetime

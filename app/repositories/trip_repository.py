@@ -1,4 +1,5 @@
 from datetime import datetime
+from hashlib import sha256
 from typing import Any
 
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -11,6 +12,10 @@ from app.schemas.trip import (
     TripRecord,
     TripStatus,
 )
+
+
+class TripIdempotencyConflictError(Exception):
+    """같은 Idempotency-Key가 다른 요청에 재사용된 경우."""
 
 
 class TripRepository:
@@ -43,6 +48,70 @@ class TripRepository:
             trip_id=document_reference.id,
             **trip.model_dump(),
         )
+
+    def create_idempotent(
+        self,
+        *,
+        trip: TripDocument,
+        idempotency_key: str,
+    ) -> TripRecord:
+        """
+        Idempotency-Key 기준으로 여행을 원자적으로 생성합니다.
+
+        같은 사용자와 같은 Key의 재요청은 기존 여행을 반환하고,
+        같은 Key가 다른 요청 본문에 사용되면 충돌로 처리합니다.
+        """
+
+        key_source = (
+            f"{trip.user_id}:{idempotency_key}"
+        )
+        key_hash = sha256(
+            key_source.encode("utf-8")
+        ).hexdigest()
+
+        trip_id = f"trip_{key_hash}"
+        document_reference = self._collection.document(
+            trip_id
+        )
+        transaction = self._client.transaction()
+
+        trip_data = trip.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+
+        @transactional
+        def commit(transaction) -> TripRecord:
+            snapshot = document_reference.get(
+                transaction=transaction,
+            )
+
+            if snapshot.exists:
+                data = snapshot.to_dict() or {}
+
+                if (
+                    data.get("idempotencyRequestHash")
+                    != trip.idempotency_request_hash
+                ):
+                    raise TripIdempotencyConflictError()
+
+                return TripRecord(
+                    trip_id=snapshot.id,
+                    **data,
+                )
+
+            transaction.set(
+                document_reference,
+                trip_data,
+            )
+
+            return TripRecord(
+                trip_id=trip_id,
+                **trip.model_dump(),
+            )
+
+        return commit(transaction)
+
 
     def get_by_id(
         self,

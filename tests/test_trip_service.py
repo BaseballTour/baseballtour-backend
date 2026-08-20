@@ -4,6 +4,9 @@ from typing import Any
 import pytest
 
 from app.core.exceptions import AppException
+from app.repositories.trip_repository import (
+    TripIdempotencyConflictError,
+)
 from app.schemas.game import GameRecord, GameStatus
 from app.schemas.trip import (
     TripCreateRequest,
@@ -54,6 +57,14 @@ class StubTripRepository:
         self._trips[trip_id] = record
 
         return record
+
+    def create_idempotent(
+        self,
+        *,
+        trip: TripDocument,
+        idempotency_key: str,
+    ) -> TripRecord:
+        return self.create(trip)
 
     def get_by_id(
         self,
@@ -201,6 +212,7 @@ def test_create_trip_saves_owner_and_initial_status() -> None:
     trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     assert trip.trip_id == "trip_auto_001"
@@ -217,6 +229,7 @@ def test_create_trip_rejects_missing_game() -> None:
         service.create_trip(
             user_id="user-001",
             request=create_request(),
+            idempotency_key="test-request-key",
         )
 
     exception = exception_info.value
@@ -243,6 +256,7 @@ def test_create_trip_rejects_game_outside_period() -> None:
         service.create_trip(
             user_id="user-001",
             request=request,
+            idempotency_key="test-request-key",
         )
 
     exception = exception_info.value
@@ -257,6 +271,7 @@ def test_get_my_trips_returns_only_owner_trips() -> None:
     service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     other_trip = TripDocument(
@@ -299,6 +314,7 @@ def test_get_trip_rejects_other_owner() -> None:
     trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     with pytest.raises(AppException) as exception_info:
@@ -334,6 +350,7 @@ def test_update_trip_changes_provided_fields() -> None:
     trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     updated = service.update_trip(
@@ -356,6 +373,7 @@ def test_update_trip_validates_merged_period() -> None:
     trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     with pytest.raises(AppException) as exception_info:
@@ -384,6 +402,7 @@ def test_update_trip_validates_game_in_new_period() -> None:
     trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     with pytest.raises(AppException) as exception_info:
@@ -414,6 +433,7 @@ def test_delete_trip_checks_owner_and_deletes() -> None:
     trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
+        idempotency_key="test-request-key",
     )
 
     service.delete_trip(
@@ -422,3 +442,26 @@ def test_delete_trip_checks_owner_and_deletes() -> None:
     )
 
     assert repository.get_by_id(trip.trip_id) is None
+
+
+def test_create_trip_translates_idempotency_conflict() -> None:
+    service, repository = create_service()
+
+    def raise_conflict(
+        *,
+        trip: TripDocument,
+        idempotency_key: str,
+    ) -> TripRecord:
+        raise TripIdempotencyConflictError()
+
+    repository.create_idempotent = raise_conflict
+
+    with pytest.raises(AppException) as captured:
+        service.create_trip(
+            user_id="user-001",
+            request=create_request(),
+            idempotency_key="duplicate-request-key",
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == "TRIP_IDEMPOTENCY_CONFLICT"

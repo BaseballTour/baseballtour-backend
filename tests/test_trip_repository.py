@@ -1,8 +1,13 @@
 from datetime import datetime, timezone
 from typing import Any
 
+import pytest
+
 import app.repositories.trip_repository as trip_repository_module
-from app.repositories.trip_repository import TripRepository
+from app.repositories.trip_repository import (
+    TripIdempotencyConflictError,
+    TripRepository,
+)
 from app.schemas.trip import (
     AccommodationInfo,
     TripDocument,
@@ -113,6 +118,13 @@ class FakeCollectionReference:
 
 
 class FakeTransaction:
+    def set(
+        self,
+        document_reference: FakeDocumentReference,
+        data: dict[str, Any],
+    ) -> None:
+        document_reference.set(data)
+
     def update(
         self,
         document_reference: FakeDocumentReference,
@@ -426,3 +438,73 @@ def test_claim_generation_only_updates_expected_status(
     )
 
     assert duplicate_claim is None
+
+
+def test_create_idempotent_reuses_same_trip(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+
+    trip = create_trip_document().model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-1",
+        }
+    )
+
+    first = repository.create_idempotent(
+        trip=trip,
+        idempotency_key="request-key-1",
+    )
+    second = repository.create_idempotent(
+        trip=trip,
+        idempotency_key="request-key-1",
+    )
+
+    assert first.trip_id == second.trip_id
+    assert len(client.collections["trips"]) == 1
+
+
+def test_create_idempotent_rejects_key_reuse_with_other_request(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+
+    first_trip = create_trip_document().model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-1",
+        }
+    )
+    other_trip = create_trip_document(
+        title="다른 여행",
+    ).model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-2",
+        }
+    )
+
+    repository.create_idempotent(
+        trip=first_trip,
+        idempotency_key="request-key-1",
+    )
+
+    with pytest.raises(TripIdempotencyConflictError):
+        repository.create_idempotent(
+            trip=other_trip,
+            idempotency_key="request-key-1",
+        )
+
+    assert len(client.collections["trips"]) == 1
