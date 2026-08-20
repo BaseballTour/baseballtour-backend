@@ -10,6 +10,7 @@ from firebase_admin import auth as firebase_auth
 
 from app.core.exceptions import AppException
 from app.core.firebase import initialize_firebase
+from app.repositories.user_repository import UserRepository
 
 
 AUTHENTICATE_HEADERS = {
@@ -150,3 +151,32 @@ async def get_current_user_id(
     """인증된 사용자의 Firebase UID만 반환한다."""
 
     return current_user.uid
+
+
+
+async def get_current_active_user_id(
+    user_id: Annotated[
+        str,
+        Depends(get_current_user_id),
+    ],
+) -> str:
+    """서비스에 등록된 활성 사용자의 Firebase UID를 반환한다."""
+
+    repository = UserRepository()
+    user = repository.get_by_id(user_id)
+
+    if user is None:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="USER_NOT_FOUND",
+            message="사용자 정보를 찾을 수 없습니다.",
+        )
+
+    if user.deleted_at is not None:
+        raise AppException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="USER_DELETED",
+            message="탈퇴한 사용자 계정입니다.",
+        )
+
+    return user_id

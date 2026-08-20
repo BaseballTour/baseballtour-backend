@@ -8,7 +8,7 @@ from fastapi import (
     status,
 )
 
-from app.api.dependencies.auth import get_current_user_id
+from app.api.dependencies.auth import get_current_active_user_id
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
     ItineraryPlanRecord,
@@ -128,7 +128,7 @@ def create_trip(
     request: TripCreateRequest,
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[TripSummaryResponse]:
     service = TripService()
@@ -152,7 +152,7 @@ def create_trip(
 def get_my_trips(
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> ListSuccessResponse[TripSummaryResponse]:
     service = TripService()
@@ -194,7 +194,7 @@ def get_trip(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[TripDetailResponse]:
     service = TripService()
@@ -229,7 +229,7 @@ def update_trip(
     request: TripUpdateRequest,
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[TripDetailResponse]:
     service = TripService()
@@ -262,7 +262,7 @@ def delete_trip(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> Response:
     service = TripService()
@@ -299,7 +299,7 @@ def create_place_selection(
     request: PlaceSelectionCreateRequest,
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[PlaceSelectionResponse]:
     service = PlaceSelectionService()
@@ -334,7 +334,7 @@ def get_place_selections(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> ListSuccessResponse[PlaceSelectionResponse]:
     service = PlaceSelectionService()
@@ -385,7 +385,7 @@ def delete_place_selection(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> Response:
     service = PlaceSelectionService()
@@ -422,7 +422,7 @@ async def create_itinerary(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[ItineraryPlanResponse]:
     service = ItineraryGenerationService()
@@ -457,7 +457,7 @@ def get_active_itinerary_plan(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[ItineraryPlanResponse]:
     service = ItineraryPlanService()
@@ -492,7 +492,7 @@ def delete_active_itinerary_plan(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> Response:
     service = ItineraryPlanService()
@@ -528,7 +528,7 @@ async def reorder_itinerary_items(
     request: ItineraryPlanReorderRequest,
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[ItineraryPlanResponse]:
     service = ItineraryPlanService()
@@ -571,7 +571,7 @@ async def delete_itinerary_item(
     ],
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[ItineraryPlanResponse]:
     service = ItineraryPlanService()
@@ -608,7 +608,7 @@ async def add_itinerary_item(
     request: ItineraryPlanAddItemRequest,
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[ItineraryPlanResponse]:
     service = ItineraryPlanService()

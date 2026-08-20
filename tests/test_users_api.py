@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies.auth import (
     AuthenticatedUser,
+    get_current_active_user_id,
     get_current_user,
     get_current_user_id,
 )
@@ -55,6 +56,9 @@ def authenticated_client() -> TestClient:
     app.dependency_overrides[get_current_user_id] = (
         lambda: "firebase-user-123"
     )
+    app.dependency_overrides[
+        get_current_active_user_id
+    ] = lambda: "firebase-user-123"
 
     with TestClient(app) as client:
         yield client
