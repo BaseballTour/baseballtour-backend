@@ -263,26 +263,53 @@ def create_trip_document(
     )
 
 
-def test_create_uses_auto_id_and_returns_record() -> None:
-    client = FakeFirestoreClient()
-    repository = TripRepository(client=client)
+def seed_trip(
+    repository: TripRepository,
+    client: FakeFirestoreClient,
+    trip: TripDocument,
+):
+    """Repository 동작 테스트를 위한 Trip 문서를 직접 저장합니다."""
 
-    trip = repository.create(
-        create_trip_document()
+    document_reference = (
+        client.collection("trips").document()
+    )
+    document_reference.set(
+        trip.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
     )
 
-    assert trip.trip_id == "trip_auto_001"
-    assert trip.user_id == "user-001"
-    assert trip.status.value == "PLANNING"
-    assert repository.get_by_id(trip.trip_id) is not None
+    stored = repository.get_by_id(
+        document_reference.id
+    )
+
+    assert stored is not None
+
+    return stored
 
 
-def test_create_stores_camel_case_and_datetime() -> None:
+def test_create_idempotent_stores_camel_case_and_datetime(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
-        create_trip_document()
+    trip_document = create_trip_document().model_copy(
+        update={
+            "idempotency_request_hash": "request-hash-1",
+        }
+    )
+
+    trip = repository.create_idempotent(
+        trip=trip_document,
+        idempotency_key="request-key-1",
     )
 
     stored = client.collections["trips"][
@@ -296,13 +323,20 @@ def test_create_stores_camel_case_and_datetime() -> None:
     assert "arrivalPoint" in stored
     assert "departurePoint" in stored
     assert "activePlanId" in stored
+    assert "idempotencyRequestHash" in stored
     assert "createdAt" in stored
     assert "updatedAt" in stored
 
     assert "user_id" not in stored
     assert "trip_start_at" not in stored
 
-    assert isinstance(stored["tripStartAt"], datetime)
+    assert stored["idempotencyRequestHash"] == (
+        "request-hash-1"
+    )
+    assert isinstance(
+        stored["tripStartAt"],
+        datetime,
+    )
     assert isinstance(
         stored["accommodation"]["checkInAt"],
         datetime,
@@ -320,7 +354,9 @@ def test_get_by_user_id_filters_and_sorts_newest_first() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    repository.create(
+    seed_trip(
+        repository,
+        client,
         create_trip_document(
             user_id="user-001",
             title="이전 여행",
@@ -332,7 +368,9 @@ def test_get_by_user_id_filters_and_sorts_newest_first() -> None:
             ),
         )
     )
-    repository.create(
+    seed_trip(
+        repository,
+        client,
         create_trip_document(
             user_id="user-002",
             title="다른 사용자 여행",
@@ -344,7 +382,9 @@ def test_get_by_user_id_filters_and_sorts_newest_first() -> None:
             ),
         )
     )
-    repository.create(
+    seed_trip(
+        repository,
+        client,
         create_trip_document(
             user_id="user-001",
             title="최근 여행",
@@ -372,7 +412,9 @@ def test_update_changes_only_provided_fields() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
+    trip = seed_trip(
+        repository,
+        client,
         create_trip_document()
     )
     updated_at = datetime(
@@ -416,7 +458,9 @@ def test_delete_removes_trip_and_is_safe_when_missing() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
+    trip = seed_trip(
+        repository,
+        client,
         create_trip_document()
     )
 
@@ -441,7 +485,9 @@ def test_claim_generation_only_updates_expected_status(
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
-    trip = repository.create(
+    trip = seed_trip(
+        repository,
+        client,
         create_trip_document()
     )
 

@@ -30,26 +30,6 @@ class TripRepository:
             self.COLLECTION_NAME
         )
 
-    def create(
-        self,
-        trip: TripDocument,
-    ) -> TripRecord:
-        """Firestore Auto ID를 사용해 여행을 생성합니다."""
-
-        document_reference = self._collection.document()
-
-        document_reference.set(
-            trip.model_dump(
-                by_alias=True,
-                exclude_none=False,
-            )
-        )
-
-        return TripRecord(
-            trip_id=document_reference.id,
-            **trip.model_dump(),
-        )
-
     def create_idempotent(
         self,
         *,
