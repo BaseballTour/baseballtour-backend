@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+import logging
+from collections import Counter
 
 from app.algorithms.day_type import classify_day
 from app.algorithms.travel_time import TravelTimeMatrix
@@ -32,6 +34,9 @@ from app.models.place import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 DEFAULT_DAY_START = time(9, 0)
 DEFAULT_DAY_END = time(21, 0)
 DEFAULT_ANCHOR_MINUTES = 20
@@ -48,6 +53,7 @@ def generate_itinerary(
     matrix: TravelTimeMatrix,
     *,
     recommended_places: list[Place] | None = None,
+    recommendation_diagnostics: dict[str, object] | None = None,
 ) -> ItineraryResult:
     """Anchor와 가까운 장소 우선 규칙을 적용하는 1차 일정 생성기."""
     selected = {item.place_id: item for item in trip.selected_places}
@@ -71,6 +77,7 @@ def generate_itinerary(
             recommended_places,
             matrix,
             excluded_ids=set(selected),
+            diagnostics=recommendation_diagnostics,
         )
 
     current_date = trip.trip_start_at.date()
@@ -422,6 +429,7 @@ def _fill_routes_with_recommendations(
     matrix: TravelTimeMatrix,
     *,
     excluded_ids: set[str],
+    diagnostics: dict[str, object] | None = None,
 ) -> tuple[dict[date, list[Place]], set[str]]:
     """사용자 후보를 보존하면서 실행 가능한 추천 장소를 반복 삽입한다."""
     remaining = {
@@ -431,6 +439,7 @@ def _fill_routes_with_recommendations(
         and place.category != PlaceCategory.ACCOMMODATION
     }
     added: set[str] = set()
+    rejected: Counter[str] = Counter()
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
@@ -456,22 +465,31 @@ def _fill_routes_with_recommendations(
                     and place.business_hours_status
                     != BusinessRuleStatus.PARSED
                 ):
+                    rejected["UNVERIFIED_FESTIVAL"] += 1
                     continue
                 for index in range(len(current) + 1):
                     proposed = [*current[:index], place, *current[index:]]
                     result = simulate_route_detailed(proposed, **args)
                     if not result.feasible:
+                        reason = (
+                            result.failure.reason_code.value
+                            if result.failure is not None
+                            else "INFEASIBLE"
+                        )
+                        rejected[reason] += 1
                         continue
                     if (
                         result.anchor_slack_minutes is None
                         or result.anchor_slack_minutes
                         < AUTO_FILL_MIN_REMAINING_MINUTES
                     ):
+                        rejected["INSUFFICIENT_TIME"] += 1
                         continue
                     marginal = route_travel_minutes(
                         args["start_id"], proposed, args["end_id"], matrix
                     ) - current_cost
                     if marginal > AUTO_FILL_MAX_DETOUR_MINUTES:
+                        rejected["ROUTE_INEFFICIENT"] += 1
                         continue
                     visit = next(
                         item
@@ -507,6 +525,18 @@ def _fill_routes_with_recommendations(
         routes[target_date] = proposed
         added.add(place.place_id)
         remaining.pop(place.place_id)
+
+    logger.info(
+        "자동 추천 배치 진단: candidates=%s scheduled=%s rejected_attempts=%s",
+        len(recommendations),
+        len(added),
+        dict(sorted(rejected.items())),
+    )
+    if diagnostics is not None:
+        diagnostics["scheduledCount"] = len(added)
+        diagnostics["placementRejectedAttempts"] = dict(
+            sorted(rejected.items())
+        )
 
     return routes, added
 

@@ -15,6 +15,9 @@ from app.models.itinerary import (
 )
 from app.models.place import Place, PlaceCategory, PlaceSource
 from app.schemas.itinerary_plan import (
+    ItineraryPlanDay,
+    ItineraryPlanDocument,
+    ItineraryPlanItem,
     ItineraryPlanRecord,
     ItineraryPlanStatus,
 )
@@ -280,6 +283,7 @@ async def test_generate_saves_active_plan() -> None:
     assert arguments["previous_plan_id"] is None
     assert arguments["plan"].trip_id == TRIP_ID
     assert arguments["plan"].user_id == USER_ID
+    assert arguments["plan"].recommendation_summary is not None
 
 
 @pytest.mark.anyio
@@ -427,6 +431,55 @@ async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
         "tour_older_rejected",
         "tour_rejected",
     ]
+
+
+def test_regeneration_preserves_fixed_item_and_drops_overlapping_algorithm_item() -> None:
+    fixed = ItineraryPlanItem(
+        item_id="fixed_original",
+        type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_fixed",
+        name="고정 장소",
+        address="서울",
+        latitude=37.5,
+        longitude=127.0,
+        scheduled_start_at=datetime.fromisoformat("2026-08-15T14:00:00+09:00"),
+        scheduled_end_at=datetime.fromisoformat("2026-08-15T15:00:00+09:00"),
+        added_by=ItineraryItemAddedBy.USER,
+        is_required=True,
+        is_fixed=True,
+    )
+    overlapping = fixed.model_copy(
+        update={
+            "item_id": "new_algorithm",
+            "place_id": "tour_new",
+            "added_by": ItineraryItemAddedBy.ALGORITHM,
+            "is_fixed": False,
+        }
+    )
+    plan = ItineraryPlanDocument(
+        trip_id=TRIP_ID,
+        user_id=USER_ID,
+        algorithm_version="test",
+        total_travel_minutes=0,
+        days=[
+            ItineraryPlanDay(
+                date=START_AT.date(),
+                day_type="GAME_DAY",
+                items=[overlapping],
+            )
+        ],
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    merged = ItineraryGenerationService._preserve_fixed_items(
+        plan=plan,
+        fixed_items=[(START_AT.date(), fixed)],
+    )
+
+    assert [item.item_id for item in merged.days[0].items] == ["fixed_original"]
+    assert merged.days[0].items[0].is_fixed is True
 
 
 @pytest.mark.anyio

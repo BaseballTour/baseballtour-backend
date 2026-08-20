@@ -8,6 +8,8 @@ from app.algorithms.itinerary_editor import (
     recalculate_day_schedule,
     remove_place_item,
     reorder_place_items,
+    update_place_item_fixed,
+    update_place_item_start,
 )
 from app.algorithms.travel_time import TravelTimeMatrix
 from app.models.itinerary import (
@@ -33,6 +35,7 @@ def make_item(
     start_hour: int,
     start_minute: int = 0,
     duration_minutes: int = 60,
+    is_fixed: bool = False,
 ) -> ItineraryPlanItem:
     start = datetime(
         2026,
@@ -64,6 +67,7 @@ def make_item(
         travel_minutes_from_previous=0,
         travel_time_source=None,
         is_required=True,
+        is_fixed=is_fixed,
     )
 
 
@@ -156,6 +160,63 @@ def test_reorder_place_items_requires_all_places() -> None:
             day,
             ["item_a"],
         )
+
+
+def test_fixed_place_cannot_be_reordered_or_deleted() -> None:
+    fixed = make_item(
+        item_id="fixed",
+        item_type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_fixed",
+        start_hour=10,
+        is_fixed=True,
+    )
+    other = make_item(
+        item_id="other",
+        item_type=ItineraryItemType.PLACE,
+        sequence=2,
+        place_id="tour_other",
+        start_hour=12,
+    )
+    day = ItineraryPlanDay(
+        date=date(2026, 8, 15),
+        day_type=DayType.NON_GAME_DAY,
+        items=[fixed, other],
+    )
+
+    with pytest.raises(ItineraryEditError):
+        reorder_place_items(day, ["other", "fixed"])
+    with pytest.raises(ItineraryEditError):
+        remove_place_item(day, "fixed")
+
+
+def test_update_start_time_preserves_duration_and_fixes_item() -> None:
+    item = make_item(
+        item_id="place",
+        item_type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_place",
+        start_hour=10,
+        duration_minutes=90,
+    )
+    day = ItineraryPlanDay(
+        date=date(2026, 8, 15),
+        day_type=DayType.NON_GAME_DAY,
+        items=[item],
+    )
+
+    changed = update_place_item_start(
+        day,
+        "place",
+        datetime(2026, 8, 15, 14, 0, tzinfo=TZ),
+    )
+
+    assert changed.items[0].scheduled_start_at.hour == 14
+    assert changed.items[0].scheduled_end_at.hour == 15
+    assert changed.items[0].scheduled_end_at.minute == 30
+    assert changed.items[0].is_fixed is True
+    unfixed = update_place_item_fixed(changed, "place", False)
+    assert unfixed.items[0].is_fixed is False
 
 
 def test_recalculate_day_schedule_updates_order_and_times() -> None:

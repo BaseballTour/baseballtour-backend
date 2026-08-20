@@ -95,6 +95,12 @@ def reorder_place_items(
         for item in day.items
     ]
 
+    for index, item in enumerate(day.items):
+        if item.is_fixed and new_items[index].item_id != item.item_id:
+            raise ItineraryEditError(
+                "고정한 장소의 순서는 변경할 수 없습니다."
+            )
+
     return ItineraryPlanDay(
         date=day.date,
         day_type=day.day_type,
@@ -153,7 +159,7 @@ def recalculate_day_schedule(
         elif item.item_type in {
             ItineraryItemType.STADIUM,
             ItineraryItemType.DEPARTURE_POINT,
-        }:
+        } or item.is_fixed:
             travel = matrix.get(
                 previous_node_id,
                 node_id,
@@ -320,6 +326,11 @@ def remove_place_item(
             "PLACE 항목만 삭제할 수 있습니다."
         )
 
+    if target.is_fixed:
+        raise ItineraryEditError(
+            "고정한 장소는 고정을 해제한 뒤 삭제할 수 있습니다."
+        )
+
     return ItineraryPlanDay(
         date=day.date,
         day_type=day.day_type,
@@ -387,3 +398,63 @@ def insert_place_item(
         day_type=day.day_type,
         items=items,
     )
+
+
+def update_place_item_fixed(
+    day: ItineraryPlanDay,
+    item_id: str,
+    is_fixed: bool,
+) -> ItineraryPlanDay:
+    """PLACE 항목의 재생성 고정 여부를 변경합니다."""
+
+    found = False
+    items: list[ItineraryPlanItem] = []
+    for item in day.items:
+        if item.item_id != item_id:
+            items.append(item)
+            continue
+        if item.item_type != ItineraryItemType.PLACE:
+            raise ItineraryEditError("PLACE 항목만 고정할 수 있습니다.")
+        found = True
+        items.append(item.model_copy(update={"is_fixed": is_fixed}))
+
+    if not found:
+        raise ItineraryEditError("고정 여부를 변경할 항목을 찾을 수 없습니다.")
+    return day.model_copy(update={"items": items})
+
+
+def update_place_item_start(
+    day: ItineraryPlanDay,
+    item_id: str,
+    scheduled_start_at: datetime,
+) -> ItineraryPlanDay:
+    """PLACE 시작시간을 수정하고 해당 항목을 고정합니다."""
+
+    if scheduled_start_at.tzinfo is None:
+        raise ItineraryEditError("수정할 시간에는 timezone 정보가 필요합니다.")
+    if scheduled_start_at.date() != day.date:
+        raise ItineraryEditError("장소 시작시간은 기존 일정 날짜 안에 있어야 합니다.")
+
+    found = False
+    items: list[ItineraryPlanItem] = []
+    for item in day.items:
+        if item.item_id != item_id:
+            items.append(item)
+            continue
+        if item.item_type != ItineraryItemType.PLACE:
+            raise ItineraryEditError("PLACE 항목의 시간만 수정할 수 있습니다.")
+        duration = item.scheduled_end_at - item.scheduled_start_at
+        found = True
+        items.append(
+            item.model_copy(
+                update={
+                    "scheduled_start_at": scheduled_start_at,
+                    "scheduled_end_at": scheduled_start_at + duration,
+                    "is_fixed": True,
+                }
+            )
+        )
+
+    if not found:
+        raise ItineraryEditError("시간을 변경할 항목을 찾을 수 없습니다.")
+    return day.model_copy(update={"items": items})

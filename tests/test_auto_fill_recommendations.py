@@ -70,11 +70,13 @@ def matrix(*place_ids: str, default: int = 10) -> TravelTimeMatrix:
 
 def test_fills_empty_itinerary_without_recommendation_count_limit() -> None:
     recommendations = [place(f"recommendation_{index}") for index in range(5)]
+    diagnostics = {}
     result = generate_itinerary(
         trip(),
         [],
         matrix(*(item.place_id for item in recommendations)),
         recommended_places=recommendations,
+        recommendation_diagnostics=diagnostics,
     )
 
     recommended_items = [
@@ -86,6 +88,8 @@ def test_fills_empty_itinerary_without_recommendation_count_limit() -> None:
     assert len(recommended_items) == 5
     assert result.auto_fill_applied is True
     assert result.auto_recommended_place_count == 5
+    assert diagnostics["scheduledCount"] == 5
+    assert "placementRejectedAttempts" in diagnostics
 
 
 def test_user_place_is_kept_and_marked_as_user() -> None:
