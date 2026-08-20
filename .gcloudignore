@@ -1,0 +1,17 @@
+.gcloudignore
+.git
+.github
+
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+
+.env
+.env.*
+secrets/
+firebase-service-account.json
+firebase-service-account-*.json
+*firebase-adminsdk*.json
+
+.DS_Store
