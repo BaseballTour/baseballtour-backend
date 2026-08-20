@@ -239,3 +239,58 @@ def test_update_support_team_changes_team(
     assert update_arguments[0] == "firebase-user-123"
     assert update_arguments[1]["supportTeamId"] == "lotte"
     assert "updatedAt" in update_arguments[1]
+
+
+def test_get_user_reuses_supplied_user_without_repository_read(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    user_repository, team_repository = repositories
+
+    user = make_user()
+
+    team_repository.get_by_id.return_value = make_team()
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    result = service.get_user(
+        "firebase-user-123",
+        user=user,
+    )
+
+    assert result.user_id == "firebase-user-123"
+    assert result.nickname == "테스트사용자"
+
+    user_repository.get_by_id.assert_not_called()
+
+
+def test_update_support_team_reuses_supplied_user_without_repository_read(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    user_repository, team_repository = repositories
+
+    user = make_user()
+
+    user_repository.update_fields.return_value = True
+    team_repository.get_by_id.return_value = make_team(
+        team_id="lotte",
+        name="롯데 자이언츠",
+    )
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    result = service.update_support_team(
+        user_id="firebase-user-123",
+        support_team_id="lotte",
+        user=user,
+    )
+
+    assert result.support_team.team_id == "lotte"
+
+    user_repository.get_by_id.assert_not_called()
+    user_repository.update_fields.assert_called_once()

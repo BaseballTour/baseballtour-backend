@@ -3,8 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from app.api.dependencies.auth import (
+    ActiveUserContext,
     AuthenticatedUser,
-    get_current_active_user_id,
+    get_current_active_user_context,
     get_current_user,
     get_current_user_id,
 )
@@ -57,13 +58,16 @@ def bootstrap_user(
     description="인증된 사용자의 프로필을 조회합니다.",
 )
 def get_my_profile(
-    user_id: Annotated[
-        str,
-        Depends(get_current_active_user_id),
+    active_user: Annotated[
+        ActiveUserContext,
+        Depends(get_current_active_user_context),
     ],
 ) -> SuccessResponse[UserResponse]:
     service = UserService()
-    user = service.get_user(user_id)
+    user = service.get_user(
+        active_user.user_id,
+        user=active_user.user,
+    )
 
     return SuccessResponse(data=user)
 
@@ -76,15 +80,16 @@ def get_my_profile(
 )
 def update_my_support_team(
     request: SupportTeamUpdateRequest,
-    user_id: Annotated[
-        str,
-        Depends(get_current_active_user_id),
+    active_user: Annotated[
+        ActiveUserContext,
+        Depends(get_current_active_user_context),
     ],
 ) -> SuccessResponse[UserResponse]:
     service = UserService()
     user = service.update_support_team(
-        user_id=user_id,
+        user_id=active_user.user_id,
         support_team_id=request.support_team_id,
+        user=active_user.user,
     )
 
     return SuccessResponse(data=user)
