@@ -1,5 +1,6 @@
 from datetime import date, datetime
 
+from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 from google.cloud.firestore_v1.transaction import transactional
 
@@ -143,6 +144,30 @@ class ItineraryPlanRepository:
             **plan.model_dump(),
         )
 
+
+    def delete_all_by_trip_id(
+        self,
+        *,
+        trip_id: str,
+    ) -> int:
+        """Trip에 속한 모든 일정 Plan을 삭제합니다."""
+
+        query = self._collection.where(
+            filter=FieldFilter(
+                "tripId",
+                "==",
+                trip_id,
+            )
+        )
+
+        snapshots = list(query.stream())
+
+        for snapshot in snapshots:
+            self._collection.document(
+                snapshot.id
+            ).delete()
+
+        return len(snapshots)
 
     def delete_active_plan(
         self,

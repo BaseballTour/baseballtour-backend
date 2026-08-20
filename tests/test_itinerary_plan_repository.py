@@ -74,10 +74,45 @@ class FakeDocumentReference:
         )
 
 
+class FakeQuery:
+    def __init__(
+        self,
+        collection: "FakeCollection",
+        field_path: str,
+        expected_value,
+    ) -> None:
+        self._collection = collection
+        self._field_path = field_path
+        self._expected_value = expected_value
+
+    def stream(self) -> list[FakeSnapshot]:
+        return [
+            FakeSnapshot(
+                document_id,
+                data,
+            )
+            for document_id, data
+            in self._collection.documents.items()
+            if data.get(self._field_path)
+            == self._expected_value
+        ]
+
+
 class FakeCollection:
     def __init__(self) -> None:
         self.documents: dict[str, dict] = {}
         self._counter = 0
+
+    def where(
+        self,
+        *,
+        filter,
+    ) -> FakeQuery:
+        return FakeQuery(
+            self,
+            field_path=filter.field_path,
+            expected_value=filter.value,
+        )
 
     def document(
         self,
@@ -381,3 +416,43 @@ def test_update_schedule_updates_editable_fields() -> None:
         stored["days"][0]["items"][0]["scheduledStartAt"],
         datetime,
     )
+
+
+def test_delete_all_by_trip_id_removes_only_matching_plans() -> None:
+    client = FakeClient()
+    repository = ItineraryPlanRepository(client=client)
+
+    first = make_plan().model_dump(
+        by_alias=True,
+        exclude_none=False,
+    )
+    second = make_plan().model_dump(
+        by_alias=True,
+        exclude_none=False,
+    )
+    other = make_plan().model_copy(
+        update={
+            "trip_id": "trip_002",
+        }
+    ).model_dump(
+        by_alias=True,
+        exclude_none=False,
+    )
+
+    plans = client.collection(
+        "itineraryPlans"
+    ).documents
+
+    plans["plan_active"] = first
+    plans["plan_archived"] = second
+    plans["plan_archived"]["status"] = "ARCHIVED"
+    plans["plan_other"] = other
+
+    deleted_count = repository.delete_all_by_trip_id(
+        trip_id="trip_001",
+    )
+
+    assert deleted_count == 2
+    assert "plan_active" not in plans
+    assert "plan_archived" not in plans
+    assert "plan_other" in plans

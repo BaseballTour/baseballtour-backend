@@ -87,6 +87,21 @@ class PlaceSelectionRepository:
             key=lambda selection: selection.created_at,
         )
 
+    def delete_all(
+        self,
+        *,
+        trip_id: str,
+    ) -> int:
+        """Trip에 속한 모든 장소 선택을 삭제합니다."""
+
+        collection = self._get_collection(trip_id)
+        snapshots = list(collection.stream())
+
+        for snapshot in snapshots:
+            collection.document(snapshot.id).delete()
+
+        return len(snapshots)
+
     def delete(
         self,
         *,

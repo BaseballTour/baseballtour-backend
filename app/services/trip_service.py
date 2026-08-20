@@ -7,6 +7,12 @@ from pydantic import ValidationError
 
 from app.core.exceptions import AppException
 from app.repositories.game_repository import GameRepository
+from app.repositories.itinerary_plan_repository import (
+    ItineraryPlanRepository,
+)
+from app.repositories.place_selection_repository import (
+    PlaceSelectionRepository,
+)
 from app.repositories.trip_repository import (
     TripIdempotencyConflictError,
     TripRepository,
@@ -28,6 +34,12 @@ class TripService:
         self,
         trip_repository: TripRepository | None = None,
         game_repository: GameRepository | None = None,
+        place_selection_repository: (
+            PlaceSelectionRepository | None
+        ) = None,
+        itinerary_plan_repository: (
+            ItineraryPlanRepository | None
+        ) = None,
     ) -> None:
         self._trip_repository = (
             trip_repository
@@ -36,6 +48,14 @@ class TripService:
         self._game_repository = (
             game_repository
             or GameRepository()
+        )
+        self._place_selection_repository = (
+            place_selection_repository
+            or PlaceSelectionRepository()
+        )
+        self._itinerary_plan_repository = (
+            itinerary_plan_repository
+            or ItineraryPlanRepository()
         )
 
     def create_trip(
@@ -214,6 +234,14 @@ class TripService:
 
         self._get_owned_trip_or_raise(
             user_id=user_id,
+            trip_id=trip_id,
+        )
+
+        self._place_selection_repository.delete_all(
+            trip_id=trip_id,
+        )
+
+        self._itinerary_plan_repository.delete_all_by_trip_id(
             trip_id=trip_id,
         )
 

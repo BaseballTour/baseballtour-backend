@@ -38,6 +38,32 @@ class StubGameRepository:
         return self._games.get(game_id)
 
 
+class StubPlaceSelectionRepository:
+    def __init__(self) -> None:
+        self.deleted_trip_ids: list[str] = []
+
+    def delete_all(
+        self,
+        *,
+        trip_id: str,
+    ) -> int:
+        self.deleted_trip_ids.append(trip_id)
+        return 0
+
+
+class StubItineraryPlanRepository:
+    def __init__(self) -> None:
+        self.deleted_trip_ids: list[str] = []
+
+    def delete_all_by_trip_id(
+        self,
+        *,
+        trip_id: str,
+    ) -> int:
+        self.deleted_trip_ids.append(trip_id)
+        return 0
+
+
 class StubTripRepository:
     def __init__(self) -> None:
         self._trips: dict[str, TripRecord] = {}
@@ -195,12 +221,31 @@ def create_service(
     games: list[GameRecord] | None = None,
 ) -> tuple[TripService, StubTripRepository]:
     trip_repository = StubTripRepository()
+    place_selection_repository = (
+        StubPlaceSelectionRepository()
+    )
+    itinerary_plan_repository = (
+        StubItineraryPlanRepository()
+    )
 
     service = TripService(
         trip_repository=trip_repository,
         game_repository=StubGameRepository(
             games if games is not None else [create_game()]
         ),
+        place_selection_repository=(
+            place_selection_repository
+        ),
+        itinerary_plan_repository=(
+            itinerary_plan_repository
+        ),
+    )
+
+    service._test_place_selection_repository = (
+        place_selection_repository
+    )
+    service._test_itinerary_plan_repository = (
+        itinerary_plan_repository
     )
 
     return service, trip_repository
@@ -442,6 +487,14 @@ def test_delete_trip_checks_owner_and_deletes() -> None:
     )
 
     assert repository.get_by_id(trip.trip_id) is None
+    assert (
+        service._test_place_selection_repository.deleted_trip_ids
+        == [trip.trip_id]
+    )
+    assert (
+        service._test_itinerary_plan_repository.deleted_trip_ids
+        == [trip.trip_id]
+    )
 
 
 def test_create_trip_translates_idempotency_conflict() -> None:
@@ -465,3 +518,31 @@ def test_create_trip_translates_idempotency_conflict() -> None:
 
     assert captured.value.status_code == 409
     assert captured.value.code == "TRIP_IDEMPOTENCY_CONFLICT"
+
+
+def test_delete_trip_keeps_trip_when_child_cleanup_fails() -> None:
+    service, repository = create_service()
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=create_request(),
+        idempotency_key="delete-failure-key",
+    )
+
+    def fail_delete_all(
+        *,
+        trip_id: str,
+    ) -> int:
+        raise RuntimeError("child cleanup failed")
+
+    service._test_place_selection_repository.delete_all = (
+        fail_delete_all
+    )
+
+    with pytest.raises(RuntimeError):
+        service.delete_trip(
+            user_id="user-001",
+            trip_id=trip.trip_id,
+        )
+
+    assert repository.get_by_id(trip.trip_id) is not None
