@@ -139,11 +139,18 @@ class TripRepository:
     ) -> list[TripRecord]:
         """특정 사용자의 여행 목록을 조회합니다."""
 
-        query = self._collection.where(
-            filter=FieldFilter(
-                "userId",
-                "==",
-                user_id,
+        query = (
+            self._collection
+            .where(
+                filter=FieldFilter(
+                    "userId",
+                    "==",
+                    user_id,
+                )
+            )
+            .order_by(
+                "createdAt",
+                direction="DESCENDING",
             )
         )
 
@@ -159,11 +166,7 @@ class TripRepository:
                 )
             )
 
-        return sorted(
-            trips,
-            key=lambda trip: trip.created_at,
-            reverse=True,
-        )
+        return trips
 
     def claim_generation(
         self,

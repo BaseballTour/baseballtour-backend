@@ -71,16 +71,46 @@ class FakeQuery:
         self._documents = documents
         self._field_path = field_path
         self._expected_value = expected_value
+        self._order_field: str | None = None
+        self._order_direction = "ASCENDING"
+
+    def order_by(
+        self,
+        field_path: str,
+        direction: str = "ASCENDING",
+    ) -> "FakeQuery":
+        self._order_field = field_path
+        self._order_direction = direction
+        return self
 
     def stream(self) -> list[FakeDocumentSnapshot]:
-        return [
-            FakeDocumentSnapshot(
+        documents = [
+            (
                 document_id,
                 data,
             )
             for document_id, data in self._documents.items()
             if data.get(self._field_path)
             == self._expected_value
+        ]
+
+        if self._order_field is not None:
+            documents.sort(
+                key=lambda item: item[1][
+                    self._order_field
+                ],
+                reverse=(
+                    self._order_direction
+                    == "DESCENDING"
+                ),
+            )
+
+        return [
+            FakeDocumentSnapshot(
+                document_id,
+                data,
+            )
+            for document_id, data in documents
         ]
 
 
