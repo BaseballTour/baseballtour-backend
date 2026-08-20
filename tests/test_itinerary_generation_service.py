@@ -9,6 +9,7 @@ from app.core.exceptions import AppException
 from app.models.itinerary import (
     ItineraryDay,
     ItineraryItem,
+    ItineraryItemAddedBy,
     ItineraryItemType,
     ItineraryResult,
 )
@@ -188,6 +189,7 @@ def make_service(
     )
 
     plan_repository = Mock()
+    plan_repository.get_by_id.return_value = None
 
     plan_repository.commit_generated_plan.side_effect = (
         lambda **kwargs: ItineraryPlanRecord(
@@ -323,6 +325,50 @@ async def test_generate_passes_previous_active_plan() -> None:
     )
 
     assert arguments["previous_plan_id"] == "plan_old"
+
+
+@pytest.mark.anyio
+async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
+    context = make_service(
+        trip=make_trip(
+            trip_status=TripStatus.GENERATED,
+            active_plan_id="plan_old",
+        )
+    )
+    context.plan_repository.get_by_id.return_value = SimpleNamespace(
+        days=[
+            SimpleNamespace(
+                items=[
+                    SimpleNamespace(
+                        item_type=ItineraryItemType.PLACE,
+                        place_id="tour_rejected",
+                        added_by=ItineraryItemAddedBy.ALGORITHM,
+                        is_fixed=False,
+                    ),
+                    SimpleNamespace(
+                        item_type=ItineraryItemType.PLACE,
+                        place_id="tour_fixed",
+                        added_by=ItineraryItemAddedBy.ALGORITHM,
+                        is_fixed=True,
+                    ),
+                    SimpleNamespace(
+                        item_type=ItineraryItemType.PLACE,
+                        place_id="tour_user",
+                        added_by=ItineraryItemAddedBy.USER,
+                        is_fixed=False,
+                    ),
+                ]
+            )
+        ]
+    )
+
+    await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    request = context.recommendation_service.get_candidates.await_args.kwargs
+    assert set(request["selected_place_ids"]) == {"tour_rejected"}
 
 
 @pytest.mark.anyio
