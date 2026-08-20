@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "KBO Travel API"
     app_version: str = "0.1.0"
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = False
     api_v1_prefix: str = "/api/v1"
 
     cors_origins: str = (
