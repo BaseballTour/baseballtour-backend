@@ -1,16 +1,27 @@
 import json
+from datetime import date
 from pathlib import Path
 
 import httpx
 import pytest
 
-from app.external.kbo.client import KBO_SCHEDULE_URL, KboScheduleClient
-from app.external.kbo.parser import parse_schedule_response
+from app.external.kbo.client import (
+    KBO_DAY_GAMES_URL,
+    KBO_SCHEDULE_URL,
+    KboScheduleClient,
+)
+from app.external.kbo.parser import (
+    parse_day_games_response,
+    parse_schedule_response,
+)
 from app.schemas.game import GameStatus
 from app.services.kbo_schedule_sync_service import KboScheduleSyncService
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "kbo_schedule_response.json"
+DAY_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "kbo_day_games_response.json"
+)
 
 
 def test_parse_kbo_schedule_response() -> None:
@@ -64,9 +75,16 @@ async def test_kbo_schedule_client_rejects_changed_response() -> None:
 
 
 class _FixtureClient:
+    def __init__(self) -> None:
+        self.month_calls: list[tuple[int, int]] = []
+
     async def get_month_schedule(self, year: int, month: int) -> dict:
-        assert (year, month) == (2026, 8)
+        self.month_calls.append((year, month))
         return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+    async def get_day_games(self, game_date: str) -> dict:
+        assert game_date == "20260801"
+        return json.loads(DAY_FIXTURE.read_text(encoding="utf-8"))
 
 
 class _MemoryGameRepository:
@@ -104,7 +122,73 @@ async def test_sync_writes_and_then_updates_same_game_ids() -> None:
     second = await service.sync_month(2026, 8, dry_run=False)
 
     assert (first.created, first.updated) == (2, 0)
-    assert (second.created, second.updated) == (0, 2)
+    assert (second.created, second.updated, second.unchanged) == (0, 0, 2)
     assert repository.games[
         "kbo_20260801_lg_doosan_jamsil_1"
     ].created_at == created_at
+
+
+def test_parse_day_games_uses_only_final_scores() -> None:
+    data = json.loads(DAY_FIXTURE.read_text(encoding="utf-8"))
+
+    result = parse_day_games_response(data)
+
+    assert len(result.games) == 3
+    completed, cancelled, live = result.games
+    assert completed.status is GameStatus.COMPLETED
+    assert (completed.away_score, completed.home_score) == (2, 2)
+    assert completed.result_text == "무승부"
+    assert cancelled.status is GameStatus.CANCELLED
+    assert cancelled.result_text == "폭염취소"
+    assert live.status is GameStatus.IN_PROGRESS
+    assert live.away_score is None
+    assert live.home_score is None
+    assert live.result_text is None
+
+
+@pytest.mark.anyio
+async def test_day_client_posts_only_requested_date() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == KBO_DAY_GAMES_URL
+        assert b"date=20260801" in request.content
+        return httpx.Response(200, json={"game": []})
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    ) as http_client:
+        result = await KboScheduleClient(http_client).get_day_games(
+            "20260801"
+        )
+
+    assert result == {"game": []}
+
+
+@pytest.mark.anyio
+async def test_sync_horizon_crosses_year_boundary() -> None:
+    client = _FixtureClient()
+    service = KboScheduleSyncService(client, _MemoryGameRepository())
+
+    result = await service.sync_horizon(
+        date(2026, 11, 20),
+        months_ahead=2,
+    )
+
+    assert client.month_calls == [(2026, 11), (2026, 12), (2027, 1)]
+    assert result.fetched == 6
+
+
+@pytest.mark.anyio
+async def test_day_sync_updates_final_result_without_live_scores() -> None:
+    repository = _MemoryGameRepository()
+    service = KboScheduleSyncService(_FixtureClient(), repository)
+
+    result = await service.sync_day_status(
+        date(2026, 8, 1),
+        dry_run=False,
+    )
+
+    assert result.created == 3
+    live = repository.games["kbo_20260801_hanwha_kt_suwon_1"]
+    assert live.status is GameStatus.IN_PROGRESS
+    assert live.home_score is None
+    assert live.away_score is None
