@@ -206,3 +206,24 @@ def test_bootstrap_user_requires_birth_year(
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_withdraw_my_account_returns_no_content(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    with patch(
+        "app.api.v1.endpoints.users.AccountService",
+        return_value=service,
+    ):
+        response = authenticated_client.delete(
+            "/api/v1/users/me"
+        )
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    service.withdraw_user.assert_called_once_with(
+        user_id="firebase-user-123"
+    )

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.api.dependencies.auth import (
     ActiveUserContext,
@@ -19,6 +19,7 @@ from app.schemas.user import (
     UserBootstrapRequest,
     UserResponse,
 )
+from app.services.account_service import AccountService
 from app.services.term_service import TermService
 from app.services.user_service import UserService
 
@@ -93,6 +94,32 @@ def update_my_support_team(
     )
 
     return SuccessResponse(data=user)
+
+
+@router.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="회원탈퇴",
+    description=(
+        "사용자의 여행 데이터를 정리하고 "
+        "사용자 계정을 탈퇴 상태로 변경합니다."
+    ),
+)
+def withdraw_my_account(
+    active_user: Annotated[
+        ActiveUserContext,
+        Depends(get_current_active_user_context),
+    ],
+) -> Response:
+    service = AccountService()
+
+    service.withdraw_user(
+        user_id=active_user.user_id,
+    )
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
+    )
 
 
 @router.post(

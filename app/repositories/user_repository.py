@@ -47,6 +47,22 @@ class UserRepository:
 
         return True
 
+    def soft_delete(
+        self,
+        user_id: str,
+        *,
+        deleted_at,
+    ) -> bool:
+        """사용자를 탈퇴 상태로 soft delete합니다."""
+
+        return self.update_fields(
+            user_id,
+            {
+                "updatedAt": deleted_at,
+                "deletedAt": deleted_at,
+            },
+        )
+
     def update_fields(
         self,
         user_id: str,
