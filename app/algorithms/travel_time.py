@@ -37,7 +37,7 @@ ANCHOR_NODE_IDS = {
 
 def _safe_provider_error(exc: Exception) -> str:
     """요청 URL과 API 키가 로그에 포함되지 않도록 오류를 축약한다."""
-    if isinstance(exc, RuntimeError):
+    if isinstance(exc, (RuntimeError, ValueError)):
         return f"{type(exc).__name__}: {exc}"
     return type(exc).__name__
 

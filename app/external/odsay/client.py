@@ -16,11 +16,29 @@ _transit_cache: dict[
 ] = {}
 
 
+def _format_odsay_error(error: Any) -> str:
+    """API 키를 제외한 ODsay 오류 코드와 메시지만 로그용으로 정리한다."""
+    item = error[0] if isinstance(error, list) and error else error
+    if not isinstance(item, dict):
+        return "unknown"
+
+    code = str(item.get("code", "unknown")).strip()
+    message = str(
+        item.get("message") or item.get("msg") or "unknown"
+    ).strip()
+    # 외부 문자열의 개행과 과도한 길이가 로그를 오염시키지 않게 제한한다.
+    message = " ".join(message.split())[:200]
+    return f"code={code} message={message}"
+
+
 def parse_transit_minutes(data: Any) -> int:
     if not isinstance(data, dict):
         raise ValueError("ODsay 응답 형식이 올바르지 않습니다.")
     if data.get("error"):
-        raise ValueError("ODsay가 오류 응답을 반환했습니다.")
+        raise ValueError(
+            "ODsay가 오류 응답을 반환했습니다: "
+            f"{_format_odsay_error(data['error'])}"
+        )
 
     paths = data.get("result", {}).get("path", [])
     if not isinstance(paths, list):
