@@ -308,6 +308,33 @@ async def test_generate_supplies_real_recommendation_candidates() -> None:
     )
 
 
+def test_build_trip_input_normalizes_firestore_times_to_korea() -> None:
+    trip = make_trip().model_copy(
+        update={
+            "trip_start_at": START_AT.astimezone(timezone.utc),
+            "trip_end_at": END_AT.astimezone(timezone.utc),
+        }
+    )
+    game = SimpleNamespace(
+        game_id="game_001",
+        stadium_id="sajik",
+        game_start_at=GAME_AT.astimezone(timezone.utc),
+    )
+
+    result = ItineraryGenerationService._build_trip_input(
+        trip=trip,
+        game=game,
+        stadium=make_stadium(),
+        selections=[],
+    )
+
+    assert result.trip_start_at.isoformat() == START_AT.isoformat()
+    assert result.trip_end_at.isoformat() == END_AT.isoformat()
+    assert result.game_anchor.game_start_at.isoformat() == (
+        GAME_AT.isoformat()
+    )
+
+
 @pytest.mark.anyio
 async def test_generate_passes_previous_active_plan() -> None:
     context = make_service(

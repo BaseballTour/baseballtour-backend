@@ -212,3 +212,58 @@ async def test_default_candidate_pool_is_limited_before_detail_lookup() -> None:
     )
     assert adapter.get_nearby_place_page.await_count == 1
     assert adapter.get_place_detail.await_count == 15
+
+
+@pytest.mark.anyio
+async def test_candidate_pool_reserves_restaurants_and_cafes() -> None:
+    tourist_spots = [
+        make_place(f"tour_spot_{index}", distance=float(index))
+        for index in range(1, 17)
+    ]
+    dining = [
+        make_place(
+            "tour_restaurant_1",
+            category=PlaceCategory.RESTAURANT,
+            distance=100,
+        ),
+        make_place(
+            "tour_restaurant_2",
+            category=PlaceCategory.RESTAURANT,
+            distance=110,
+        ),
+        make_place(
+            "tour_cafe_1",
+            category=PlaceCategory.CAFE,
+            distance=120,
+        ),
+        make_place(
+            "tour_cafe_2",
+            category=PlaceCategory.CAFE,
+            distance=130,
+        ),
+    ]
+    places = [*tourist_spots, *dining]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(places=places, next_page_token=None)
+    )
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: next(
+            place
+            for place in places
+            if place.source_content_id == content_id
+        )
+    )
+
+    result = await RecommendationService(
+        adapter,
+        max_candidates=10,
+    ).get_candidates(
+        centers=[RecommendationCenter(latitude=35.19, longitude=129.06)]
+    )
+
+    assert len(result) == 10
+    assert sum(
+        place.category == PlaceCategory.RESTAURANT for place in result
+    ) == 2
+    assert sum(place.category == PlaceCategory.CAFE for place in result) == 2

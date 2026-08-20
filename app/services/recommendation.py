@@ -21,6 +21,7 @@ DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
 DEFAULT_MAX_PAGES_PER_CENTER = 1
 DEFAULT_MAX_CANDIDATES = 15
 DETAIL_CONCURRENCY = 5
+DINING_CATEGORY_MINIMUM = 2
 
 
 @dataclass(frozen=True)
@@ -63,13 +64,13 @@ class RecommendationService:
         for center in _deduplicate_centers(centers):
             nearby_places.extend(await self._load_all_nearby_pages(center))
 
-        filtered = sorted(
+        filtered = _select_diverse_candidates(
             _filter_and_deduplicate(
                 nearby_places,
                 excluded_ids=selected_ids,
             ),
-            key=_recommendation_sort_key,
-        )[: self._max_candidates]
+            max_candidates=self._max_candidates,
+        )
         detailed = await self._resolve_details(filtered)
 
         return sorted(detailed, key=_recommendation_sort_key)
@@ -185,6 +186,40 @@ def _filter_and_deduplicate(
             unique[place.place_id] = place
 
     return list(unique.values())
+
+
+def _select_diverse_candidates(
+    places: list[Place],
+    *,
+    max_candidates: int,
+) -> list[Place]:
+    """거리순 후보에 음식점·카페가 완전히 밀리지 않도록 최소 몫을 확보한다."""
+    ordered = sorted(places, key=_recommendation_sort_key)
+    selected: list[Place] = []
+    selected_ids: set[str] = set()
+
+    for category in (PlaceCategory.RESTAURANT, PlaceCategory.CAFE):
+        for place in (
+            item for item in ordered if item.category == category
+        ):
+            if len(selected) >= max_candidates:
+                break
+            selected.append(place)
+            selected_ids.add(place.place_id)
+            if sum(
+                item.category == category for item in selected
+            ) >= DINING_CATEGORY_MINIMUM:
+                break
+
+    for place in ordered:
+        if len(selected) >= max_candidates:
+            break
+        if place.place_id in selected_ids:
+            continue
+        selected.append(place)
+        selected_ids.add(place.place_id)
+
+    return sorted(selected, key=_recommendation_sort_key)
 
 
 CATEGORY_PRIORITY = {
