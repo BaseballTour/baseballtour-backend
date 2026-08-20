@@ -281,3 +281,176 @@ def test_valid_token_without_email_returns_none(
         "userId": "firebase-user-123",
         "email": None,
     }
+
+
+@pytest.fixture
+def active_user_client() -> TestClient:
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/active-user")
+    async def active_user_endpoint(
+        user_id: Annotated[
+            str,
+            Depends(
+                auth_dependency.get_current_active_user_id
+            ),
+        ],
+    ) -> dict[str, str]:
+        return {
+            "userId": user_id,
+        }
+
+    return TestClient(app)
+
+
+def make_user_document(
+    *,
+    deleted_at=None,
+):
+    from datetime import datetime, timezone
+
+    from app.schemas.user import UserDocument
+
+    now = datetime.now(timezone.utc)
+
+    return UserDocument(
+        email="fan@example.com",
+        nickname="테스트사용자",
+        birth_year=2002,
+        support_team_id="doosan",
+        profile_image_url=None,
+        onboarding_completed=True,
+        created_at=now,
+        updated_at=now,
+        deleted_at=deleted_at,
+    )
+
+
+def test_active_user_dependency_allows_active_user(
+    active_user_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {
+            "uid": "firebase-user-123",
+        },
+    )
+
+    repository = type(
+        "StubUserRepository",
+        (),
+        {
+            "get_by_id": lambda self, user_id: (
+                make_user_document()
+            ),
+        },
+    )
+
+    monkeypatch.setattr(
+        auth_dependency,
+        "UserRepository",
+        repository,
+    )
+
+    response = active_user_client.get(
+        "/active-user",
+        headers={
+            "Authorization": "Bearer valid-token",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "userId": "firebase-user-123",
+    }
+
+
+def test_active_user_dependency_rejects_deleted_user(
+    active_user_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import datetime, timezone
+
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {
+            "uid": "firebase-user-123",
+        },
+    )
+
+    deleted_at = datetime.now(timezone.utc)
+
+    repository = type(
+        "StubUserRepository",
+        (),
+        {
+            "get_by_id": lambda self, user_id: (
+                make_user_document(
+                    deleted_at=deleted_at,
+                )
+            ),
+        },
+    )
+
+    monkeypatch.setattr(
+        auth_dependency,
+        "UserRepository",
+        repository,
+    )
+
+    response = active_user_client.get(
+        "/active-user",
+        headers={
+            "Authorization": "Bearer valid-token",
+        },
+    )
+
+    assert response.status_code == 403
+    assert (
+        response.json()["error"]["code"]
+        == "USER_DELETED"
+    )
+
+
+def test_active_user_dependency_rejects_missing_profile(
+    active_user_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {
+            "uid": "firebase-user-123",
+        },
+    )
+
+    repository = type(
+        "StubUserRepository",
+        (),
+        {
+            "get_by_id": lambda self, user_id: None,
+        },
+    )
+
+    monkeypatch.setattr(
+        auth_dependency,
+        "UserRepository",
+        repository,
+    )
+
+    response = active_user_client.get(
+        "/active-user",
+        headers={
+            "Authorization": "Bearer valid-token",
+        },
+    )
+
+    assert response.status_code == 404
+    assert (
+        response.json()["error"]["code"]
+        == "USER_NOT_FOUND"
+    )

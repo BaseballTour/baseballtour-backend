@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.dependencies.auth import (
     AuthenticatedUser,
+    get_current_active_user_id,
     get_current_user,
     get_current_user_id,
 )
@@ -58,7 +59,7 @@ def bootstrap_user(
 def get_my_profile(
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[UserResponse]:
     service = UserService()
@@ -77,7 +78,7 @@ def update_my_support_team(
     request: SupportTeamUpdateRequest,
     user_id: Annotated[
         str,
-        Depends(get_current_user_id),
+        Depends(get_current_active_user_id),
     ],
 ) -> SuccessResponse[UserResponse]:
     service = UserService()

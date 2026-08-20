@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies.auth import get_current_user_id
+from app.api.dependencies.auth import get_current_active_user_id
 from app.main import app
 from app.schemas.place_selection import PlaceSelectionRecord
 
@@ -37,7 +37,7 @@ def make_selection(
 
 @pytest.fixture
 def authenticated_client() -> TestClient:
-    app.dependency_overrides[get_current_user_id] = (
+    app.dependency_overrides[get_current_active_user_id] = (
         lambda: USER_ID
     )
 
