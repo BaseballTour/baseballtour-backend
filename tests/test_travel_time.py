@@ -50,7 +50,7 @@ async def test_matrix_uses_provider_and_deduplicates_nodes() -> None:
 
 
 @pytest.mark.anyio
-async def test_matrix_falls_back_when_provider_fails() -> None:
+async def test_matrix_falls_back_when_provider_fails(caplog) -> None:
     async def failing_provider(*coordinates: float) -> int:
         raise RuntimeError("provider unavailable")
 
@@ -65,6 +65,8 @@ async def test_matrix_falls_back_when_provider_fails() -> None:
     assert matrix.get("a", "b") >= 5
     assert matrix.get_mode("a", "b").value == "WALK"
     assert matrix.get_source("a", "b").value == "ESTIMATED"
+    assert "ODsay 경로 조회 실패로 예상시간 사용" in caplog.text
+    assert "RuntimeError: provider unavailable" in caplog.text
 
 
 @pytest.mark.anyio
@@ -111,7 +113,7 @@ async def test_matrix_limits_provider_concurrency() -> None:
 
 
 @pytest.mark.anyio
-async def test_matrix_uses_fallback_after_total_timeout() -> None:
+async def test_matrix_uses_fallback_after_total_timeout(caplog) -> None:
     async def slow_provider(*coordinates: float) -> int:
         await asyncio.sleep(1)
         return 1
@@ -128,3 +130,4 @@ async def test_matrix_uses_fallback_after_total_timeout() -> None:
 
     assert matrix.get("a", "b") >= 5
     assert matrix.get_source("a", "b").value == "ESTIMATED"
+    assert "ODsay 이동시간 Matrix 전체 제한시간 초과" in caplog.text
