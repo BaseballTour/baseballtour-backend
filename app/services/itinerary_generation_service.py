@@ -13,7 +13,7 @@ from app.algorithms.travel_time import (
     build_itinerary_travel_time_matrix,
 )
 from app.core.exceptions import AppException
-from app.external.odsay.client import get_cached_transit_minutes
+from app.external.kakao.routing import get_cached_fastest_route
 from app.external.tour_api.adapter import (
     TourApiAdapter,
     tour_api_adapter,
@@ -67,7 +67,7 @@ class ItineraryGenerationService:
         itinerary_plan_repository: ItineraryPlanRepository | None = None,
         place_adapter: TourApiAdapter | None = None,
         recommendation_service: RecommendationService | None = None,
-        travel_time_provider: TravelTimeProvider = get_cached_transit_minutes,
+        travel_time_provider: TravelTimeProvider = get_cached_fastest_route,
         generator: ItineraryGenerator = generate_itinerary,
     ) -> None:
         self._trip_repository = (

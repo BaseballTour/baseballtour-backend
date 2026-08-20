@@ -4,10 +4,13 @@ import pytest
 
 from app.algorithms.travel_time import (
     MatrixNode,
+    ProviderTravelTime,
+    _itinerary_provider_route_keys,
     build_travel_time_matrix,
     estimated_walking_minutes,
     fallback_travel_minutes,
 )
+from app.models.itinerary import TravelMode, TravelTimeSource
 
 
 def test_fallback_travel_time_is_positive() -> None:
@@ -65,7 +68,7 @@ async def test_matrix_falls_back_when_provider_fails(caplog) -> None:
     assert matrix.get("a", "b") >= 5
     assert matrix.get_mode("a", "b").value == "WALK"
     assert matrix.get_source("a", "b").value == "ESTIMATED"
-    assert "ODsay 경로 조회 실패로 예상시간 사용" in caplog.text
+    assert "외부 경로 조회 실패로 예상시간 사용" in caplog.text
     assert "RuntimeError: provider unavailable" in caplog.text
 
 
@@ -130,4 +133,49 @@ async def test_matrix_uses_fallback_after_total_timeout(caplog) -> None:
 
     assert matrix.get("a", "b") >= 5
     assert matrix.get_source("a", "b").value == "ESTIMATED"
-    assert "ODsay 이동시간 Matrix 전체 제한시간 초과" in caplog.text
+    assert "외부 이동시간 Matrix 전체 제한시간 초과" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_matrix_uses_structured_kakao_result() -> None:
+    async def provider(*coordinates: float) -> ProviderTravelTime:
+        return ProviderTravelTime(
+            minutes=20,
+            mode=TravelMode.WALK,
+            source=TravelTimeSource.KAKAO,
+        )
+
+    matrix = await build_travel_time_matrix(
+        [
+            MatrixNode("a", 37.5, 127.0),
+            MatrixNode("b", 37.5001, 127.0001),
+        ],
+        provider,
+    )
+
+    assert matrix.get("a", "b") == 20
+    assert matrix.get_mode("a", "b") == TravelMode.WALK
+    assert matrix.get_source("a", "b") == TravelTimeSource.KAKAO
+
+
+def test_itinerary_provider_routes_are_reduced() -> None:
+    nodes = [
+        MatrixNode("arrival", 37.5, 127.0),
+        MatrixNode("departure", 37.51, 127.01),
+        MatrixNode("stadium", 37.52, 127.02),
+        *[
+            MatrixNode(
+                f"tour_{index}",
+                37.53 + index / 1000,
+                127.03 + index / 1000,
+            )
+            for index in range(15)
+        ],
+    ]
+
+    keys = _itinerary_provider_route_keys(nodes)
+
+    assert len(keys) == 81
+    assert len(keys) < len(nodes) * (len(nodes) - 1)
+    assert ("arrival", "tour_0") in keys
+    assert ("tour_0", "stadium") in keys

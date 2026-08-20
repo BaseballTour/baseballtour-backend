@@ -63,10 +63,10 @@ places/{placeId}
 ## 이동시간
 
 - `travelMinutesFromPrevious`와 함께 `travelMode`, `travelTimeSource`를 API에 항상 포함한다.
-- 도보 예상시간과 ODsay 대중교통 최단시간을 비교해 더 빠른 수단을 선택한다.
-- 도보시간은 실제 보행 경로 API가 연결되기 전까지 직선거리, 우회계수, 평균 보행속도로 추정한다.
+- 카카오 실제 도보시간과 대중교통 최단시간을 비교해 더 빠른 수단을 선택한다.
+- 카카오 경로 조회가 모두 실패한 구간만 직선거리, 우회계수, 평균 보행속도로 추정한다.
 - `travelMode`: `WALK`, `TRANSIT`
-- `travelTimeSource`: `ODSAY`, `ESTIMATED`, `FAKE`
+- `travelTimeSource`: `KAKAO`, `ODSAY`, `ESTIMATED`, `FAKE`
 - `FAKE`는 테스트와 Mock에서만 사용한다.
 
 ## 이미지·운영시간

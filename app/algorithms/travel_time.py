@@ -19,11 +19,6 @@ class Coordinate(Protocol):
     longitude: float
 
 
-TravelTimeProvider = Callable[
-    [float, float, float, float],
-    Awaitable[int],
-]
-
 TRAVEL_TIME_MAX_CONCURRENCY = 8
 TRAVEL_TIME_PROVIDER_TIMEOUT_SECONDS = 8.0
 TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS = 30.0
@@ -33,6 +28,7 @@ ANCHOR_NODE_IDS = {
     "stadium",
     "accommodation",
 }
+PLACE_NEAREST_NEIGHBOR_COUNT = 2
 
 
 def _safe_provider_error(exc: Exception) -> str:
@@ -47,6 +43,19 @@ class MatrixNode:
     node_id: str
     latitude: float
     longitude: float
+
+
+@dataclass(frozen=True)
+class ProviderTravelTime:
+    minutes: int
+    mode: TravelMode
+    source: TravelTimeSource
+
+
+TravelTimeProvider = Callable[
+    [float, float, float, float],
+    Awaitable[int | ProviderTravelTime],
+]
 
 
 @dataclass
@@ -125,6 +134,7 @@ async def build_travel_time_matrix(
         TRAVEL_TIME_PROVIDER_TIMEOUT_SECONDS
     ),
     matrix_timeout_seconds: float = TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS,
+    provider_route_keys: set[tuple[str, str]] | None = None,
 ) -> TravelTimeMatrix:
     unique = {node.node_id: node for node in nodes}
     minutes: dict[tuple[str, str], int] = {}
@@ -144,9 +154,10 @@ async def build_travel_time_matrix(
             minutes[key] = walk_minutes
             modes[key] = TravelMode.WALK
             sources[key] = TravelTimeSource.ESTIMATED
-            routes.append(
-                (origin_id, origin, destination_id, destination)
-            )
+            if provider_route_keys is None or key in provider_route_keys:
+                routes.append(
+                    (origin_id, origin, destination_id, destination)
+                )
 
     if provider is not None and routes:
         # 전체 시간 예산이 끝나더라도 일정의 뼈대를 구성하는 Anchor 경로가
@@ -173,7 +184,7 @@ async def build_travel_time_matrix(
         ) -> None:
             try:
                 async with semaphore:
-                    transit_minutes = await asyncio.wait_for(
+                    provider_result = await asyncio.wait_for(
                         provider(
                             origin.longitude,
                             origin.latitude,
@@ -193,8 +204,13 @@ async def build_travel_time_matrix(
                 return
 
             key = (origin_id, destination_id)
-            if transit_minutes < minutes[key]:
-                minutes[key] = transit_minutes
+            if isinstance(provider_result, ProviderTravelTime):
+                minutes[key] = provider_result.minutes
+                modes[key] = provider_result.mode
+                sources[key] = provider_result.source
+            elif provider_result < minutes[key]:
+                # 기존 int Provider(ODsay 및 테스트 double)와의 호환성.
+                minutes[key] = provider_result
                 modes[key] = TravelMode.TRANSIT
                 sources[key] = TravelTimeSource.ODSAY
 
@@ -210,7 +226,7 @@ async def build_travel_time_matrix(
         except asyncio.TimeoutError:
             # 완료되지 않은 경로는 미리 채운 직선거리 기반 값으로 유지합니다.
             logger.warning(
-                "ODsay 이동시간 Matrix 전체 제한시간 초과: "
+                "외부 이동시간 Matrix 전체 제한시간 초과: "
                 "timeout_seconds=%s total_routes=%s",
                 matrix_timeout_seconds,
                 len(routes),
@@ -220,7 +236,7 @@ async def build_travel_time_matrix(
             # 키나 요청 URL은 남기지 않고 대표 실패만 기록한다.
             sample = failures[0]
             logger.warning(
-                "ODsay 경로 조회 실패로 예상시간 사용: "
+                "외부 경로 조회 실패로 예상시간 사용: "
                 "failed_routes=%s total_routes=%s "
                 "sample_origin=%s sample_destination=%s reason=%s",
                 len(failures),
@@ -275,4 +291,55 @@ async def build_itinerary_travel_time_matrix(
         )
         for place in places
     )
-    return await build_travel_time_matrix(nodes, provider)
+    provider_route_keys = _itinerary_provider_route_keys(nodes)
+    return await build_travel_time_matrix(
+        nodes,
+        provider,
+        provider_route_keys=provider_route_keys,
+    )
+
+
+def _itinerary_provider_route_keys(
+    nodes: list[MatrixNode],
+) -> set[tuple[str, str]]:
+    """일정 계산에 유용한 경로만 외부 API로 조회한다."""
+    anchors = [node for node in nodes if node.node_id in ANCHOR_NODE_IDS]
+    places = [node for node in nodes if node.node_id not in ANCHOR_NODE_IDS]
+    keys = {
+        (origin.node_id, destination.node_id)
+        for origin in anchors
+        for destination in anchors
+        if origin.node_id != destination.node_id
+    }
+
+    start_anchor_ids = {"arrival"}
+    if any(node.node_id == "accommodation" for node in anchors):
+        start_anchor_ids.add("accommodation")
+    end_anchor_ids = {"stadium", "departure"}
+    if any(node.node_id == "accommodation" for node in anchors):
+        end_anchor_ids.add("accommodation")
+
+    for place in places:
+        keys.update(
+            (anchor_id, place.node_id)
+            for anchor_id in start_anchor_ids
+        )
+        keys.update(
+            (place.node_id, anchor_id)
+            for anchor_id in end_anchor_ids
+        )
+
+        neighbors = sorted(
+            (
+                candidate
+                for candidate in places
+                if candidate.node_id != place.node_id
+            ),
+            key=lambda candidate: haversine_kilometers(place, candidate),
+        )[:PLACE_NEAREST_NEIGHBOR_COUNT]
+        keys.update(
+            (place.node_id, neighbor.node_id)
+            for neighbor in neighbors
+        )
+
+    return keys
