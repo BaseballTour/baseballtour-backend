@@ -39,6 +39,7 @@ class TravelMode(str, Enum):
 
 
 class TravelTimeSource(str, Enum):
+    KAKAO = "KAKAO"
     ODSAY = "ODSAY"
     ESTIMATED = "ESTIMATED"
     FAKE = "FAKE"

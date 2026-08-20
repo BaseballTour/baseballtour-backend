@@ -160,7 +160,8 @@ DELETE /users/me/favorite-collections/{collectionId}/items/{placeId}
 ```
 
 - `travelMode`: `WALK`, `TRANSIT`
-- `travelTimeSource`: `ODSAY`, `ESTIMATED`, `FAKE`
-- 도보 예상시간과 ODsay 대중교통 최단시간 중 더 짧은 값을 사용한다.
+- `travelTimeSource`: `KAKAO`, `ODSAY`, `ESTIMATED`, `FAKE`
+- 신규 일정은 카카오 실제 도보·대중교통 시간 중 더 짧은 값을 사용한다.
+- `ODSAY`는 기존 저장 일정과의 하위 호환을 위해 유지한다.
 - `FAKE`는 테스트와 Mock 전용이다.
 - 이동이 없는 첫 Item은 `travelMode`, `travelTimeSource`가 `null`일 수 있다.

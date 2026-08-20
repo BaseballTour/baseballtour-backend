@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import status
 from pydantic import ValidationError
@@ -12,7 +13,7 @@ from app.algorithms.travel_time import (
     build_itinerary_travel_time_matrix,
 )
 from app.core.exceptions import AppException
-from app.external.odsay.client import get_cached_transit_minutes
+from app.external.kakao.routing import get_cached_fastest_route
 from app.external.tour_api.adapter import (
     TourApiAdapter,
     tour_api_adapter,
@@ -51,6 +52,7 @@ from app.services.recommendation import (
 
 ItineraryGenerator = Callable[..., ItineraryResult]
 RECOMMENDATION_TIMEOUT_SECONDS = 20.0
+KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 class ItineraryGenerationService:
@@ -65,7 +67,7 @@ class ItineraryGenerationService:
         itinerary_plan_repository: ItineraryPlanRepository | None = None,
         place_adapter: TourApiAdapter | None = None,
         recommendation_service: RecommendationService | None = None,
-        travel_time_provider: TravelTimeProvider = get_cached_transit_minutes,
+        travel_time_provider: TravelTimeProvider = get_cached_fastest_route,
         generator: ItineraryGenerator = generate_itinerary,
     ) -> None:
         self._trip_repository = (
@@ -393,8 +395,12 @@ class ItineraryGenerationService:
         try:
             return TripInput(
                 trip_id=trip.trip_id,
-                trip_start_at=trip.trip_start_at,
-                trip_end_at=trip.trip_end_at,
+                trip_start_at=trip.trip_start_at.astimezone(
+                    KOREA_TIMEZONE
+                ),
+                trip_end_at=trip.trip_end_at.astimezone(
+                    KOREA_TIMEZONE
+                ),
                 arrival_point=GeoPoint(
                     name=trip.arrival_point.name,
                     latitude=trip.arrival_point.latitude,
@@ -413,7 +419,9 @@ class ItineraryGenerationService:
                     address=stadium.address,
                     latitude=stadium.latitude,
                     longitude=stadium.longitude,
-                    game_start_at=game.game_start_at,
+                    game_start_at=game.game_start_at.astimezone(
+                        KOREA_TIMEZONE
+                    ),
                     required_arrival_minutes=40,
                 ),
                 selected_places=[
