@@ -1,0 +1,27 @@
+{
+  "game": [
+    {
+      "G_DT": "20260801", "G_TM": "18:00", "S_NM": "잠실",
+      "AWAY_NM": "LG", "HOME_NM": "두산", "HEADER_NO": 0,
+      "GAME_STATE_SC": "3", "CANCEL_SC_ID": "0",
+      "CANCEL_SC_NM": "정상경기", "GAME_RESULT_CK": 1,
+      "T_SCORE_CN": "2", "B_SCORE_CN": "2"
+    },
+    {
+      "G_DT": "20260801", "G_TM": "18:00", "S_NM": "사직",
+      "AWAY_NM": "삼성", "HOME_NM": "롯데", "HEADER_NO": 0,
+      "GAME_STATE_SC": "4", "CANCEL_SC_ID": "9",
+      "CANCEL_SC_NM": "폭염취소", "GAME_RESULT_CK": 0,
+      "T_SCORE_CN": "0", "B_SCORE_CN": "0"
+    },
+    {
+      "G_DT": "20260801", "G_TM": "18:00", "S_NM": "수원",
+      "AWAY_NM": "한화", "HOME_NM": "KT", "HEADER_NO": 0,
+      "GAME_STATE_SC": "2", "CANCEL_SC_ID": "0",
+      "CANCEL_SC_NM": "정상경기", "GAME_RESULT_CK": 0,
+      "T_SCORE_CN": "4", "B_SCORE_CN": "7"
+    }
+  ],
+  "code": "100",
+  "msg": "성공"
+}

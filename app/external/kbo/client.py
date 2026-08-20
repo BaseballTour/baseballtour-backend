@@ -7,6 +7,9 @@ KBO_SCHEDULE_URL = (
     "https://www.koreabaseball.com/ws/Schedule.asmx/"
     "GetScheduleList"
 )
+KBO_DAY_GAMES_URL = (
+    "https://www.koreabaseball.com/ws/Main.asmx/GetKboGameList"
+)
 KBO_SCHEDULE_REFERER = (
     "https://www.koreabaseball.com/Schedule/Schedule.aspx"
 )
@@ -70,4 +73,42 @@ class KboScheduleClient:
         ):
             raise ValueError("KBO 일정 응답 구조가 변경되었습니다.")
 
+        return data
+
+    async def get_day_games(self, game_date: str) -> dict[str, Any]:
+        """YYYYMMDD 날짜의 경기 상태 목록을 조회한다."""
+        if len(game_date) != 8 or not game_date.isdigit():
+            raise ValueError("game_date는 YYYYMMDD 형식이어야 합니다.")
+
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(
+            timeout=self._timeout_seconds,
+        )
+        try:
+            response = await client.post(
+                KBO_DAY_GAMES_URL,
+                data={
+                    "leId": "1",
+                    "srId": "0,1,3,4,5,6,7,8,9",
+                    "date": game_date,
+                },
+                headers={
+                    "Accept": "application/json, text/javascript, */*",
+                    "Referer": (
+                        "https://www.koreabaseball.com/"
+                        "Schedule/GameCenter/Main.aspx"
+                    ),
+                    "User-Agent": "BaseballTour-MVP/0.1 status-sync",
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+        finally:
+            if owns_client:
+                await client.aclose()
+
+        if not isinstance(data, dict) or not isinstance(
+            data.get("game"), list
+        ):
+            raise ValueError("KBO 일별 경기 응답 구조가 변경되었습니다.")
         return data

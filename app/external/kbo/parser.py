@@ -225,3 +225,110 @@ def parse_schedule_response(
         games=games,
         skipped_rows=skipped_rows,
     )
+
+
+def parse_day_games_response(data: dict[str, Any]) -> KboScheduleParseResult:
+    """일별 경기 응답을 상태 갱신용 내부 경기 데이터로 변환한다.
+
+    진행 중 점수는 의도적으로 저장하지 않고, GAME_RESULT_CK가 완료를
+    나타낼 때만 최종 점수와 승리팀을 반영한다.
+    """
+    rows = data.get("game")
+    if not isinstance(rows, list):
+        raise ValueError("KBO 일별 경기 응답에 game 배열이 없습니다.")
+
+    games: list[KboScheduleGame] = []
+    skipped_rows: list[str] = []
+    occurrence_by_matchup: dict[tuple[Any, ...], int] = {}
+
+    for row_number, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            skipped_rows.append(f"row {row_number}: 객체가 아님")
+            continue
+        try:
+            date_text = str(row["G_DT"])
+            time_text = str(row["G_TM"])
+            away_name = str(row["AWAY_NM"]).strip()
+            home_name = str(row["HOME_NM"]).strip()
+            stadium_name = str(row["S_NM"]).strip()
+            game_start_at = datetime.strptime(
+                f"{date_text}{time_text}",
+                "%Y%m%d%H:%M",
+            ).replace(tzinfo=KOREA_TIMEZONE)
+        except (KeyError, TypeError, ValueError):
+            skipped_rows.append(f"row {row_number}: 필수 값 해석 실패")
+            continue
+
+        away_team_id = TEAM_ID_BY_NAME.get(away_name)
+        home_team_id = TEAM_ID_BY_NAME.get(home_name)
+        stadium_id = STADIUM_ID_BY_NAME.get(stadium_name)
+        if away_team_id is None or home_team_id is None or stadium_id is None:
+            skipped_rows.append(
+                f"row {row_number}: 미지원 팀/구장 "
+                f"({away_name} vs {home_name}, {stadium_name})"
+            )
+            continue
+
+        matchup_key = (
+            game_start_at.date(),
+            away_team_id,
+            home_team_id,
+            stadium_id,
+        )
+        occurrence = occurrence_by_matchup.get(matchup_key, 0) + 1
+        occurrence_by_matchup[matchup_key] = occurrence
+        header_number = int(row.get("HEADER_NO") or 0)
+        game_ordinal = header_number if header_number > 0 else occurrence
+        game_id = (
+            f"kbo_{game_start_at:%Y%m%d}_{away_team_id}_"
+            f"{home_team_id}_{stadium_id}_{game_ordinal}"
+        )
+
+        cancel_name = str(row.get("CANCEL_SC_NM") or "").strip()
+        cancel_code = str(row.get("CANCEL_SC_ID") or "0").strip()
+        result_complete = str(row.get("GAME_RESULT_CK") or "0") == "1"
+        game_state = str(row.get("GAME_STATE_SC") or "").strip()
+        home_score: int | None = None
+        away_score: int | None = None
+        result_text: str | None = None
+
+        if "연기" in cancel_name or "서스펜디드" in cancel_name:
+            status = GameStatus.POSTPONED
+            result_text = cancel_name
+        elif cancel_code != "0" or "취소" in cancel_name:
+            status = GameStatus.CANCELLED
+            result_text = cancel_name or "경기 취소"
+        elif result_complete:
+            status = GameStatus.COMPLETED
+            try:
+                away_score = int(row.get("T_SCORE_CN"))
+                home_score = int(row.get("B_SCORE_CN"))
+            except (TypeError, ValueError):
+                skipped_rows.append(f"row {row_number}: 최종 점수 해석 실패")
+                continue
+            if away_score > home_score:
+                result_text = f"{away_name} 승"
+            elif home_score > away_score:
+                result_text = f"{home_name} 승"
+            else:
+                result_text = "무승부"
+        elif game_state == "2":
+            status = GameStatus.IN_PROGRESS
+        else:
+            status = GameStatus.SCHEDULED
+
+        games.append(
+            KboScheduleGame(
+                game_id=game_id,
+                home_team_id=home_team_id,
+                away_team_id=away_team_id,
+                stadium_id=stadium_id,
+                game_start_at=game_start_at,
+                status=status,
+                home_score=home_score,
+                away_score=away_score,
+                result_text=result_text,
+            )
+        )
+
+    return KboScheduleParseResult(games=games, skipped_rows=skipped_rows)
