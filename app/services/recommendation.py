@@ -4,6 +4,7 @@ import asyncio
 import logging
 import math
 import re
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
@@ -82,6 +83,7 @@ class RecommendationService:
         selected_ids = set(selected_place_ids)
         excluded_anchors = tuple(excluded_places)
         nearby_places: list[Place] = []
+        rejected: Counter[str] = Counter()
 
         for center in _deduplicate_centers(centers):
             nearby_places.extend(await self._load_all_nearby_pages(center))
@@ -91,12 +93,13 @@ class RecommendationService:
                 nearby_places,
                 excluded_ids=selected_ids,
                 excluded_places=excluded_anchors,
+                rejected=rejected,
             ),
             max_candidates=self._max_candidates,
+            rejected=rejected,
         )
         detailed = await self._resolve_details(filtered)
-
-        return sorted(
+        available = sorted(
             (
                 place
                 for place in detailed
@@ -108,6 +111,19 @@ class RecommendationService:
             ),
             key=_recommendation_sort_key,
         )
+        rejected["UNVERIFIED_FESTIVAL"] += len(filtered) - len(detailed)
+        rejected["OUTSIDE_EVENT_PERIOD"] += len(detailed) - len(available)
+        logger.info(
+            "자동 추천 후보 진단: fetched=%s selected=%s detailed=%s "
+            "available=%s rejected=%s categories=%s",
+            len(nearby_places),
+            len(filtered),
+            len(detailed),
+            len(available),
+            dict(sorted(rejected.items())),
+            dict(sorted(Counter(str(item.category) for item in available).items())),
+        )
+        return available
 
     async def _load_all_nearby_pages(
         self,
@@ -205,27 +221,42 @@ def _filter_and_deduplicate(
     *,
     excluded_ids: set[str],
     excluded_places: tuple[ExcludedRecommendationPlace, ...] = (),
+    rejected: Counter[str] | None = None,
 ) -> list[Place]:
     unique: dict[str, Place] = {}
 
     for place in places:
         if place.place_id in excluded_ids:
+            if rejected is not None:
+                rejected["ALREADY_SELECTED_OR_REJECTED"] += 1
             continue
         if any(
             _matches_excluded_place(place, excluded)
             for excluded in excluded_places
         ):
+            if rejected is not None:
+                rejected["ANCHOR_DUPLICATE"] += 1
             continue
         if place.source != PlaceSource.TOUR_API:
+            if rejected is not None:
+                rejected["UNSUPPORTED_SOURCE"] += 1
             continue
         if place.category == PlaceCategory.ACCOMMODATION:
+            if rejected is not None:
+                rejected["ACCOMMODATION"] += 1
             continue
         if (place.lcls_system2 or "").startswith("VE10"):
+            if rejected is not None:
+                rejected["SPORTS_FACILITY"] += 1
             continue
 
         current = unique.get(place.place_id)
         if current is None or _distance(place) < _distance(current):
+            if current is not None and rejected is not None:
+                rejected["DUPLICATE_PLACE"] += 1
             unique[place.place_id] = place
+        elif rejected is not None:
+            rejected["DUPLICATE_PLACE"] += 1
 
     return list(unique.values())
 
@@ -280,6 +311,7 @@ def _select_diverse_candidates(
     places: list[Place],
     *,
     max_candidates: int,
+    rejected: Counter[str] | None = None,
 ) -> list[Place]:
     """거리순 후보에 음식점·카페가 완전히 밀리지 않도록 최소 몫을 확보한다."""
     ordered = sorted(places, key=_recommendation_sort_key)
@@ -308,10 +340,14 @@ def _select_diverse_candidates(
         if maximum is not None and sum(
             item.category == place.category for item in selected
         ) >= maximum:
+            if rejected is not None:
+                rejected["CATEGORY_LIMIT"] += 1
             continue
         selected.append(place)
         selected_ids.add(place.place_id)
 
+    if rejected is not None and len(selected) >= max_candidates:
+        rejected["CANDIDATE_LIMIT"] += max(0, len(ordered) - len(selected))
     return sorted(selected, key=_recommendation_sort_key)
 
 

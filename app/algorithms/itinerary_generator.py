@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+import logging
+from collections import Counter
 
 from app.algorithms.day_type import classify_day
 from app.algorithms.travel_time import TravelTimeMatrix
@@ -30,6 +32,9 @@ from app.models.place import (
     PlaceCategory,
     Weekday,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_DAY_START = time(9, 0)
@@ -431,6 +436,7 @@ def _fill_routes_with_recommendations(
         and place.category != PlaceCategory.ACCOMMODATION
     }
     added: set[str] = set()
+    rejected: Counter[str] = Counter()
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
@@ -456,22 +462,31 @@ def _fill_routes_with_recommendations(
                     and place.business_hours_status
                     != BusinessRuleStatus.PARSED
                 ):
+                    rejected["UNVERIFIED_FESTIVAL"] += 1
                     continue
                 for index in range(len(current) + 1):
                     proposed = [*current[:index], place, *current[index:]]
                     result = simulate_route_detailed(proposed, **args)
                     if not result.feasible:
+                        reason = (
+                            result.failure.reason_code.value
+                            if result.failure is not None
+                            else "INFEASIBLE"
+                        )
+                        rejected[reason] += 1
                         continue
                     if (
                         result.anchor_slack_minutes is None
                         or result.anchor_slack_minutes
                         < AUTO_FILL_MIN_REMAINING_MINUTES
                     ):
+                        rejected["INSUFFICIENT_TIME"] += 1
                         continue
                     marginal = route_travel_minutes(
                         args["start_id"], proposed, args["end_id"], matrix
                     ) - current_cost
                     if marginal > AUTO_FILL_MAX_DETOUR_MINUTES:
+                        rejected["ROUTE_INEFFICIENT"] += 1
                         continue
                     visit = next(
                         item
@@ -507,6 +522,13 @@ def _fill_routes_with_recommendations(
         routes[target_date] = proposed
         added.add(place.place_id)
         remaining.pop(place.place_id)
+
+    logger.info(
+        "자동 추천 배치 진단: candidates=%s scheduled=%s rejected_attempts=%s",
+        len(recommendations),
+        len(added),
+        dict(sorted(rejected.items())),
+    )
 
     return routes, added
 

@@ -7,8 +7,10 @@ import pytest
 from app.core.exceptions import AppException
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
+    ItineraryPlanFixedRequest,
     ItineraryPlanRecord,
     ItineraryPlanReorderRequest,
+    ItineraryPlanTimeUpdateRequest,
     ItineraryPlanStatus,
 )
 from app.schemas.trip import TripRecord, TripStatus
@@ -308,6 +310,68 @@ def make_editable_plan() -> ItineraryPlanRecord:
         created_at=NOW,
         updated_at=NOW,
     )
+
+
+@pytest.mark.anyio
+async def test_update_item_fixed_persists_flag() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    plan_repository.update_schedule.side_effect = lambda **kwargs: plan.model_copy(
+        update={"days": kwargs["days"]}
+    )
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+    )
+
+    result = await service.update_item_fixed(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        item_id="item_a",
+        request=ItineraryPlanFixedRequest(is_fixed=True),
+    )
+
+    assert result.days[0].items[1].is_fixed is True
+
+
+@pytest.mark.anyio
+async def test_update_item_time_recalculates_following_item() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    plan_repository.update_schedule.side_effect = lambda **kwargs: plan.model_copy(
+        update={"days": kwargs["days"]}
+    )
+
+    async def provider(*args) -> int:
+        return 10
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+    )
+    result = await service.update_item_time(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        item_id="item_a",
+        request=ItineraryPlanTimeUpdateRequest(
+            scheduled_start_at="2026-08-15T14:00:00+09:00"
+        ),
+    )
+
+    items = result.days[0].items
+    assert items[1].scheduled_start_at.hour == 14
+    assert items[1].is_fixed is True
+    assert items[2].scheduled_start_at.hour == 15
+    assert items[2].scheduled_start_at.minute == 10
 
 
 @pytest.mark.anyio

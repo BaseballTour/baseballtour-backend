@@ -119,3 +119,15 @@ class ItineraryPlanAddItemRequest(ApiModel):
     date: date
     place_id: str = Field(min_length=1)
     is_required: bool = True
+
+
+class ItineraryPlanFixedRequest(ApiModel):
+    """일정 PLACE 항목의 고정 여부 변경 요청."""
+
+    is_fixed: bool
+
+
+class ItineraryPlanTimeUpdateRequest(ApiModel):
+    """일정 PLACE 항목의 시작시간 변경 요청."""
+
+    scheduled_start_at: AwareDatetime

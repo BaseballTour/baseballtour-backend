@@ -11,9 +11,11 @@ from fastapi import (
 from app.api.dependencies.auth import get_current_active_user_id
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
+    ItineraryPlanFixedRequest,
     ItineraryPlanRecord,
     ItineraryPlanReorderRequest,
     ItineraryPlanResponse,
+    ItineraryPlanTimeUpdateRequest,
 )
 from app.schemas.place_selection import (
     PlaceSelectionCreateRequest,
@@ -622,3 +624,43 @@ async def add_itinerary_item(
     return SuccessResponse(
         data=to_itinerary_plan_response(plan)
     )
+
+
+@router.patch(
+    "/{tripId}/plan/items/{itemId}/fixed",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 장소 고정 여부 변경",
+)
+async def update_itinerary_item_fixed(
+    trip_id: Annotated[str, Path(alias="tripId")],
+    item_id: Annotated[str, Path(alias="itemId")],
+    request: ItineraryPlanFixedRequest,
+    user_id: Annotated[str, Depends(get_current_active_user_id)],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    plan = await ItineraryPlanService().update_item_fixed(
+        user_id=user_id,
+        trip_id=trip_id,
+        item_id=item_id,
+        request=request,
+    )
+    return SuccessResponse(data=to_itinerary_plan_response(plan))
+
+
+@router.patch(
+    "/{tripId}/plan/items/{itemId}/time",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 장소 시작시간 변경",
+)
+async def update_itinerary_item_time(
+    trip_id: Annotated[str, Path(alias="tripId")],
+    item_id: Annotated[str, Path(alias="itemId")],
+    request: ItineraryPlanTimeUpdateRequest,
+    user_id: Annotated[str, Depends(get_current_active_user_id)],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    plan = await ItineraryPlanService().update_item_time(
+        user_id=user_id,
+        trip_id=trip_id,
+        item_id=item_id,
+        request=request,
+    )
+    return SuccessResponse(data=to_itinerary_plan_response(plan))

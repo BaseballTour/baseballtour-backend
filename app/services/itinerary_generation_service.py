@@ -39,7 +39,9 @@ from app.repositories.stadium_repository import StadiumRepository
 from app.repositories.trip_repository import TripRepository
 from app.schemas.game import GameRecord
 from app.schemas.itinerary_plan import (
+    ItineraryPlanDay,
     ItineraryPlanDocument,
+    ItineraryPlanItem,
     ItineraryPlanRecord,
 )
 from app.schemas.stadium import StadiumResponse
@@ -152,6 +154,13 @@ class ItineraryGenerationService:
                 selections
             )
 
+            previous_plan = self._get_previous_plan(trip.active_plan_id)
+            fixed_items = self._fixed_place_items(previous_plan)
+            fixed_place_ids = {
+                item.place_id for _, item in fixed_items if item.place_id
+            }
+            fixed_places = await self._resolve_place_ids(fixed_place_ids)
+
             rejected_recommendation_ids = set(
                 trip.rejected_recommendation_place_ids
             )
@@ -162,7 +171,7 @@ class ItineraryGenerationService:
             )
             recommendation_excluded_ids = {
                 selection.place_id for selection in selections
-            } | rejected_recommendation_ids
+            } | rejected_recommendation_ids | fixed_place_ids
 
             try:
                 recommended_places = await asyncio.wait_for(
@@ -196,7 +205,7 @@ class ItineraryGenerationService:
             matrix_places = list(
                 {
                     place.place_id: place
-                    for place in [*places, *recommended_places]
+                    for place in [*places, *fixed_places, *recommended_places]
                 }.values()
             )
 
@@ -221,6 +230,10 @@ class ItineraryGenerationService:
                 user_id=user_id,
                 result=result,
                 now=now,
+            )
+            plan = self._preserve_fixed_items(
+                plan=plan,
+                fixed_items=fixed_items,
             )
 
             return (
@@ -271,6 +284,108 @@ class ItineraryGenerationService:
             and not item.is_fixed
             and item.place_id is not None
         }
+
+    def _get_previous_plan(self, plan_id: str | None):
+        if plan_id is None:
+            return None
+        return self._itinerary_plan_repository.get_by_id(plan_id)
+
+    @staticmethod
+    def _fixed_place_items(previous_plan) -> list[tuple[object, ItineraryPlanItem]]:
+        if previous_plan is None:
+            return []
+        return [
+            (day.date, item)
+            for day in previous_plan.days
+            for item in day.items
+            if item.item_type == ItineraryItemType.PLACE
+            and item.is_fixed
+            and getattr(day, "date", None) is not None
+            and getattr(item, "item_id", None) is not None
+        ]
+
+    async def _resolve_place_ids(self, place_ids: set[str]) -> list[Place]:
+        selections = [
+            type("FixedSelection", (), {"place_id": place_id})()
+            for place_id in place_ids
+        ]
+        return await self._resolve_places(selections)
+
+    @staticmethod
+    def _preserve_fixed_items(
+        *,
+        plan: ItineraryPlanDocument,
+        fixed_items: list[tuple[object, ItineraryPlanItem]],
+    ) -> ItineraryPlanDocument:
+        """재생성 결과에 기존 고정 PLACE의 날짜·시간·itemId를 보존합니다."""
+
+        if not fixed_items:
+            return plan
+        fixed_ids = {item.place_id for _, item in fixed_items if item.place_id}
+        days = [
+            day.model_copy(
+                update={
+                    "items": [
+                        item
+                        for item in day.items
+                        if not (
+                            item.item_type == ItineraryItemType.PLACE
+                            and item.place_id in fixed_ids
+                        )
+                    ]
+                }
+            )
+            for day in plan.days
+        ]
+
+        for target_date, fixed in fixed_items:
+            day_index = next(
+                (index for index, day in enumerate(days) if day.date == target_date),
+                None,
+            )
+            if day_index is None:
+                raise AppException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="FIXED_ITEM_OUTSIDE_TRIP",
+                    message="고정한 장소의 날짜가 현재 여행 기간에 없습니다.",
+                )
+            day = days[day_index]
+            retained: list[ItineraryPlanItem] = []
+            for item in day.items:
+                overlaps = (
+                    item.scheduled_start_at < fixed.scheduled_end_at
+                    and fixed.scheduled_start_at < item.scheduled_end_at
+                )
+                if not overlaps:
+                    retained.append(item)
+                    continue
+                if (
+                    item.item_type == ItineraryItemType.PLACE
+                    and item.added_by == ItineraryItemAddedBy.ALGORITHM
+                    and not item.is_fixed
+                ):
+                    continue
+                raise AppException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="FIXED_ITEM_TIME_CONFLICT",
+                    message="고정한 장소가 필수 일정 또는 사용자 장소와 충돌합니다.",
+                )
+            retained.append(fixed)
+            retained.sort(key=lambda item: item.scheduled_start_at)
+            retained = [
+                item.model_copy(update={"sequence": index})
+                for index, item in enumerate(retained, start=1)
+            ]
+            days[day_index] = day.model_copy(update={"items": retained})
+
+        total = sum(
+            item.travel_minutes_from_previous
+            for day in days
+            for item in day.items
+        )
+        return plan.model_copy(
+            update={"days": days, "total_travel_minutes": total}
+        )
 
     def _get_owned_trip_or_raise(
         self,

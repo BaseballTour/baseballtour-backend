@@ -10,6 +10,8 @@ from app.algorithms.itinerary_editor import (
     recalculate_day_schedule,
     remove_place_item,
     reorder_place_items,
+    update_place_item_fixed,
+    update_place_item_start,
 )
 from app.algorithms.itinerary_generator import DEFAULT_DAY_START
 from app.algorithms.travel_time import (
@@ -23,16 +25,18 @@ from app.external.tour_api.adapter import (
     TourApiAdapter,
     tour_api_adapter,
 )
-from app.models.itinerary import ItineraryItemType
+from app.models.itinerary import ItineraryItemAddedBy, ItineraryItemType
 from app.repositories.itinerary_plan_repository import (
     ItineraryPlanRepository,
 )
 from app.repositories.trip_repository import TripRepository
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
+    ItineraryPlanFixedRequest,
     ItineraryPlanItem,
     ItineraryPlanRecord,
     ItineraryPlanReorderRequest,
+    ItineraryPlanTimeUpdateRequest,
 )
 from app.schemas.trip import TripRecord, TripStatus
 
@@ -473,6 +477,7 @@ class ItineraryPlanService:
             type=ItineraryItemType.PLACE,
             sequence=len(day.items) + 1,
             place_id=request.place_id,
+            category=getattr(place, "category", None),
             name=place.name,
             address=place.address or place.name,
             latitude=place.latitude,
@@ -485,6 +490,7 @@ class ItineraryPlanService:
             travel_minutes_from_previous=0,
             travel_time_source=None,
             is_required=request.is_required,
+            added_by=ItineraryItemAddedBy.USER,
         )
 
         try:
@@ -554,6 +560,143 @@ class ItineraryPlanService:
                 message="현재 활성화된 여행 일정을 찾을 수 없습니다.",
             )
 
+        return updated
+
+    async def update_item_fixed(
+        self,
+        *,
+        user_id: str,
+        trip_id: str,
+        item_id: str,
+        request: ItineraryPlanFixedRequest,
+    ) -> ItineraryPlanRecord:
+        """PLACE 항목의 재생성 고정 여부를 변경합니다."""
+
+        trip, plan, day_index = self._editable_item_context(
+            user_id=user_id,
+            trip_id=trip_id,
+            item_id=item_id,
+        )
+        try:
+            updated_day = update_place_item_fixed(
+                plan.days[day_index], item_id, request.is_fixed
+            )
+        except ItineraryEditError as exc:
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="ITINERARY_EDIT_INVALID",
+                message=str(exc),
+            ) from exc
+        return self._save_updated_day(plan, day_index, updated_day)
+
+    async def update_item_time(
+        self,
+        *,
+        user_id: str,
+        trip_id: str,
+        item_id: str,
+        request: ItineraryPlanTimeUpdateRequest,
+    ) -> ItineraryPlanRecord:
+        """PLACE 시작시간을 수정하고 앞뒤 시간표를 재계산합니다."""
+
+        trip, plan, day_index = self._editable_item_context(
+            user_id=user_id,
+            trip_id=trip_id,
+            item_id=item_id,
+        )
+        day = plan.days[day_index]
+        try:
+            changed = update_place_item_start(
+                day, item_id, request.scheduled_start_at
+            )
+            recalculated = await self._recalculate_day(
+                trip=trip,
+                day=changed,
+            )
+        except ItineraryEditError as exc:
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="ITINERARY_EDIT_INVALID",
+                message=str(exc),
+            ) from exc
+        return self._save_updated_day(plan, day_index, recalculated)
+
+    def _editable_item_context(
+        self,
+        *,
+        user_id: str,
+        trip_id: str,
+        item_id: str,
+    ):
+        trip = self._get_owned_trip_or_raise(user_id=user_id, trip_id=trip_id)
+        if trip.status == TripStatus.GENERATING:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="TRIP_GENERATION_IN_PROGRESS",
+                message="일정 생성 중에는 현재 일정을 수정할 수 없습니다.",
+            )
+        plan = self._get_active_plan_or_raise(trip=trip, user_id=user_id)
+        day_index = next(
+            (
+                index
+                for index, day in enumerate(plan.days)
+                if any(item.item_id == item_id for item in day.items)
+            ),
+            None,
+        )
+        if day_index is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ITINERARY_ITEM_NOT_FOUND",
+                message="수정할 일정 항목을 찾을 수 없습니다.",
+            )
+        return trip, plan, day_index
+
+    async def _recalculate_day(
+        self,
+        *,
+        trip: TripRecord,
+        day,
+    ):
+        start_node_id, latitude, longitude, day_start_at = (
+            self._resolve_day_start(trip=trip, target_date=day.date)
+        )
+        nodes = [MatrixNode(start_node_id, latitude, longitude)]
+        nodes.extend(
+            MatrixNode(item_node_id(item), item.latitude, item.longitude)
+            for item in day.items
+        )
+        matrix = await build_travel_time_matrix(
+            nodes,
+            provider=self._travel_time_provider,
+        )
+        return recalculate_day_schedule(
+            day,
+            matrix=matrix,
+            start_node_id=start_node_id,
+            day_start_at=day_start_at,
+        )
+
+    def _save_updated_day(self, plan, day_index: int, day):
+        days = list(plan.days)
+        days[day_index] = day
+        total = sum(
+            item.travel_minutes_from_previous
+            for current_day in days
+            for item in current_day.items
+        )
+        updated = self._itinerary_plan_repository.update_schedule(
+            plan_id=plan.plan_id,
+            days=days,
+            total_travel_minutes=total,
+            updated_at=datetime.now(timezone.utc),
+        )
+        if updated is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ITINERARY_PLAN_NOT_FOUND",
+                message="현재 활성화된 여행 일정을 찾을 수 없습니다.",
+            )
         return updated
 
     def _resolve_day_start(
