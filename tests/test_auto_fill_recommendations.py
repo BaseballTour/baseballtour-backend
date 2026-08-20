@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from itertools import permutations
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import TravelTimeMatrix
@@ -23,7 +24,7 @@ from app.models.place import (
 )
 
 
-UTC = timezone.utc
+UTC = ZoneInfo("Asia/Seoul")
 SAMPLE_ROOT = Path(__file__).resolve().parents[1] / "samples" / "algorithm"
 
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -490,6 +490,25 @@ async def test_reorder_items_rejects_unknown_day() -> None:
     )
 
     plan_repository.update_schedule.assert_not_called()
+
+
+def test_second_day_start_uses_korea_timezone_after_firestore_utc() -> None:
+    original = make_trip()
+    trip = original.model_copy(
+        update={
+            "trip_start_at": original.trip_start_at.astimezone(
+                timezone.utc
+            )
+        }
+    )
+    service, _, _ = make_service(trip=trip)
+
+    _, _, _, day_start = service._resolve_day_start(
+        trip=trip,
+        target_date=date(2026, 8, 16),
+    )
+
+    assert day_start.isoformat() == "2026-08-16T09:00:00+09:00"
 
 
 @pytest.mark.anyio

@@ -170,9 +170,9 @@ def test_create_trip_returns_created_summary(
         "gameId": GAME_ID,
         "title": "두산 부산 원정",
         "status": "PLANNING",
-        "tripStartAt": "2026-08-14T01:30:00Z",
-        "tripEndAt": "2026-08-16T10:00:00Z",
-        "createdAt": "2026-08-02T13:00:00Z",
+        "tripStartAt": "2026-08-14T10:30:00+09:00",
+        "tripEndAt": "2026-08-16T19:00:00+09:00",
+        "createdAt": "2026-08-02T22:00:00+09:00",
     }
     assert "userId" not in body["data"]
 

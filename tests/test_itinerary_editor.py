@@ -1,4 +1,5 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -23,7 +24,7 @@ from app.schemas.itinerary_plan import (
 )
 
 
-TZ = timezone.utc
+TZ = ZoneInfo("Asia/Seoul")
 
 
 def make_item(

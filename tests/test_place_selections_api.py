@@ -75,7 +75,7 @@ def test_create_place_selection_returns_created(
     assert body["data"] == {
         "placeId": PLACE_ID,
         "isRequired": True,
-        "createdAt": "2026-08-12T10:00:00Z",
+        "createdAt": "2026-08-12T19:00:00+09:00",
     }
 
     service.create_selection.assert_called_once()

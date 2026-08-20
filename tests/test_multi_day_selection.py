@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from itertools import permutations
+from zoneinfo import ZoneInfo
 
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import TravelTimeMatrix
@@ -13,7 +14,7 @@ from app.models.itinerary import (
 from app.models.place import Place, PlaceSource
 
 
-UTC = timezone.utc
+UTC = ZoneInfo("Asia/Seoul")
 
 
 def make_place(place_id: str, **updates) -> Place:

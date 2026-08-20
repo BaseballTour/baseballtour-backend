@@ -20,6 +20,7 @@ from app.algorithms.travel_time import (
     build_travel_time_matrix,
 )
 from app.core.exceptions import AppException
+from app.core.time import KOREA_TIMEZONE
 from app.external.odsay.client import get_cached_transit_minutes
 from app.external.tour_api.adapter import (
     TourApiAdapter,
@@ -707,7 +708,10 @@ class ItineraryPlanService:
     ) -> tuple[str, float, float, datetime]:
         """해당 날짜의 일정 계산 시작 지점과 시간을 결정합니다."""
 
-        timezone_info = trip.trip_start_at.tzinfo
+        trip_start_at = trip.trip_start_at.astimezone(
+            KOREA_TIMEZONE
+        )
+        timezone_info = KOREA_TIMEZONE
 
         if timezone_info is None:
             raise AppException(
@@ -723,12 +727,12 @@ class ItineraryPlanService:
                 message="일정 수정을 위해 도착 장소가 필요합니다.",
             )
 
-        if target_date == trip.trip_start_at.date():
+        if target_date == trip_start_at.date():
             return (
                 "arrival",
                 trip.arrival_point.latitude,
                 trip.arrival_point.longitude,
-                trip.trip_start_at,
+                trip_start_at,
             )
 
         day_start_at = datetime.combine(
