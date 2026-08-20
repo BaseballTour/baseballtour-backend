@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pytest
+from google.cloud.exceptions import NotFound
 
 import app.repositories.trip_repository as trip_repository_module
 from app.repositories.trip_repository import (
@@ -55,6 +56,9 @@ class FakeDocumentReference:
         self._documents[self.id] = dict(data)
 
     def update(self, updates: dict[str, Any]) -> None:
+        if self.id not in self._documents:
+            raise NotFound("document not found")
+
         self._documents[self.id].update(updates)
 
     def delete(self) -> None:
@@ -408,7 +412,7 @@ def test_update_missing_trip_returns_none() -> None:
     assert result is None
 
 
-def test_delete_existing_and_missing_trip() -> None:
+def test_delete_removes_trip_and_is_safe_when_missing() -> None:
     client = FakeFirestoreClient()
     repository = TripRepository(client=client)
 
@@ -416,9 +420,13 @@ def test_delete_existing_and_missing_trip() -> None:
         create_trip_document()
     )
 
-    assert repository.delete(trip.trip_id) is True
+    repository.delete(trip.trip_id)
+
     assert repository.get_by_id(trip.trip_id) is None
-    assert repository.delete(trip.trip_id) is False
+
+    repository.delete(trip.trip_id)
+
+    assert repository.get_by_id(trip.trip_id) is None
 
 
 def test_claim_generation_only_updates_expected_status(

@@ -2,6 +2,7 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Any
 
+from google.cloud.exceptions import NotFound
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 from google.cloud.firestore_v1.transaction import transactional
@@ -235,13 +236,11 @@ class TripRepository:
         document_reference = self._collection.document(
             trip_id
         )
-        snapshot = document_reference.get()
-
-        if not snapshot.exists:
+        try:
+            if updates:
+                document_reference.update(updates)
+        except NotFound:
             return None
-
-        if updates:
-            document_reference.update(updates)
 
         updated_snapshot = document_reference.get()
         data = updated_snapshot.to_dict() or {}
@@ -254,17 +253,9 @@ class TripRepository:
     def delete(
         self,
         trip_id: str,
-    ) -> bool:
+    ) -> None:
         """여행 문서를 삭제합니다."""
 
-        document_reference = self._collection.document(
+        self._collection.document(
             trip_id
-        )
-        snapshot = document_reference.get()
-
-        if not snapshot.exists:
-            return False
-
-        document_reference.delete()
-
-        return True
+        ).delete()

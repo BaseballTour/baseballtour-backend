@@ -245,16 +245,9 @@ class TripService:
             trip_id=trip_id,
         )
 
-        deleted = self._trip_repository.delete(
+        self._trip_repository.delete(
             trip_id
         )
-
-        if not deleted:
-            raise AppException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                code="TRIP_NOT_FOUND",
-                message="여행 정보를 찾을 수 없습니다.",
-            )
 
     def _get_game_or_raise(
         self,

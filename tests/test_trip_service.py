@@ -131,12 +131,11 @@ class StubTripRepository:
     def delete(
         self,
         trip_id: str,
-    ) -> bool:
-        if trip_id not in self._trips:
-            return False
-
-        del self._trips[trip_id]
-        return True
+    ) -> None:
+        self._trips.pop(
+            trip_id,
+            None,
+        )
 
 
 def create_game(
