@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -172,3 +172,106 @@ def test_place_selections_require_authentication() -> None:
 
     assert body["success"] is False
     assert body["error"]["code"] == "AUTH_TOKEN_MISSING"
+
+
+def test_import_place_selections_from_favorite_collection(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.import_from_favorite_collection = AsyncMock(
+        return_value=[
+            make_selection(
+                place_id="tour_001",
+                is_required=False,
+            ),
+            make_selection(
+                place_id="tour_002",
+                is_required=False,
+            ),
+        ]
+    )
+
+    with patch(
+        "app.api.v1.endpoints.trips.PlaceSelectionService",
+        return_value=service,
+    ):
+        response = authenticated_client.post(
+            (
+                f"/api/v1/trips/{TRIP_ID}"
+                "/place-selections/import"
+            ),
+            json={
+                "collectionId": "collection_001",
+            },
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+
+    assert body["data"] == [
+        {
+            "placeId": "tour_001",
+            "isRequired": False,
+            "createdAt": "2026-08-12T10:00:00Z",
+        },
+        {
+            "placeId": "tour_002",
+            "isRequired": False,
+            "createdAt": "2026-08-12T10:00:00Z",
+        },
+    ]
+
+    assert body["meta"] == {
+        "count": 2,
+        "nextPageToken": None,
+    }
+
+    service.import_from_favorite_collection.assert_awaited_once_with(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        collection_id="collection_001",
+    )
+
+
+def test_update_place_selection_required_returns_updated(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.update_required.return_value = (
+        make_selection(
+            place_id=PLACE_ID,
+            is_required=True,
+        )
+    )
+
+    with patch(
+        "app.api.v1.endpoints.trips.PlaceSelectionService",
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            (
+                f"/api/v1/trips/{TRIP_ID}"
+                f"/place-selections/{PLACE_ID}"
+            ),
+            json={
+                "isRequired": True,
+            },
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["placeId"] == PLACE_ID
+    assert body["data"]["isRequired"] is True
+
+    service.update_required.assert_called_once_with(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        place_id=PLACE_ID,
+        is_required=True,
+    )

@@ -1,0 +1,186 @@
+from datetime import datetime, timezone
+
+from fastapi import status
+
+from app.core.exceptions import AppException
+from app.repositories.favorite_collection_repository import (
+    FavoriteCollectionRepository,
+)
+from app.schemas.favorite_collection import (
+    FavoriteCollectionCreateRequest,
+    FavoriteCollectionDocument,
+    FavoriteCollectionItemDocument,
+    FavoriteCollectionRecord,
+    FavoriteCollectionUpdateRequest,
+)
+
+
+class FavoriteCollectionService:
+    """개인 찜 컬렉션 비즈니스 로직을 담당합니다."""
+
+    def __init__(
+        self,
+        repository: FavoriteCollectionRepository | None = None,
+    ) -> None:
+        self._repository = (
+            repository
+            or FavoriteCollectionRepository()
+        )
+
+    def create_collection(
+        self,
+        *,
+        user_id: str,
+        request: FavoriteCollectionCreateRequest,
+    ) -> FavoriteCollectionRecord:
+        now = datetime.now(timezone.utc)
+
+        document = FavoriteCollectionDocument(
+            name=request.name,
+            created_at=now,
+            updated_at=now,
+        )
+
+        return self._repository.create(
+            user_id=user_id,
+            collection=document,
+        )
+
+    def get_collections(
+        self,
+        *,
+        user_id: str,
+    ) -> list[FavoriteCollectionRecord]:
+        return self._repository.get_all(
+            user_id=user_id,
+        )
+
+    def update_collection(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        request: FavoriteCollectionUpdateRequest,
+    ) -> FavoriteCollectionRecord:
+        existing = self._get_collection_or_raise(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+
+        updated_at = datetime.now(timezone.utc)
+
+        updated = self._repository.update_name(
+            user_id=user_id,
+            collection_id=collection_id,
+            name=request.name,
+            updated_at=updated_at,
+        )
+
+        if not updated:
+            self._raise_not_found()
+
+        return existing.model_copy(
+            update={
+                "name": request.name,
+                "updated_at": updated_at,
+            }
+        )
+
+    def delete_collection(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+    ) -> None:
+        self._get_collection_or_raise(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+
+        self._repository.delete(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+
+    def save_item(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        place_id: str,
+    ) -> FavoriteCollectionItemDocument:
+        """개인 컬렉션에 TourAPI 장소를 찜합니다."""
+
+        self._get_collection_or_raise(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+
+        if not place_id.startswith("tour_"):
+            raise AppException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code="INVALID_FAVORITE_PLACE",
+                message="TourAPI 장소만 찜할 수 있습니다.",
+            )
+
+        item = FavoriteCollectionItemDocument(
+            place_id=place_id,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        return self._repository.save_item(
+            user_id=user_id,
+            collection_id=collection_id,
+            item=item,
+        )
+
+    def delete_item(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        place_id: str,
+    ) -> None:
+        """개인 컬렉션에서 찜 장소를 삭제합니다."""
+
+        self._get_collection_or_raise(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+
+        deleted = self._repository.delete_item(
+            user_id=user_id,
+            collection_id=collection_id,
+            place_id=place_id,
+        )
+
+        if not deleted:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="FAVORITE_COLLECTION_ITEM_NOT_FOUND",
+                message="찜한 장소를 찾을 수 없습니다.",
+            )
+
+    def _get_collection_or_raise(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+    ) -> FavoriteCollectionRecord:
+        collection = self._repository.get_by_id(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+
+        if collection is None:
+            self._raise_not_found()
+
+        return collection
+
+    @staticmethod
+    def _raise_not_found() -> None:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="FAVORITE_COLLECTION_NOT_FOUND",
+            message="찜 컬렉션을 찾을 수 없습니다.",
+        )

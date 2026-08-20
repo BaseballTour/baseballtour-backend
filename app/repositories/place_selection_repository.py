@@ -1,4 +1,5 @@
 from google.api_core.exceptions import AlreadyExists
+from google.cloud.exceptions import NotFound
 from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
@@ -123,3 +124,33 @@ class PlaceSelectionRepository:
         document_reference.delete()
 
         return True
+
+    def update_required(
+        self,
+        *,
+        trip_id: str,
+        place_id: str,
+        is_required: bool,
+    ) -> PlaceSelectionRecord | None:
+        """선택 장소의 필수 방문 여부를 변경합니다."""
+
+        document_reference = (
+            self._get_collection(trip_id)
+            .document(place_id)
+        )
+
+        try:
+            document_reference.update(
+                {
+                    "isRequired": is_required,
+                }
+            )
+        except NotFound:
+            return None
+
+        snapshot = document_reference.get()
+        data = snapshot.to_dict() or {}
+
+        return PlaceSelectionRecord.model_validate(
+            data
+        )

@@ -20,8 +20,10 @@ from app.schemas.itinerary_plan import (
 )
 from app.schemas.place_selection import (
     PlaceSelectionCreateRequest,
+    PlaceSelectionImportRequest,
     PlaceSelectionRecord,
     PlaceSelectionResponse,
+    PlaceSelectionUpdateRequest,
 )
 from app.schemas.response import (
     ListMeta,
@@ -371,6 +373,95 @@ def get_place_selections(
             count=len(data),
             next_page_token=None,
         ),
+    )
+
+
+@router.post(
+    "/{tripId}/place-selections/import",
+    response_model=ListSuccessResponse[PlaceSelectionResponse],
+    summary="개인 찜 컬렉션에서 여행 후보 불러오기",
+    description=(
+        "개인 찜 컬렉션에서 현재 경기장과 같은 지역의 "
+        "장소만 여행 후보로 불러옵니다. "
+        "이미 선택된 장소는 중복 생성하지 않습니다."
+    ),
+)
+async def import_place_selections(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    request: PlaceSelectionImportRequest,
+    user_id: Annotated[
+        str,
+        Depends(get_current_active_user_id),
+    ],
+) -> ListSuccessResponse[PlaceSelectionResponse]:
+    service = PlaceSelectionService()
+
+    selections = await service.import_from_favorite_collection(
+        user_id=user_id,
+        trip_id=trip_id,
+        collection_id=request.collection_id,
+    )
+
+    data = [
+        to_place_selection_response(selection)
+        for selection in selections
+    ]
+
+    return ListSuccessResponse(
+        data=data,
+        meta=ListMeta(
+            count=len(data),
+            next_page_token=None,
+        ),
+    )
+
+
+@router.patch(
+    "/{tripId}/place-selections/{placeId}",
+    response_model=SuccessResponse[PlaceSelectionResponse],
+    summary="여행 후보 필수 방문 여부 변경",
+    description=(
+        "선택된 여행 후보의 isRequired 값을 변경합니다."
+    ),
+)
+def update_place_selection_required(
+    trip_id: Annotated[
+        str,
+        Path(
+            alias="tripId",
+            description="여행 ID",
+        ),
+    ],
+    place_id: Annotated[
+        str,
+        Path(
+            alias="placeId",
+            description="선택한 장소 ID",
+        ),
+    ],
+    request: PlaceSelectionUpdateRequest,
+    user_id: Annotated[
+        str,
+        Depends(get_current_active_user_id),
+    ],
+) -> SuccessResponse[PlaceSelectionResponse]:
+    service = PlaceSelectionService()
+
+    selection = service.update_required(
+        user_id=user_id,
+        trip_id=trip_id,
+        place_id=place_id,
+        is_required=request.is_required,
+    )
+
+    return SuccessResponse(
+        data=to_place_selection_response(selection)
     )
 
 

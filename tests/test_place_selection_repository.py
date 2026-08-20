@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from google.api_core.exceptions import AlreadyExists
+from google.cloud.exceptions import NotFound
 
 from app.repositories.place_selection_repository import (
     PlaceSelectionRepository,
@@ -51,6 +52,17 @@ class FakeDocumentReference:
             )
 
         self._documents[self.id] = dict(data)
+
+    def update(
+        self,
+        data: dict[str, Any],
+    ) -> None:
+        if self.id not in self._documents:
+            raise NotFound(
+                "document does not exist"
+            )
+
+        self._documents[self.id].update(data)
 
     def delete(self) -> None:
         self._documents.pop(self.id, None)
@@ -342,3 +354,48 @@ def test_delete_all_removes_all_trip_selections() -> None:
             trip_id="trip_002"
         )
     ) == 1
+
+
+def test_update_required_changes_is_required() -> None:
+    client = FakeFirestoreClient()
+    repository = PlaceSelectionRepository(
+        client=client
+    )
+
+    repository.create(
+        trip_id="trip_001",
+        selection=make_selection(
+            is_required=False,
+        ),
+    )
+
+    updated = repository.update_required(
+        trip_id="trip_001",
+        place_id="tour_123456",
+        is_required=True,
+    )
+
+    assert updated is not None
+    assert updated.place_id == "tour_123456"
+    assert updated.is_required is True
+
+    stored = client.subcollections[
+        ("trip_001", "placeSelections")
+    ]["tour_123456"]
+
+    assert stored["isRequired"] is True
+
+
+def test_update_required_missing_returns_none() -> None:
+    client = FakeFirestoreClient()
+    repository = PlaceSelectionRepository(
+        client=client
+    )
+
+    updated = repository.update_required(
+        trip_id="trip_001",
+        place_id="tour_missing",
+        is_required=True,
+    )
+
+    assert updated is None
