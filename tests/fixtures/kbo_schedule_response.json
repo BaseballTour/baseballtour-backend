@@ -1,0 +1,32 @@
+{
+  "rows": [
+    {
+      "row": [
+        {"Text": "08.01(토)", "Class": "day"},
+        {"Text": "<b>18:00</b>", "Class": "time"},
+        {"Text": "<span>LG</span><em><span class=\"same\">2</span><span>vs</span><span class=\"same\">2</span></em><span>두산</span>", "Class": "play"},
+        {"Text": "", "Class": "relay"},
+        {"Text": ""}, {"Text": ""}, {"Text": ""},
+        {"Text": "잠실"}, {"Text": "-"}
+      ]
+    },
+    {
+      "row": [
+        {"Text": "<b>18:00</b>", "Class": "time"},
+        {"Text": "<span>삼성</span><em><span>vs</span></em><span>롯데</span>", "Class": "play"},
+        {"Text": "", "Class": "relay"},
+        {"Text": ""}, {"Text": ""}, {"Text": ""}, {"Text": ""},
+        {"Text": "사직"}, {"Text": "폭염취소"}
+      ]
+    },
+    {
+      "row": [
+        {"Text": "<b>18:00</b>", "Class": "time"},
+        {"Text": "<span>KIA</span><em><span>vs</span></em><span>NC</span>", "Class": "play"},
+        {"Text": "", "Class": "relay"},
+        {"Text": ""}, {"Text": ""}, {"Text": ""}, {"Text": ""},
+        {"Text": "울산"}, {"Text": "-"}
+      ]
+    }
+  ]
+}
