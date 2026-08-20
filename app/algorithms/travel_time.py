@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 from typing import Awaitable, Callable, Protocol
@@ -8,6 +9,9 @@ from typing import Awaitable, Callable, Protocol
 from app.models.itinerary import TripInput
 from app.models.itinerary import TravelMode, TravelTimeSource
 from app.models.place import Place
+
+
+logger = logging.getLogger(__name__)
 
 
 class Coordinate(Protocol):
@@ -29,6 +33,13 @@ ANCHOR_NODE_IDS = {
     "stadium",
     "accommodation",
 }
+
+
+def _safe_provider_error(exc: Exception) -> str:
+    """요청 URL과 API 키가 로그에 포함되지 않도록 오류를 축약한다."""
+    if isinstance(exc, RuntimeError):
+        return f"{type(exc).__name__}: {exc}"
+    return type(exc).__name__
 
 
 @dataclass(frozen=True)
@@ -152,6 +163,7 @@ async def build_travel_time_matrix(
             )
         )
         semaphore = asyncio.Semaphore(max_concurrency)
+        failures: list[tuple[str, str, str]] = []
 
         async def resolve_route(
             origin_id: str,
@@ -170,7 +182,14 @@ async def build_travel_time_matrix(
                         ),
                         timeout=provider_timeout_seconds,
                     )
-            except Exception:
+            except Exception as exc:
+                failures.append(
+                    (
+                        origin_id,
+                        destination_id,
+                        _safe_provider_error(exc),
+                    )
+                )
                 return
 
             key = (origin_id, destination_id)
@@ -190,7 +209,26 @@ async def build_travel_time_matrix(
             )
         except asyncio.TimeoutError:
             # 완료되지 않은 경로는 미리 채운 직선거리 기반 값으로 유지합니다.
-            pass
+            logger.warning(
+                "ODsay 이동시간 Matrix 전체 제한시간 초과: "
+                "timeout_seconds=%s total_routes=%s",
+                matrix_timeout_seconds,
+                len(routes),
+            )
+
+        if failures:
+            # 키나 요청 URL은 남기지 않고 대표 실패만 기록한다.
+            sample = failures[0]
+            logger.warning(
+                "ODsay 경로 조회 실패로 예상시간 사용: "
+                "failed_routes=%s total_routes=%s "
+                "sample_origin=%s sample_destination=%s reason=%s",
+                len(failures),
+                len(routes),
+                sample[0],
+                sample[1],
+                sample[2],
+            )
 
     return TravelTimeMatrix(
         minutes=minutes,
