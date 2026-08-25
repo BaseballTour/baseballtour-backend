@@ -7,6 +7,7 @@ from app.algorithms.itinerary_editor import (
     ItineraryEditError,
     insert_place_item,
     recalculate_day_schedule,
+    recalculate_day_travel_only,
     remove_place_item,
     reorder_place_items,
     update_place_item_fixed,
@@ -334,6 +335,44 @@ def test_recalculate_rejects_late_stadium_arrival() -> None:
                 tzinfo=TZ,
             ),
         )
+
+
+def test_travel_only_recalculation_keeps_impossible_manual_times() -> None:
+    place = make_item(
+        item_id="place",
+        item_type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_a",
+        start_hour=18,
+    )
+    stadium = make_item(
+        item_id="stadium",
+        item_type=ItineraryItemType.STADIUM,
+        sequence=2,
+        place_id="stadium_001",
+        start_hour=17,
+    )
+    day = ItineraryPlanDay(
+        date=date(2026, 8, 15),
+        day_type=DayType.GAME_DAY,
+        items=[place, stadium],
+    )
+    matrix = TravelTimeMatrix(
+        minutes={
+            ("arrival", "tour_a"): 30,
+            ("tour_a", "stadium"): 40,
+        },
+    )
+
+    result = recalculate_day_travel_only(
+        day,
+        matrix=matrix,
+        start_node_id="arrival",
+    )
+
+    assert result.items[0].scheduled_start_at.hour == 18
+    assert result.items[1].scheduled_start_at.hour == 17
+    assert result.items[1].travel_minutes_from_previous == 40
 
 
 def test_remove_place_item_removes_only_target() -> None:

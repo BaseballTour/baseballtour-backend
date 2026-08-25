@@ -297,6 +297,37 @@ def _validate_day_end(
         )
 
 
+def recalculate_day_travel_only(
+    day: ItineraryPlanDay,
+    *,
+    matrix: TravelTimeMatrix,
+    start_node_id: str,
+) -> ItineraryPlanDay:
+    """수동 편집 시간을 유지하고 항목 사이 이동정보만 다시 계산합니다."""
+
+    rebuilt: list[ItineraryPlanItem] = []
+    previous_node_id = start_node_id
+    for sequence, item in enumerate(day.items, start=1):
+        node_id = item_node_id(item)
+        if sequence == 1 and item.item_type == ItineraryItemType.ARRIVAL_POINT:
+            travel = 0
+            travel_source = None
+        else:
+            travel = matrix.get(previous_node_id, node_id)
+            travel_source = matrix.get_source(previous_node_id, node_id)
+        rebuilt.append(
+            item.model_copy(
+                update={
+                    "sequence": sequence,
+                    "travel_minutes_from_previous": travel,
+                    "travel_time_source": travel_source,
+                }
+            )
+        )
+        previous_node_id = node_id
+    return day.model_copy(update={"items": rebuilt})
+
+
 def _minutes(value: int) -> timedelta:
     return timedelta(minutes=value)
 
@@ -432,9 +463,6 @@ def update_place_item_start(
 
     if scheduled_start_at.tzinfo is None:
         raise ItineraryEditError("수정할 시간에는 timezone 정보가 필요합니다.")
-    if scheduled_start_at.date() != day.date:
-        raise ItineraryEditError("장소 시작시간은 기존 일정 날짜 안에 있어야 합니다.")
-
     found = False
     items: list[ItineraryPlanItem] = []
     for item in day.items:

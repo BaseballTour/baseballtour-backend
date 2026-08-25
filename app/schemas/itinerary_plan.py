@@ -108,6 +108,13 @@ class ItineraryPlanAddItemRequest(ApiModel):
     date: date
     place_id: str = Field(min_length=1)
     is_required: bool = True
+    scheduled_start_at: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "사용자 지정 시작시각. 생략하면 직전 항목과 "
+            "이동시간을 기준으로 정합니다."
+        ),
+    )
 
 
 class ItineraryPlanFixedRequest(ApiModel):
