@@ -40,6 +40,10 @@ class FavoriteCollectionResponse(ApiModel):
 
     collection_id: str
     name: str
+    thumbnail_url: str | None = Field(
+        default=None,
+        description="컬렉션 첫 장소의 대표 이미지",
+    )
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

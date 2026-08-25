@@ -1,11 +1,10 @@
-from datetime import date, datetime
+from datetime import date
 from enum import Enum
-from zoneinfo import ZoneInfo
 
 from pydantic import (
     AwareDatetime,
+    ConfigDict,
     Field,
-    field_serializer,
     field_validator,
 )
 
@@ -16,9 +15,6 @@ from app.models.itinerary import (
     RecommendationSummary,
 )
 from app.schemas.base import ApiModel
-
-
-KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 class ItineraryPlanStatus(str, Enum):
@@ -36,16 +32,6 @@ class ItineraryPlanItem(ItineraryItem):
         default=False,
         description="재생성 시 현재 날짜와 순서를 유지할지 여부",
     )
-
-    @field_serializer(
-        "scheduled_start_at",
-        "scheduled_end_at",
-        when_used="json",
-    )
-    def serialize_korea_datetime(self, value: datetime) -> str:
-        """일정 API 응답 시간은 사용자가 읽기 쉬운 한국시간으로 표시한다."""
-        return value.astimezone(KOREA_TIMEZONE).isoformat()
-
 
 class ItineraryPlanDay(ItineraryDay):
     """저장용 itemId가 포함된 날짜별 일정."""
@@ -122,6 +108,13 @@ class ItineraryPlanAddItemRequest(ApiModel):
     date: date
     place_id: str = Field(min_length=1)
     is_required: bool = True
+    scheduled_start_at: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "사용자 지정 시작시각. 생략하면 직전 항목과 "
+            "이동시간을 기준으로 정합니다."
+        ),
+    )
 
 
 class ItineraryPlanFixedRequest(ApiModel):
@@ -132,5 +125,17 @@ class ItineraryPlanFixedRequest(ApiModel):
 
 class ItineraryPlanTimeUpdateRequest(ApiModel):
     """일정 PLACE 항목의 시작시간 변경 요청."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "scheduledStartAt": (
+                        "2026-08-19T10:00:00+09:00"
+                    )
+                }
+            ]
+        }
+    )
 
     scheduled_start_at: AwareDatetime

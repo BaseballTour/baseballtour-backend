@@ -1,8 +1,11 @@
+import asyncio
 from datetime import datetime, timezone
 
 from fastapi import status
 
 from app.core.exceptions import AppException
+from app.external.tour_api.adapter import TourApiAdapter, tour_api_adapter
+from app.models.place import Place
 from app.repositories.favorite_collection_repository import (
     FavoriteCollectionRepository,
 )
@@ -21,11 +24,13 @@ class FavoriteCollectionService:
     def __init__(
         self,
         repository: FavoriteCollectionRepository | None = None,
+        place_adapter: TourApiAdapter | None = None,
     ) -> None:
         self._repository = (
             repository
             or FavoriteCollectionRepository()
         )
+        self._place_adapter = place_adapter or tour_api_adapter
 
     def create_collection(
         self,
@@ -53,6 +58,54 @@ class FavoriteCollectionService:
     ) -> list[FavoriteCollectionRecord]:
         return self._repository.get_all(
             user_id=user_id,
+        )
+
+    async def get_collection_thumbnails(
+        self,
+        *,
+        user_id: str,
+        collections: list[FavoriteCollectionRecord],
+    ) -> dict[str, str | None]:
+        async def load(collection: FavoriteCollectionRecord):
+            items = self._repository.get_items(
+                user_id=user_id,
+                collection_id=collection.collection_id,
+            )
+            if not items:
+                return collection.collection_id, None
+            try:
+                place = await self._place_adapter.get_place_detail(
+                    items[0].place_id.removeprefix("tour_")
+                )
+                return collection.collection_id, place.thumbnail_url
+            except (AppException, ValueError):
+                return collection.collection_id, None
+
+        return dict(await asyncio.gather(*(load(item) for item in collections)))
+
+    async def get_collection_places(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+    ) -> list[Place]:
+        self._get_collection_or_raise(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+        items = self._repository.get_items(
+            user_id=user_id,
+            collection_id=collection_id,
+        )
+        return list(
+            await asyncio.gather(
+                *(
+                    self._place_adapter.get_place_detail(
+                        item.place_id.removeprefix("tour_")
+                    )
+                    for item in items
+                )
+            )
         )
 
     def update_collection(

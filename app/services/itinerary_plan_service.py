@@ -7,6 +7,7 @@ from app.algorithms.itinerary_editor import (
     ItineraryEditError,
     insert_place_item,
     item_node_id,
+    recalculate_day_travel_only,
     recalculate_day_schedule,
     remove_place_item,
     reorder_place_items,
@@ -20,6 +21,7 @@ from app.algorithms.travel_time import (
     build_travel_time_matrix,
 )
 from app.core.exceptions import AppException
+from app.core.time import KOREA_TIMEZONE
 from app.external.odsay.client import get_cached_transit_minutes
 from app.external.tour_api.adapter import (
     TourApiAdapter,
@@ -32,6 +34,7 @@ from app.repositories.itinerary_plan_repository import (
 from app.repositories.trip_repository import TripRepository
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
+    ItineraryPlanDay,
     ItineraryPlanFixedRequest,
     ItineraryPlanItem,
     ItineraryPlanRecord,
@@ -431,6 +434,16 @@ class ItineraryPlanService:
 
         day = plan.days[day_index]
 
+        if (
+            request.scheduled_start_at is not None
+            and request.scheduled_start_at.date() != request.date
+        ):
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="ITINERARY_ITEM_DATE_MISMATCH",
+                message="date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+            )
+
         if any(
             item.item_type == ItineraryItemType.PLACE
             and item.place_id == request.place_id
@@ -478,13 +491,15 @@ class ItineraryPlanService:
             sequence=len(day.items) + 1,
             place_id=request.place_id,
             category=getattr(place, "category", None),
+            thumbnail_url=getattr(place, "thumbnail_url", None),
+            overview=getattr(place, "overview", None),
             name=place.name,
             address=place.address or place.name,
             latitude=place.latitude,
             longitude=place.longitude,
-            scheduled_start_at=day_start_at,
+            scheduled_start_at=(request.scheduled_start_at or day_start_at),
             scheduled_end_at=(
-                day_start_at
+                (request.scheduled_start_at or day_start_at)
                 + timedelta(minutes=stay_minutes)
             ),
             travel_minutes_from_previous=0,
@@ -521,11 +536,34 @@ class ItineraryPlanService:
                 provider=self._travel_time_provider,
             )
 
-            recalculated_day = recalculate_day_schedule(
+            if request.scheduled_start_at is None:
+                added_index = next(
+                    index
+                    for index, item in enumerate(inserted_day.items)
+                    if item.item_id == new_item.item_id
+                )
+                if added_index == 0:
+                    previous_end = day_start_at
+                    previous_node_id = start_node_id
+                else:
+                    previous_item = inserted_day.items[added_index - 1]
+                    previous_end = previous_item.scheduled_end_at
+                    previous_node_id = item_node_id(previous_item)
+                travel = matrix.get(previous_node_id, request.place_id)
+                start = previous_end + timedelta(minutes=travel)
+                items = list(inserted_day.items)
+                items[added_index] = new_item.model_copy(
+                    update={
+                        "scheduled_start_at": start,
+                        "scheduled_end_at": start + timedelta(minutes=stay_minutes),
+                    }
+                )
+                inserted_day = inserted_day.model_copy(update={"items": items})
+
+            recalculated_day = recalculate_day_travel_only(
                 inserted_day,
                 matrix=matrix,
                 start_node_id=start_node_id,
-                day_start_at=day_start_at,
             )
 
         except ItineraryEditError as exc:
@@ -597,21 +635,79 @@ class ItineraryPlanService:
         item_id: str,
         request: ItineraryPlanTimeUpdateRequest,
     ) -> ItineraryPlanRecord:
-        """PLACE 시작시간을 수정하고 앞뒤 시간표를 재계산합니다."""
+        """PLACE의 날짜·시작시간을 바꾸고 이동정보만 재계산합니다."""
 
         trip, plan, day_index = self._editable_item_context(
             user_id=user_id,
             trip_id=trip_id,
             item_id=item_id,
         )
-        day = plan.days[day_index]
+        source_day = plan.days[day_index]
+        target_date = request.scheduled_start_at.date()
+        target_day_index = next(
+            (
+                index
+                for index, day in enumerate(plan.days)
+                if day.date == target_date
+            ),
+            None,
+        )
+        if target_day_index is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ITINERARY_DAY_NOT_FOUND",
+                message="이동할 날짜의 일정을 찾을 수 없습니다.",
+            )
+
         try:
             changed = update_place_item_start(
-                day, item_id, request.scheduled_start_at
+                source_day, item_id, request.scheduled_start_at
             )
-            recalculated = await self._recalculate_day(
-                trip=trip,
-                day=changed,
+            moved_item = next(
+                item for item in changed.items if item.item_id == item_id
+            )
+            source_without_item = source_day.model_copy(
+                update={
+                    "items": [
+                        item
+                        for item in source_day.items
+                        if item.item_id != item_id
+                    ]
+                }
+            )
+
+            if target_day_index == day_index:
+                target_items = list(source_without_item.items)
+            else:
+                target_items = list(plan.days[target_day_index].items)
+                if any(
+                    item.item_type == ItineraryItemType.PLACE
+                    and item.place_id == moved_item.place_id
+                    for item in target_items
+                ):
+                    raise ItineraryEditError(
+                        "이동할 날짜에 동일한 장소가 이미 있습니다."
+                    )
+
+            target_items.append(moved_item)
+            target_items.sort(key=lambda item: item.scheduled_start_at)
+            target_day = plan.days[target_day_index].model_copy(
+                update={"items": target_items}
+            )
+
+            updated_days = list(plan.days)
+            if target_day_index != day_index:
+                updated_days[day_index] = (
+                    await self._recalculate_day_travel_only(
+                        trip=trip,
+                        day=source_without_item,
+                    )
+                )
+            updated_days[target_day_index] = (
+                await self._recalculate_day_travel_only(
+                    trip=trip,
+                    day=target_day,
+                )
             )
         except ItineraryEditError as exc:
             raise AppException(
@@ -619,7 +715,7 @@ class ItineraryPlanService:
                 code="ITINERARY_EDIT_INVALID",
                 message=str(exc),
             ) from exc
-        return self._save_updated_day(plan, day_index, recalculated)
+        return self._save_updated_days(plan, updated_days)
 
     def _editable_item_context(
         self,
@@ -677,9 +773,37 @@ class ItineraryPlanService:
             day_start_at=day_start_at,
         )
 
+    async def _recalculate_day_travel_only(
+        self,
+        *,
+        trip: TripRecord,
+        day: ItineraryPlanDay,
+    ) -> ItineraryPlanDay:
+        start_node_id, latitude, longitude, _ = self._resolve_day_start(
+            trip=trip,
+            target_date=day.date,
+        )
+        nodes = [MatrixNode(start_node_id, latitude, longitude)]
+        nodes.extend(
+            MatrixNode(item_node_id(item), item.latitude, item.longitude)
+            for item in day.items
+        )
+        matrix = await build_travel_time_matrix(
+            nodes,
+            provider=self._travel_time_provider,
+        )
+        return recalculate_day_travel_only(
+            day,
+            matrix=matrix,
+            start_node_id=start_node_id,
+        )
+
     def _save_updated_day(self, plan, day_index: int, day):
         days = list(plan.days)
         days[day_index] = day
+        return self._save_updated_days(plan, days)
+
+    def _save_updated_days(self, plan, days):
         total = sum(
             item.travel_minutes_from_previous
             for current_day in days
@@ -707,7 +831,10 @@ class ItineraryPlanService:
     ) -> tuple[str, float, float, datetime]:
         """해당 날짜의 일정 계산 시작 지점과 시간을 결정합니다."""
 
-        timezone_info = trip.trip_start_at.tzinfo
+        trip_start_at = trip.trip_start_at.astimezone(
+            KOREA_TIMEZONE
+        )
+        timezone_info = KOREA_TIMEZONE
 
         if timezone_info is None:
             raise AppException(
@@ -723,12 +850,12 @@ class ItineraryPlanService:
                 message="일정 수정을 위해 도착 장소가 필요합니다.",
             )
 
-        if target_date == trip.trip_start_at.date():
+        if target_date == trip_start_at.date():
             return (
                 "arrival",
                 trip.arrival_point.latitude,
                 trip.arrival_point.longitude,
-                trip.trip_start_at,
+                trip_start_at,
             )
 
         day_start_at = datetime.combine(

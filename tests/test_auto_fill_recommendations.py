@@ -1,8 +1,12 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from itertools import permutations
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from app.algorithms.itinerary_generator import generate_itinerary
+from app.algorithms.itinerary_generator import (
+    _has_consecutive_restaurants,
+    generate_itinerary,
+)
 from app.algorithms.travel_time import TravelTimeMatrix
 from app.models.itinerary import (
     GameAnchor,
@@ -23,8 +27,16 @@ from app.models.place import (
 )
 
 
-UTC = timezone.utc
+UTC = ZoneInfo("Asia/Seoul")
 SAMPLE_ROOT = Path(__file__).resolve().parents[1] / "samples" / "algorithm"
+
+
+def test_consecutive_restaurants_are_detected() -> None:
+    route = [
+        place("restaurant-a", category=PlaceCategory.RESTAURANT),
+        place("restaurant-b", category=PlaceCategory.RESTAURANT),
+    ]
+    assert _has_consecutive_restaurants(route) is True
 
 
 def place(place_id: str, **updates) -> Place:

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -339,7 +339,7 @@ async def test_update_item_fixed_persists_flag() -> None:
 
 
 @pytest.mark.anyio
-async def test_update_item_time_recalculates_following_item() -> None:
+async def test_update_item_time_keeps_manual_times_and_recalculates_travel() -> None:
     trip = make_trip()
     plan = make_editable_plan()
     trip_repository = Mock()
@@ -370,8 +370,63 @@ async def test_update_item_time_recalculates_following_item() -> None:
     items = result.days[0].items
     assert items[1].scheduled_start_at.hour == 14
     assert items[1].is_fixed is True
+    assert items[1].travel_minutes_from_previous == 10
     assert items[2].scheduled_start_at.hour == 15
-    assert items[2].scheduled_start_at.minute == 10
+    assert items[2].scheduled_start_at.minute == 0
+    assert items[2].travel_minutes_from_previous == 10
+
+
+@pytest.mark.anyio
+async def test_update_item_time_can_move_place_to_another_plan_day() -> None:
+    trip = make_trip().model_copy(
+        update={"trip_end_at": "2026-08-16T23:00:00+09:00"}
+    )
+    plan = make_editable_plan()
+    second_day = {
+        "date": "2026-08-16",
+        "dayType": "DEPARTURE_DAY",
+        "items": [],
+    }
+    plan = ItineraryPlanRecord.model_validate(
+        {
+            **plan.model_dump(by_alias=False),
+            "days": [plan.days[0], second_day],
+        }
+    )
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    plan_repository.update_schedule.side_effect = lambda **kwargs: plan.model_copy(
+        update={"days": kwargs["days"]}
+    )
+
+    async def provider(*args) -> int:
+        return 12
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+    )
+    result = await service.update_item_time(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        item_id="item_a",
+        request=ItineraryPlanTimeUpdateRequest(
+            scheduled_start_at="2026-08-16T23:30:00+09:00"
+        ),
+    )
+
+    assert [item.item_id for item in result.days[0].items] == [
+        "arrival",
+        "item_b",
+    ]
+    moved = result.days[1].items[0]
+    assert moved.item_id == "item_a"
+    assert moved.scheduled_start_at.isoformat() == "2026-08-16T23:30:00+09:00"
+    assert moved.is_fixed is True
+    assert moved.travel_minutes_from_previous == 12
 
 
 @pytest.mark.anyio
@@ -490,6 +545,25 @@ async def test_reorder_items_rejects_unknown_day() -> None:
     )
 
     plan_repository.update_schedule.assert_not_called()
+
+
+def test_second_day_start_uses_korea_timezone_after_firestore_utc() -> None:
+    original = make_trip()
+    trip = original.model_copy(
+        update={
+            "trip_start_at": original.trip_start_at.astimezone(
+                timezone.utc
+            )
+        }
+    )
+    service, _, _ = make_service(trip=trip)
+
+    _, _, _, day_start = service._resolve_day_start(
+        trip=trip,
+        target_date=date(2026, 8, 16),
+    )
+
+    assert day_start.isoformat() == "2026-08-16T09:00:00+09:00"
 
 
 @pytest.mark.anyio

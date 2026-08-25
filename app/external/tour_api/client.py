@@ -272,6 +272,31 @@ async def get_nearby_places(
     )
 
 
+async def search_places_by_keyword(
+    keyword: str,
+    page_no: int = 1,
+    num_of_rows: int = 20,
+    *,
+    content_type_id: str | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """TourAPI 키워드 검색 결과를 조회합니다."""
+
+    params: dict[str, Any] = {
+        "keyword": keyword,
+        "arrange": "O",
+        "pageNo": page_no,
+        "numOfRows": num_of_rows,
+    }
+    if content_type_id is not None:
+        params["contentTypeId"] = content_type_id
+    return await _request_tour_api(
+        "searchKeyword2",
+        params,
+        client=client,
+    )
+
+
 async def get_place_common_info(
     content_id: str,
     *,

@@ -39,7 +39,7 @@ def test_term_document_uses_camel_case_aliases() -> None:
 
     assert stored["termCode"] == "TERMS_OF_SERVICE"
     assert stored["effectiveAt"] == (
-        "2026-08-19T12:00:00Z"
+        "2026-08-19T21:00:00+09:00"
     )
 
 

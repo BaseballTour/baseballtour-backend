@@ -218,6 +218,18 @@ class LogMediaRecord(LogMediaDocument):
 class LogEntryUpdateRequest(ApiModel):
     """직관 로그 타임라인 Entry 수정 요청."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "entryTitle": "경기장 입장",
+                    "reviewText": "경기 시작 전에 입장했습니다.",
+                    "occurredAt": "2026-08-19T17:30:00+09:00",
+                }
+            ]
+        }
+    )
+
     entry_title: str | None = Field(
         default=None,
         min_length=1,

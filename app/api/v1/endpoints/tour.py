@@ -196,3 +196,29 @@ async def read_place_detail(
     return SuccessResponse(
         data=place
     )
+
+
+@router.get(
+    "/search",
+    response_model=ListSuccessResponse[Place],
+    summary="관광 장소 키워드 검색",
+)
+async def search_places(
+    keyword: str = Query(min_length=1, max_length=100, examples=["잠실 맛집"]),
+    category: TourNearbyCategory | None = Query(default=None),
+    page_size: int = Query(default=20, alias="pageSize", ge=1, le=100),
+    page_token: str | None = Query(default=None, alias="pageToken"),
+) -> ListSuccessResponse[Place]:
+    page = await tour_api_adapter.search_place_page(
+        keyword=keyword,
+        category=PlaceCategory(category) if category is not None else None,
+        page_no=_parse_page_token(page_token),
+        num_of_rows=page_size,
+    )
+    return ListSuccessResponse(
+        data=page.places,
+        meta=ListMeta(
+            count=len(page.places),
+            next_page_token=page.next_page_token,
+        ),
+    )

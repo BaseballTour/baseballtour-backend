@@ -1,8 +1,19 @@
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from typing import Any
 
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
+
+from app.core.time import to_korea_datetime, to_korea_isoformat
 from app.models.place import PlaceCategory
 
 
@@ -18,6 +29,19 @@ class AlgorithmModel(BaseModel):
         serialize_by_alias=True,
         extra="forbid",
     )
+
+    @field_validator("*", mode="after", check_fields=False)
+    @classmethod
+    def normalize_datetime_to_korea(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return to_korea_datetime(value)
+        return value
+
+    @field_serializer("*", when_used="json", check_fields=False)
+    def serialize_datetime_as_korea(self, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return to_korea_isoformat(value)
+        return value
 
 
 class DayType(str, Enum):
@@ -128,6 +152,14 @@ class ItineraryItem(AlgorithmModel):
     category: PlaceCategory | None = Field(
         default=None,
         description="PLACE 항목의 내부 장소 카테고리",
+    )
+    thumbnail_url: str | None = Field(
+        default=None,
+        description="장소 카드에 표시할 대표 이미지",
+    )
+    overview: str | None = Field(
+        default=None,
+        description="장소 한 줄 소개 또는 원문 소개",
     )
     name: str
     address: str = Field(min_length=1)
