@@ -8,6 +8,9 @@ from app.core.exceptions import AppException
 from app.repositories.attendance_log_repository import (
     AttendanceLogRepository,
 )
+from app.repositories.favorite_collection_repository import (
+    FavoriteCollectionRepository,
+)
 from app.repositories.itinerary_plan_repository import (
     ItineraryPlanRepository,
 )
@@ -32,6 +35,9 @@ def make_service():
     itinerary_plan_repository = Mock(
         spec=ItineraryPlanRepository
     )
+    favorite_collection_repository = Mock(
+        spec=FavoriteCollectionRepository
+    )
     attendance_log_repository = Mock(
         spec=AttendanceLogRepository
     )
@@ -45,6 +51,9 @@ def make_service():
         itinerary_plan_repository=(
             itinerary_plan_repository
         ),
+        favorite_collection_repository=(
+            favorite_collection_repository
+        ),
         attendance_log_repository=(
             attendance_log_repository
         ),
@@ -56,6 +65,7 @@ def make_service():
         trip_repository,
         place_selection_repository,
         itinerary_plan_repository,
+        favorite_collection_repository,
         attendance_log_repository,
     )
 
@@ -67,6 +77,7 @@ def test_withdraw_user_cleans_owned_data() -> None:
         trip_repository,
         place_selection_repository,
         itinerary_plan_repository,
+        favorite_collection_repository,
         attendance_log_repository,
     ) = make_service()
 
@@ -90,6 +101,10 @@ def test_withdraw_user_cleans_owned_data() -> None:
     )
 
     assert trip_repository.delete.call_count == 2
+
+    favorite_collection_repository.delete_all_by_user_id.assert_called_once_with(
+        user_id="user-001"
+    )
 
     attendance_log_repository.soft_delete_all_by_user_id.assert_called_once()
 
@@ -119,6 +134,7 @@ def test_withdraw_user_does_not_delete_user_when_cleanup_fails() -> None:
         trip_repository,
         place_selection_repository,
         itinerary_plan_repository,
+        favorite_collection_repository,
         attendance_log_repository,
     ) = make_service()
 
@@ -137,6 +153,7 @@ def test_withdraw_user_does_not_delete_user_when_cleanup_fails() -> None:
 
     user_repository.soft_delete.assert_not_called()
 
+    favorite_collection_repository.delete_all_by_user_id.assert_not_called()
     attendance_log_repository.soft_delete_all_by_user_id.assert_not_called()
 
 
@@ -147,6 +164,7 @@ def test_withdraw_user_rejects_missing_user() -> None:
         trip_repository,
         place_selection_repository,
         itinerary_plan_repository,
+        favorite_collection_repository,
         attendance_log_repository,
     ) = make_service()
 
@@ -163,3 +181,33 @@ def test_withdraw_user_rejects_missing_user() -> None:
         == status.HTTP_404_NOT_FOUND
     )
     assert exc_info.value.code == "USER_NOT_FOUND"
+
+
+def test_withdraw_user_does_not_delete_user_when_favorite_cleanup_fails() -> None:
+    (
+        service,
+        user_repository,
+        trip_repository,
+        place_selection_repository,
+        itinerary_plan_repository,
+        favorite_collection_repository,
+        attendance_log_repository,
+    ) = make_service()
+
+    trip_repository.get_by_user_id.return_value = []
+
+    favorite_collection_repository.delete_all_by_user_id.side_effect = (
+        RuntimeError("favorite cleanup failed")
+    )
+
+    with pytest.raises(RuntimeError):
+        service.withdraw_user(
+            user_id="user-001"
+        )
+
+    favorite_collection_repository.delete_all_by_user_id.assert_called_once_with(
+        user_id="user-001"
+    )
+
+    attendance_log_repository.soft_delete_all_by_user_id.assert_not_called()
+    user_repository.soft_delete.assert_not_called()

@@ -52,3 +52,20 @@ class PlaceSelectionResponse(ApiModel):
     place_id: str
     is_required: bool
     created_at: datetime
+
+
+class PlaceSelectionImportRequest(ApiModel):
+    """개인 찜 컬렉션에서 여행 후보를 불러오는 요청."""
+
+    collection_id: str = Field(
+        min_length=1,
+        description="불러올 개인 찜 컬렉션 ID",
+    )
+
+
+class PlaceSelectionUpdateRequest(ApiModel):
+    """여행 후보의 필수 방문 여부 변경 요청."""
+
+    is_required: bool = Field(
+        description="일정에 반드시 포함해야 하는 장소인지 여부",
+    )

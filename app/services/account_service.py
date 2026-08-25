@@ -6,6 +6,9 @@ from app.core.exceptions import AppException
 from app.repositories.attendance_log_repository import (
     AttendanceLogRepository,
 )
+from app.repositories.favorite_collection_repository import (
+    FavoriteCollectionRepository,
+)
 from app.repositories.itinerary_plan_repository import (
     ItineraryPlanRepository,
 )
@@ -29,6 +32,9 @@ class AccountService:
         itinerary_plan_repository: (
             ItineraryPlanRepository | None
         ) = None,
+        favorite_collection_repository: (
+            FavoriteCollectionRepository | None
+        ) = None,
         attendance_log_repository: (
             AttendanceLogRepository | None
         ) = None,
@@ -48,6 +54,10 @@ class AccountService:
         self._itinerary_plan_repository = (
             itinerary_plan_repository
             or ItineraryPlanRepository()
+        )
+        self._favorite_collection_repository = (
+            favorite_collection_repository
+            or FavoriteCollectionRepository()
         )
         self._attendance_log_repository = (
             attendance_log_repository
@@ -81,6 +91,10 @@ class AccountService:
             self._trip_repository.delete(
                 trip.trip_id
             )
+
+        self._favorite_collection_repository.delete_all_by_user_id(
+            user_id=user_id,
+        )
 
         self._attendance_log_repository.soft_delete_all_by_user_id(
             user_id,
