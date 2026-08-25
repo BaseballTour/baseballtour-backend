@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.schemas.response import SuccessResponse
 from app.schemas.system import RootData
+from app.api.openapi_normal_examples import install_normal_openapi_examples
 
 
 app = FastAPI(
@@ -56,3 +57,6 @@ async def root() -> SuccessResponse[RootData]:
             environment=settings.app_env,
         ),
     )
+
+
+install_normal_openapi_examples(app)

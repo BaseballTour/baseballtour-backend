@@ -1,0 +1,44 @@
+{
+  "success": true,
+  "data": [
+    {
+      "placeId": "tour_1603175",
+      "name": "아시아공원",
+      "category": "TOURIST_SPOT",
+      "latitude": 37.510082,
+      "longitude": 127.076703,
+      "address": "서울특별시 송파구 올림픽로 44",
+      "postalCode": "05572",
+      "telephone": null,
+      "thumbnailUrl": "https://example.com/asia-park.jpg",
+      "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
+      "openTime": null,
+      "closeTime": null,
+      "businessHoursStatus": "MISSING",
+      "businessHoursText": null,
+      "businessHoursRules": [],
+      "admissionDeadlineTime": null,
+      "admissionDeadlineStatus": "MISSING",
+      "admissionDeadlineText": null,
+      "closedDaysText": null,
+      "closedDaysStatus": "MISSING",
+      "closedWeekdays": [],
+      "eventStartDate": null,
+      "eventEndDate": null,
+      "defaultStayMinutes": 60,
+      "distanceMeters": 487.4,
+      "source": "TOUR_API",
+      "sourceContentId": "1603175",
+      "kakaoPlaceId": null,
+      "enrichedBy": [],
+      "contentTypeId": "12",
+      "lclsSystem1": "VE",
+      "lclsSystem2": "VE01",
+      "lclsSystem3": "VE010100"
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "nextPageToken": null
+  }
+}

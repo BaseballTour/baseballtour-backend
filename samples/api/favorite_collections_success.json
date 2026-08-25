@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": [
+    {
+      "collectionId": "collection_001",
+      "name": "고척 원정 후보",
+      "thumbnailUrl": "https://example.com/asia-park.jpg",
+      "createdAt": "2026-08-15T10:00:00+09:00",
+      "updatedAt": "2026-08-15T10:00:00+09:00"
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "nextPageToken": null
+  }
+}
