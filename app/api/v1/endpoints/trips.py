@@ -10,6 +10,7 @@ from fastapi import (
 )
 
 from app.api.dependencies.auth import get_current_active_user_id
+from app.api.openapi_responses import TRIP_ERROR_RESPONSES
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
     ItineraryPlanFixedRequest,
@@ -51,6 +52,7 @@ from app.services.trip_service import TripService
 
 router = APIRouter(
     prefix="/trips",
+    responses=TRIP_ERROR_RESPONSES,
 )
 
 
