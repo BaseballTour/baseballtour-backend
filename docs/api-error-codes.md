@@ -19,7 +19,7 @@
 
 | HTTP | code | 의미 |
 | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | 요청 본문·쿼리·경로 값 검증 실패 |
+| 422 | `VALIDATION_ERROR` | 요청 본문·쿼리·경로 값 검증 실패 |
 | 401 | `AUTH_TOKEN_MISSING` | Authorization Bearer 토큰 누락 |
 | 401 | `AUTH_TOKEN_INVALID` | 토큰 형식·서명·대상 프로젝트 오류 |
 | 401 | `AUTH_TOKEN_EXPIRED` | ID Token 만료 |
@@ -68,4 +68,4 @@
 | 404 | `PLACE_SELECTION_NOT_FOUND` | 여행 후보 장소 없음 |
 | 409 | `PLACE_SELECTION_ALREADY_EXISTS` | 여행 후보 중복 |
 
-세부 엔드포인트별 400·401·403·404·409·422·429·502·503 예시는 Swagger와 이 문서를 함께 기준으로 사용한다.
+Swagger의 각 API에서 **Responses**를 펼치면 상태 코드별 실제 JSON 예시를 확인할 수 있다. 같은 HTTP 상태에 여러 `error.code`가 있으면 Example 드롭다운에서 상황별 예시를 선택한다. 이 문서는 전체 코드 의미를 확인하는 기준으로 함께 사용한다.

@@ -18,6 +18,7 @@ from app.schemas.response import (
     ListSuccessResponse,
     SuccessResponse,
 )
+from app.api.openapi_responses import FAVORITE_ERROR_RESPONSES
 from app.models.place import Place
 from app.services.favorite_collection_service import (
     FavoriteCollectionService,
@@ -26,6 +27,7 @@ from app.services.favorite_collection_service import (
 
 router = APIRouter(
     prefix="/users/me/favorite-collections",
+    responses=FAVORITE_ERROR_RESPONSES,
 )
 
 

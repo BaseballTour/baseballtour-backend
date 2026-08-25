@@ -3,6 +3,7 @@ from typing import Literal
 from fastapi import APIRouter, Path, Query
 
 from app.core.exceptions import AppException
+from app.api.openapi_responses import TOUR_API_ERROR_RESPONSES
 from app.external.tour_api.adapter import (
     tour_api_adapter,
 )
@@ -20,6 +21,7 @@ from app.services.place_enrichment import (
 router = APIRouter(
     prefix="/tour",
     tags=["TourAPI"],
+    responses=TOUR_API_ERROR_RESPONSES,
 )
 
 
