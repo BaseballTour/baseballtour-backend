@@ -491,6 +491,8 @@ class ItineraryPlanService:
             sequence=len(day.items) + 1,
             place_id=request.place_id,
             category=getattr(place, "category", None),
+            thumbnail_url=getattr(place, "thumbnail_url", None),
+            overview=getattr(place, "overview", None),
             name=place.name,
             address=place.address or place.name,
             latitude=place.latitude,

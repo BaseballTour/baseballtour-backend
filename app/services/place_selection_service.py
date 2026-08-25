@@ -55,18 +55,9 @@ class PlaceSelectionService:
             trip_repository
             or TripRepository()
         )
-        self._favorite_collection_repository = (
-            favorite_collection_repository
-            or FavoriteCollectionRepository()
-        )
-        self._game_repository = (
-            game_repository
-            or GameRepository()
-        )
-        self._stadium_repository = (
-            stadium_repository
-            or StadiumRepository()
-        )
+        self._favorite_collection_repository = favorite_collection_repository
+        self._game_repository = game_repository
+        self._stadium_repository = stadium_repository
         self._place_adapter = (
             place_adapter
             or tour_api_adapter
@@ -196,7 +187,7 @@ class PlaceSelectionService:
         )
 
         collection = (
-            self._favorite_collection_repository.get_by_id(
+            self._get_favorite_collection_repository().get_by_id(
                 user_id=user_id,
                 collection_id=collection_id,
             )
@@ -209,7 +200,7 @@ class PlaceSelectionService:
                 message="찜 컬렉션을 찾을 수 없습니다.",
             )
 
-        game = self._game_repository.get_by_id(
+        game = self._get_game_repository().get_by_id(
             trip.game_id
         )
 
@@ -220,7 +211,7 @@ class PlaceSelectionService:
                 message="경기 정보를 찾을 수 없습니다.",
             )
 
-        stadium = self._stadium_repository.get_by_id(
+        stadium = self._get_stadium_repository().get_by_id(
             game.stadium_id
         )
 
@@ -232,7 +223,7 @@ class PlaceSelectionService:
             )
 
         favorite_items = (
-            self._favorite_collection_repository.get_items(
+            self._get_favorite_collection_repository().get_items(
                 user_id=user_id,
                 collection_id=collection_id,
             )
@@ -356,3 +347,22 @@ class PlaceSelectionService:
             )
 
         return trip
+
+    def _get_favorite_collection_repository(
+        self,
+    ) -> FavoriteCollectionRepository:
+        """컬렉션 가져오기 기능을 사용할 때만 Firestore 저장소를 생성합니다."""
+
+        if self._favorite_collection_repository is None:
+            self._favorite_collection_repository = FavoriteCollectionRepository()
+        return self._favorite_collection_repository
+
+    def _get_game_repository(self) -> GameRepository:
+        if self._game_repository is None:
+            self._game_repository = GameRepository()
+        return self._game_repository
+
+    def _get_stadium_repository(self) -> StadiumRepository:
+        if self._stadium_repository is None:
+            self._stadium_repository = StadiumRepository()
+        return self._stadium_repository

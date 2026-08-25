@@ -215,12 +215,12 @@ def test_import_place_selections_from_favorite_collection(
         {
             "placeId": "tour_001",
             "isRequired": False,
-            "createdAt": "2026-08-12T10:00:00Z",
+                "createdAt": "2026-08-12T19:00:00+09:00",
         },
         {
             "placeId": "tour_002",
             "isRequired": False,
-            "createdAt": "2026-08-12T10:00:00Z",
+                "createdAt": "2026-08-12T19:00:00+09:00",
         },
     ]
 

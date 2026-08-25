@@ -14,6 +14,7 @@ from app.external.tour_api.client import (
     get_place_common_info,
     get_place_images,
     get_place_intro_info,
+    search_places_by_keyword,
 )
 from app.external.tour_api.mapper import (
     deduplicate_places,
@@ -182,6 +183,54 @@ class TourApiAdapter:
         )
 
         return page.places
+
+    async def search_place_page(
+        self,
+        keyword: str,
+        page_no: int = 1,
+        num_of_rows: int = 20,
+        category: PlaceCategory | None = None,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> NearbyPlacePage:
+        normalized_keyword = keyword.strip()
+        content_type_id = get_tour_api_content_type_id(category)
+        if category is not None and content_type_id is None:
+            return NearbyPlacePage([], None)
+        key = (
+            "keyword",
+            normalized_keyword,
+            category.value if category is not None else None,
+            page_no,
+            num_of_rows,
+        )
+
+        async def load() -> NearbyPlacePage:
+            raw = await search_places_by_keyword(
+                normalized_keyword,
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                content_type_id=content_type_id,
+                client=client,
+            )
+            raw_items = extract_items(raw)
+            places = deduplicate_places(tour_api_items_to_places(raw_items))
+            body = raw.get("response", {}).get("body", {})
+            try:
+                total_count = int(body.get("totalCount"))
+            except (AttributeError, TypeError, ValueError):
+                total_count = None
+            has_next = (
+                page_no * num_of_rows < total_count
+                if total_count is not None
+                else len(raw_items) == num_of_rows
+            )
+            return NearbyPlacePage(
+                places,
+                str(page_no + 1) if has_next else None,
+            )
+
+        return await self._cached(key, load)
 
     async def get_place_detail(
         self,

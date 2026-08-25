@@ -153,6 +153,14 @@ class ItineraryItem(AlgorithmModel):
         default=None,
         description="PLACE 항목의 내부 장소 카테고리",
     )
+    thumbnail_url: str | None = Field(
+        default=None,
+        description="장소 카드에 표시할 대표 이미지",
+    )
+    overview: str | None = Field(
+        default=None,
+        description="장소 한 줄 소개 또는 원문 소개",
+    )
     name: str
     address: str = Field(min_length=1)
     latitude: float = Field(ge=-90, le=90)

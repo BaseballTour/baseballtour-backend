@@ -18,6 +18,7 @@ from app.schemas.response import (
     ListSuccessResponse,
     SuccessResponse,
 )
+from app.models.place import Place
 from app.services.favorite_collection_service import (
     FavoriteCollectionService,
 )
@@ -30,10 +31,12 @@ router = APIRouter(
 
 def to_favorite_collection_response(
     collection: FavoriteCollectionRecord,
+    thumbnail_url: str | None = None,
 ) -> FavoriteCollectionResponse:
     return FavoriteCollectionResponse(
         collection_id=collection.collection_id,
         name=collection.name,
+        thumbnail_url=thumbnail_url,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
     )
@@ -80,7 +83,7 @@ def create_favorite_collection(
     response_model=ListSuccessResponse[FavoriteCollectionResponse],
     summary="개인 찜 컬렉션 목록 조회",
 )
-def get_favorite_collections(
+async def get_favorite_collections(
     user_id: Annotated[
         str,
         Depends(get_current_active_user_id),
@@ -91,9 +94,16 @@ def get_favorite_collections(
     collections = service.get_collections(
         user_id=user_id,
     )
+    thumbnails = await service.get_collection_thumbnails(
+        user_id=user_id,
+        collections=collections,
+    )
 
     data = [
-        to_favorite_collection_response(collection)
+        to_favorite_collection_response(
+            collection,
+            thumbnails.get(collection.collection_id),
+        )
         for collection in collections
     ]
 
@@ -103,6 +113,28 @@ def get_favorite_collections(
             count=len(data),
             next_page_token=None,
         ),
+    )
+
+
+@router.get(
+    "/{collectionId}",
+    response_model=ListSuccessResponse[Place],
+    summary="개인 찜 컬렉션 장소 목록 조회",
+)
+async def get_favorite_collection_places(
+    collection_id: Annotated[
+        str,
+        Path(alias="collectionId", description="찜 컬렉션 ID"),
+    ],
+    user_id: Annotated[str, Depends(get_current_active_user_id)],
+) -> ListSuccessResponse[Place]:
+    places = await FavoriteCollectionService().get_collection_places(
+        user_id=user_id,
+        collection_id=collection_id,
+    )
+    return ListSuccessResponse(
+        data=places,
+        meta=ListMeta(count=len(places), next_page_token=None),
     )
 
 

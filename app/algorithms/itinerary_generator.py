@@ -238,6 +238,8 @@ def _schedule_day(
                 sequence=len(items) + 1,
                 place_id=place.place_id,
                 category=place.category,
+                thumbnail_url=place.thumbnail_url,
+                overview=place.overview,
                 name=place.name,
                 address=place.address or place.name,
                 latitude=place.latitude,
@@ -469,6 +471,9 @@ def _fill_routes_with_recommendations(
                     continue
                 for index in range(len(current) + 1):
                     proposed = [*current[:index], place, *current[index:]]
+                    if _has_consecutive_restaurants(proposed):
+                        rejected["CONSECUTIVE_RESTAURANT"] += 1
+                        continue
                     result = simulate_route_detailed(proposed, **args)
                     if not result.feasible:
                         reason = (
@@ -539,6 +544,16 @@ def _fill_routes_with_recommendations(
         )
 
     return routes, added
+
+
+def _has_consecutive_restaurants(route: list[Place]) -> bool:
+    """자동 추천 결과에서 식당 두 곳이 연속되는 구성을 막습니다."""
+
+    return any(
+        previous.category == PlaceCategory.RESTAURANT
+        and current.category == PlaceCategory.RESTAURANT
+        for previous, current in zip(route, route[1:])
+    )
 
 
 def _meal_time_category_priority(

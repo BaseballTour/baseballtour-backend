@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -82,8 +82,9 @@ def test_create_favorite_collection_returns_created(
     assert body["data"] == {
         "collectionId": COLLECTION_ID,
         "name": "가보고 싶은 장소",
-        "createdAt": "2026-08-20T10:00:00Z",
-        "updatedAt": "2026-08-20T10:00:00Z",
+        "thumbnailUrl": None,
+        "createdAt": "2026-08-20T19:00:00+09:00",
+        "updatedAt": "2026-08-20T19:00:00+09:00",
     }
 
     arguments = (
@@ -108,6 +109,12 @@ def test_get_favorite_collections_returns_list(
             name="관광지",
         ),
     ]
+    service.get_collection_thumbnails = AsyncMock(
+        return_value={
+            "collection_001": "https://example.com/food.jpg",
+            "collection_002": None,
+        }
+    )
 
     with patch(
         (
@@ -127,6 +134,7 @@ def test_get_favorite_collections_returns_list(
     assert body["success"] is True
     assert len(body["data"]) == 2
     assert body["data"][0]["name"] == "맛집"
+    assert body["data"][0]["thumbnailUrl"] == "https://example.com/food.jpg"
     assert body["data"][1]["name"] == "관광지"
 
     assert body["meta"] == {
@@ -136,6 +144,26 @@ def test_get_favorite_collections_returns_list(
 
     service.get_collections.assert_called_once_with(
         user_id=USER_ID
+    )
+
+
+def test_get_favorite_collection_places_returns_places(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_collection_places = AsyncMock(return_value=[])
+    with patch(
+        "app.api.v1.endpoints.favorite_collections.FavoriteCollectionService",
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            f"/api/v1/users/me/favorite-collections/{COLLECTION_ID}"
+        )
+    assert response.status_code == 200
+    assert response.json()["data"] == []
+    service.get_collection_places.assert_awaited_once_with(
+        user_id=USER_ID,
+        collection_id=COLLECTION_ID,
     )
 
 
@@ -258,7 +286,7 @@ def test_save_favorite_collection_item_returns_saved_item(
     assert body["success"] is True
     assert body["data"] == {
         "placeId": "tour_123456",
-        "createdAt": "2026-08-20T10:00:00Z",
+        "createdAt": "2026-08-20T19:00:00+09:00",
     }
 
     service.save_item.assert_called_once_with(

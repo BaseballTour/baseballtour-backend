@@ -116,3 +116,25 @@ async def test_nearby_forwards_category_and_pagination(
     assert received["params"]["pageNo"] == 2
     assert received["params"]["numOfRows"] == 10
     assert received["params"]["contentTypeId"] == "39"
+
+
+@pytest.mark.anyio
+async def test_keyword_search_forwards_keyword_and_pagination(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    received = {}
+
+    async def fake_request(operation, params, *, client=None):
+        received.update(operation=operation, params=params)
+        return {"response": {"body": {"items": {"item": []}}}}
+
+    monkeypatch.setattr(client_module, "_request_tour_api", fake_request)
+    await client_module.search_places_by_keyword(
+        "잠실 맛집",
+        page_no=2,
+        num_of_rows=10,
+        content_type_id="39",
+    )
+    assert received["operation"] == "searchKeyword2"
+    assert received["params"]["keyword"] == "잠실 맛집"
+    assert received["params"]["contentTypeId"] == "39"
