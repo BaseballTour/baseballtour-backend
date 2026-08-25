@@ -35,3 +35,42 @@ def test_favorite_swagger_lists_auth_and_collection_errors() -> None:
     )
     examples = responses["404"]["content"]["application/json"]["examples"]
     assert "collection_not_found" in examples
+
+
+def test_all_json_requests_and_success_responses_have_examples() -> None:
+    schema = app.openapi()
+    for path, path_item in schema["paths"].items():
+        for method, operation in path_item.items():
+            if method not in {"get", "post", "put", "patch", "delete"}:
+                continue
+            if "requestBody" in operation:
+                media = operation["requestBody"]["content"]["application/json"]
+                assert "examples" in media, f"missing request example: {method} {path}"
+            for status_code, response in operation["responses"].items():
+                if not status_code.startswith("2") or status_code == "204":
+                    continue
+                media = response["content"]["application/json"]
+                assert "examples" in media, (
+                    f"missing success example: {method} {path} {status_code}"
+                )
+
+
+def test_all_parameters_have_description_and_example() -> None:
+    schema = app.openapi()
+    for path, path_item in schema["paths"].items():
+        for method, operation in path_item.items():
+            if method not in {"get", "post", "put", "patch", "delete"}:
+                continue
+            for parameter in operation.get("parameters", []):
+                assert parameter.get("description"), (
+                    f"missing parameter description: {method} {path} {parameter['name']}"
+                )
+                assert "example" in parameter, (
+                    f"missing parameter example: {method} {path} {parameter['name']}"
+                )
+
+
+def test_datetime_examples_use_korea_timezone() -> None:
+    schema_text = str(app.openapi())
+    assert "2026-08-16T12:00:00+09:00" in schema_text
+    assert "2026-08-17T14:00:00+09:00" in schema_text
