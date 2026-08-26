@@ -377,6 +377,35 @@ async def test_update_item_time_keeps_manual_times_and_recalculates_travel() -> 
 
 
 @pytest.mark.anyio
+async def test_update_item_time_rejects_anchor_item_with_clear_error() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.update_item_time(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            item_id="arrival",
+            request=ItineraryPlanTimeUpdateRequest(
+                scheduled_start_at="2026-08-15T13:00:00+09:00"
+            ),
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == "ITINERARY_ANCHOR_NOT_EDITABLE"
+    assert captured.value.details == {"itemType": "ARRIVAL_POINT"}
+    plan_repository.update_schedule.assert_not_called()
+
+
+@pytest.mark.anyio
 async def test_update_item_time_can_move_place_to_another_plan_day() -> None:
     trip = make_trip().model_copy(
         update={"trip_end_at": "2026-08-16T23:00:00+09:00"}

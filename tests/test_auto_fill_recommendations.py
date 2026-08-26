@@ -73,6 +73,29 @@ def trip(selected: list[SelectedPlaceInput] | None = None) -> TripInput:
     )
 
 
+def same_day_arrival_game_trip() -> TripInput:
+    return TripInput(
+        trip_id="trip_arrival_game",
+        trip_start_at=datetime(2026, 9, 22, 12, tzinfo=UTC),
+        trip_end_at=datetime(2026, 9, 23, 23, tzinfo=UTC),
+        arrival_point=GeoPoint(
+            name="서울역", latitude=37.5547, longitude=126.9706
+        ),
+        departure_point=GeoPoint(
+            name="서울역", latitude=37.5547, longitude=126.9706
+        ),
+        game_anchor=GameAnchor(
+            name="고척스카이돔",
+            latitude=37.4982,
+            longitude=126.8671,
+            game_id="game",
+            stadium_id="stadium",
+            game_start_at=datetime(2026, 9, 22, 18, 30, tzinfo=UTC),
+        ),
+        selected_places=[],
+    )
+
+
 def matrix(*place_ids: str, default: int = 10) -> TravelTimeMatrix:
     ids = ["arrival", "departure", "stadium", *place_ids]
     return TravelTimeMatrix(
@@ -102,6 +125,84 @@ def test_fills_empty_itinerary_without_recommendation_count_limit() -> None:
     assert result.auto_recommended_place_count == 5
     assert diagnostics["scheduledCount"] == 5
     assert "placementRejectedAttempts" in diagnostics
+
+
+def test_arrival_anchor_is_first_when_arrival_day_is_game_day() -> None:
+    recommendation = place("nearby")
+    result = generate_itinerary(
+        same_day_arrival_game_trip(),
+        [],
+        matrix(recommendation.place_id),
+        recommended_places=[recommendation],
+    )
+
+    first_day = result.days[0]
+    assert first_day.day_type == "GAME_DAY"
+    assert first_day.items[0].item_type == ItineraryItemType.ARRIVAL_POINT
+    assert first_day.items[0].name == "서울역"
+    assert first_day.items[0].scheduled_start_at.isoformat() == (
+        "2026-09-22T12:00:00+09:00"
+    )
+    assert all(
+        item.scheduled_start_at
+        >= same_day_arrival_game_trip().trip_start_at
+        for item in first_day.items
+    )
+
+
+def test_lunch_restaurant_is_prioritized_over_non_meal_place() -> None:
+    restaurant = place(
+        "lunch_restaurant", category=PlaceCategory.RESTAURANT
+    )
+    attraction = place("nearby_attraction")
+    result = generate_itinerary(
+        same_day_arrival_game_trip(),
+        [],
+        matrix(restaurant.place_id, attraction.place_id),
+        recommended_places=[attraction, restaurant],
+    )
+
+    first_day_places = [
+        item
+        for item in result.days[0].items
+        if item.item_type == ItineraryItemType.PLACE
+    ]
+    assert first_day_places[0].place_id == restaurant.place_id
+    assert 11 <= first_day_places[0].scheduled_start_at.hour <= 14
+
+
+def test_departure_day_dinner_is_filled_when_time_is_available() -> None:
+    restaurant = place(
+        "dinner_restaurant",
+        category=PlaceCategory.RESTAURANT,
+        business_hours_status=BusinessRuleStatus.PARSED,
+        business_hours_rules=[
+            BusinessHoursRule(
+                weekdays=[Weekday.WEDNESDAY],
+                open_time="17:00",
+                close_time="21:00",
+            )
+        ],
+    )
+    result = generate_itinerary(
+        same_day_arrival_game_trip(),
+        [],
+        matrix(restaurant.place_id),
+        recommended_places=[restaurant],
+    )
+
+    dinner = next(
+        item
+        for item in result.days[1].items
+        if item.place_id == restaurant.place_id
+    )
+    departure = next(
+        item
+        for item in result.days[1].items
+        if item.item_type == ItineraryItemType.DEPARTURE_POINT
+    )
+    assert 17 <= dinner.scheduled_start_at.hour <= 20
+    assert dinner.scheduled_end_at < departure.scheduled_start_at
 
 
 def test_user_place_is_kept_and_marked_as_user() -> None:

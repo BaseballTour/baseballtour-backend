@@ -183,8 +183,11 @@ def _schedule_day(
     day_end = datetime.combine(target_date, DEFAULT_DAY_END, timezone)
     items: list[ItineraryItem] = []
     previous_id = "accommodation" if trip.accommodation else "arrival"
+    is_arrival_date = target_date == trip.trip_start_at.date()
+    is_departure_date = target_date == trip.trip_end_at.date()
+    is_game_date = target_date == trip.game_anchor.game_start_at.date()
 
-    if day_type == DayType.ARRIVAL_DAY:
+    if is_arrival_date:
         day_start = trip.trip_start_at
         arrival_end = day_start + timedelta(minutes=DEFAULT_ANCHOR_MINUTES)
         items.append(
@@ -198,20 +201,20 @@ def _schedule_day(
         day_start = arrival_end
         previous_id = "arrival"
 
-    if day_type == DayType.GAME_DAY:
+    if is_game_date:
         day_end = trip.game_anchor.game_start_at - timedelta(
             minutes=trip.game_anchor.required_arrival_minutes
         )
 
-    if day_type == DayType.DEPARTURE_DAY:
+    if is_departure_date:
         day_end = trip.trip_end_at - timedelta(
             minutes=DEPARTURE_BUFFER_MINUTES
         )
 
     final_anchor_id = None
-    if day_type == DayType.GAME_DAY:
+    if is_game_date:
         final_anchor_id = "stadium"
-    elif day_type == DayType.DEPARTURE_DAY:
+    elif is_departure_date:
         final_anchor_id = "departure"
     elif trip.accommodation is not None:
         final_anchor_id = "accommodation"
@@ -266,7 +269,7 @@ def _schedule_day(
         )
         cursor, previous_id = visit.end, place.place_id
 
-    if day_type == DayType.GAME_DAY:
+    if is_game_date:
         travel = matrix.get(previous_id, "stadium")
         stadium_start = trip.game_anchor.game_start_at - timedelta(
             minutes=trip.game_anchor.required_arrival_minutes
@@ -288,9 +291,9 @@ def _schedule_day(
         )
         previous_id = "stadium"
 
-    if trip.accommodation is not None and day_type != DayType.DEPARTURE_DAY:
+    if trip.accommodation is not None and not is_departure_date:
         travel = matrix.get(previous_id, "accommodation")
-        if day_type == DayType.GAME_DAY:
+        if is_game_date:
             previous_end = items[-1].scheduled_end_at
             start = previous_end + timedelta(
                 minutes=travel + transfer_buffer(previous_id, "accommodation")
@@ -316,7 +319,7 @@ def _schedule_day(
             )
         )
 
-    if day_type == DayType.DEPARTURE_DAY:
+    if is_departure_date:
         travel = matrix.get(previous_id, "departure")
         start = trip.trip_end_at - timedelta(minutes=DEPARTURE_BUFFER_MINUTES)
         items.append(
@@ -456,6 +459,12 @@ def _fill_routes_with_recommendations(
                 target_date, day_type, trip, matrix
             )
             current = routes[target_date]
+            current_result = simulate_route_detailed(current, **args)
+            current_meals = (
+                _covered_meal_periods(current_result.visits)
+                if current_result.feasible
+                else set()
+            )
             current_cost = route_travel_minutes(
                 args["start_id"], current, args["end_id"], matrix
             )
@@ -506,7 +515,12 @@ def _fill_routes_with_recommendations(
                         if result.closing_slack_minutes is not None
                         else 24 * 60
                     )
+                    proposed_meals = _covered_meal_periods(
+                        result.visits
+                    )
+                    meal_gain = len(proposed_meals - current_meals)
                     score = (
+                        -meal_gain,
                         marginal,
                         -(result.anchor_slack_minutes or 0),
                         -closing_slack,
@@ -576,6 +590,21 @@ def _meal_time_category_priority(
     )
 
 
+def _covered_meal_periods(visits) -> set[str]:
+    """일정에 실제 식당 방문이 배치된 점심·저녁 구간을 반환합니다."""
+
+    covered: set[str] = set()
+    for visit in visits:
+        if visit.place.category != PlaceCategory.RESTAURANT:
+            continue
+        minute = visit.start.hour * 60 + visit.start.minute
+        if 11 * 60 <= minute <= 14 * 60:
+            covered.add("LUNCH")
+        if 17 * 60 <= minute <= 20 * 60:
+            covered.add("DINNER")
+    return covered
+
+
 def _representative_failure(
     failures: list[ExcludedReasonCode],
 ) -> ExcludedReasonCode:
@@ -611,17 +640,17 @@ def _optimizer_args_for_date(
         target_date, DEFAULT_DAY_END, timezone
     )
     end_id = "accommodation" if trip.accommodation else None
-    if day_type == DayType.ARRIVAL_DAY:
+    if target_date == trip.trip_start_at.date():
         start_id = "arrival"
         available_start = trip.trip_start_at + timedelta(
             minutes=DEFAULT_ANCHOR_MINUTES
         )
-    if day_type == DayType.GAME_DAY:
+    if target_date == trip.game_anchor.game_start_at.date():
         end_id = "stadium"
         available_end = trip.game_anchor.game_start_at - timedelta(
             minutes=trip.game_anchor.required_arrival_minutes
         )
-    elif day_type == DayType.DEPARTURE_DAY:
+    elif target_date == trip.trip_end_at.date():
         end_id = "departure"
         available_end = trip.trip_end_at - timedelta(
             minutes=DEPARTURE_BUFFER_MINUTES

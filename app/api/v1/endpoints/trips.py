@@ -757,10 +757,19 @@ async def update_itinerary_item_fixed(
     "/{tripId}/plan/items/{itemId}/time",
     response_model=SuccessResponse[ItineraryPlanResponse],
     summary="여행 일정 장소 시작시간 변경",
+    description=(
+        "PLACE 유형의 itemId만 변경할 수 있습니다. "
+        "ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION "
+        "Anchor의 시간은 여행·경기·숙소 기본정보를 수정한 뒤 "
+        "일정을 재생성하여 변경합니다."
+    ),
 )
 async def update_itinerary_item_time(
-    trip_id: Annotated[str, Path(alias="tripId")],
-    item_id: Annotated[str, Path(alias="itemId")],
+    trip_id: Annotated[str, Path(alias="tripId", description="여행 ID")],
+    item_id: Annotated[
+        str,
+        Path(alias="itemId", description="시간을 변경할 PLACE 유형 Item ID"),
+    ],
     request: ItineraryPlanTimeUpdateRequest,
     user_id: Annotated[str, Depends(get_current_active_user_id)],
 ) -> SuccessResponse[ItineraryPlanResponse]:

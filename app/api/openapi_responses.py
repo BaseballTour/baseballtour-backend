@@ -111,6 +111,7 @@ TRIP_ERROR_RESPONSES = {
         game_outside_period=_example("GAME_OUTSIDE_TRIP_PERIOD", "경기 시간이 여행 기간에 포함되어야 합니다."),
         itinerary_input_invalid=_example("ITINERARY_INPUT_INVALID", "일정 생성 입력값이 올바르지 않습니다."),
         itinerary_edit_invalid=_example("ITINERARY_EDIT_INVALID", "일정 항목을 수정할 수 없습니다."),
+        anchor_not_editable=_example("ITINERARY_ANCHOR_NOT_EDITABLE", "Anchor 시간은 이 API에서 변경할 수 없습니다."),
         item_date_mismatch=_example("ITINERARY_ITEM_DATE_MISMATCH", "date와 scheduledStartAt의 날짜가 일치해야 합니다."),
     ),
     404: _response(

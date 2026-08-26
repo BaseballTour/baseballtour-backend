@@ -643,6 +643,19 @@ class ItineraryPlanService:
             item_id=item_id,
         )
         source_day = plan.days[day_index]
+        target_item = next(
+            item for item in source_day.items if item.item_id == item_id
+        )
+        if target_item.item_type != ItineraryItemType.PLACE:
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="ITINERARY_ANCHOR_NOT_EDITABLE",
+                message=(
+                    "도착지·출발지·경기장·숙소 Anchor의 시간은 "
+                    "이 API에서 변경할 수 없습니다."
+                ),
+                details={"itemType": target_item.item_type.value},
+            )
         target_date = request.scheduled_start_at.date()
         target_day_index = next(
             (

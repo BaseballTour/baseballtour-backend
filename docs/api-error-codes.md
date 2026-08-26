@@ -48,6 +48,7 @@
 | 400 | `GAME_OUTSIDE_TRIP_PERIOD` | 경기가 여행 기간 밖에 있음 |
 | 400 | `ITINERARY_INPUT_INVALID` | 일정 생성 입력 오류 |
 | 400 | `ITINERARY_EDIT_INVALID` | 순서 변경 등 엄격 편집 규칙 위반 |
+| 400 | `ITINERARY_ANCHOR_NOT_EDITABLE` | PLACE가 아닌 Anchor Item의 시간 변경 시도 |
 | 400 | `ITINERARY_ITEM_DATE_MISMATCH` | 장소 추가 날짜와 시작시각 날짜 불일치 |
 | 403 | `TRIP_ACCESS_DENIED` | 다른 사용자의 여행 접근 |
 | 404 | `TRIP_NOT_FOUND` | 여행 없음 |
