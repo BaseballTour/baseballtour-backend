@@ -113,6 +113,8 @@ def test_create_stores_firestore_aliases() -> None:
         make_document(),
     )
 
+    generated_id = entries_collection.document.call_args.args[0]
+    assert generated_id.startswith("entry_")
     assert result.log_entry_id == "entry_001"
     assert result.sequence_no == 1
     assert result.entry_type == LogEntryType.PLACE

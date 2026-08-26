@@ -3,6 +3,7 @@ from typing import Any
 from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
+from app.core.ids import new_prefixed_id
 from app.schemas.attendance_log import (
     LogEntryDocument,
     LogEntryRecord,
@@ -43,13 +44,15 @@ class LogEntryRepository:
         attendance_log_id: str,
         entry: LogEntryDocument,
     ) -> LogEntryRecord:
-        """Firestore Auto ID로 로그 Entry를 생성합니다."""
+        """`entry_` 접두사 ID로 로그 Entry를 생성합니다."""
 
         collection = self._entries_collection(
             attendance_log_id
         )
 
-        document_reference = collection.document()
+        document_reference = collection.document(
+            new_prefixed_id("entry")
+        )
 
         document_reference.set(
             entry.model_dump(

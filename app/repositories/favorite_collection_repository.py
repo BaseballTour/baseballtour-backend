@@ -5,6 +5,7 @@ from google.cloud.exceptions import NotFound
 from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
+from app.core.ids import new_prefixed_id
 from app.schemas.favorite_collection import (
     FavoriteCollectionDocument,
     FavoriteCollectionItemDocument,
@@ -58,7 +59,7 @@ class FavoriteCollectionRepository:
 
         document_reference = (
             self._get_collection(user_id)
-            .document()
+            .document(new_prefixed_id("collection"))
         )
 
         document_reference.set(

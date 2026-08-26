@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 from fastapi import status
@@ -237,35 +238,48 @@ class PlaceSelectionService:
             )
         }
 
-        imported: list[PlaceSelectionRecord] = []
+        semaphore = asyncio.Semaphore(5)
 
-        for item in favorite_items:
+        async def load_importable_place(item):
             place_id = item.place_id
 
             if place_id in existing_place_ids:
-                continue
+                return None
 
             if (
                 not place_id.startswith("tour_")
                 or not place_id.removeprefix("tour_")
             ):
-                continue
+                return None
 
             content_id = place_id.removeprefix(
                 "tour_"
             )
 
             try:
-                place = await self._place_adapter.get_place_detail(
-                    content_id
-                )
+                async with semaphore:
+                    place = await self._place_adapter.get_place_detail(
+                        content_id
+                    )
             except (ValueError, AppException):
-                continue
+                return None
 
             if not self._matches_stadium_region(
                 address=place.address,
                 stadium_region=stadium.region,
             ):
+                return None
+
+            return place_id
+
+        importable_place_ids = await asyncio.gather(
+            *(load_importable_place(item) for item in favorite_items)
+        )
+
+        imported: list[PlaceSelectionRecord] = []
+
+        for place_id in importable_place_ids:
+            if place_id is None or place_id in existing_place_ids:
                 continue
 
             selection = PlaceSelectionDocument(

@@ -5,6 +5,7 @@ from google.cloud.firestore_v1.client import Client
 from google.cloud.firestore_v1.transaction import transactional
 
 from app.core.firebase import get_firestore_client
+from app.core.ids import new_prefixed_id
 from app.schemas.itinerary_plan import (
     ItineraryPlanDay,
     ItineraryPlanDocument,
@@ -89,7 +90,9 @@ class ItineraryPlanRepository:
         status를 갱신합니다.
         """
 
-        plan_reference = self._collection.document()
+        plan_reference = self._collection.document(
+            new_prefixed_id("plan")
+        )
         trip_reference = self._trip_collection.document(
             trip_id
         )

@@ -235,12 +235,12 @@ def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
         rejected_recommendation_place_ids=["tour_rejected"],
     )
 
-    assert result.plan_id == "plan_auto_1"
+    assert result.plan_id.startswith("plan_")
     assert result.status == ItineraryPlanStatus.ACTIVE
 
     stored_plan = client.collection(
         "itineraryPlans"
-    ).documents["plan_auto_1"]
+    ).documents[result.plan_id]
 
     assert stored_plan["tripId"] == "trip_001"
     assert stored_plan["userId"] == "firebase-user-123"
@@ -259,7 +259,7 @@ def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
     ).documents["trip_001"]
 
     assert stored_trip["status"] == "GENERATED"
-    assert stored_trip["activePlanId"] == "plan_auto_1"
+    assert stored_trip["activePlanId"] == result.plan_id
     assert stored_trip["rejectedRecommendationPlaceIds"] == [
         "tour_rejected"
     ]

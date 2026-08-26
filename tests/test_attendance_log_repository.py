@@ -89,6 +89,8 @@ def test_create_stores_firestore_aliases() -> None:
         make_document()
     )
 
+    generated_id = collection.document.call_args.args[0]
+    assert generated_id.startswith("log_")
     assert result.attendance_log_id == "log_001"
     assert result.trip_id == "trip_001"
 
