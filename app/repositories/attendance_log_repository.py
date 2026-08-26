@@ -5,6 +5,7 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
+from app.core.ids import new_prefixed_id
 from app.schemas.attendance_log import (
     AttendanceLogDocument,
     AttendanceLogRecord,
@@ -30,9 +31,11 @@ class AttendanceLogRepository:
         self,
         log: AttendanceLogDocument,
     ) -> AttendanceLogRecord:
-        """Firestore Auto ID로 직관 로그를 생성합니다."""
+        """`log_` 접두사 ID로 직관 로그를 생성합니다."""
 
-        document_reference = self._collection.document()
+        document_reference = self._collection.document(
+            new_prefixed_id("log")
+        )
 
         document_reference.set(
             log.model_dump(

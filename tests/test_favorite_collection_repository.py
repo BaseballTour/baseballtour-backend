@@ -251,12 +251,12 @@ def test_create_stores_collection_under_user() -> None:
         collection=make_collection(),
     )
 
-    assert created.collection_id == "collection_001"
+    assert created.collection_id.startswith("collection_")
     assert created.name == "가보고 싶은 장소"
 
     stored = client.subcollections[
         ("user_001", "favoriteCollections")
-    ]["collection_001"]
+    ][created.collection_id]
 
     assert stored["name"] == "가보고 싶은 장소"
     assert isinstance(stored["createdAt"], datetime)

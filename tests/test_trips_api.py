@@ -221,6 +221,26 @@ def test_get_my_trips_returns_list_response(
     )
 
 
+def test_get_my_trips_returns_empty_list(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_my_trips.return_value = []
+
+    with patch(
+        "app.api.v1.endpoints.trips.TripService",
+        return_value=service,
+    ):
+        response = authenticated_client.get("/api/v1/trips")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": [],
+        "meta": {"count": 0, "nextPageToken": None},
+    }
+
+
 def test_get_trip_returns_detail(
     authenticated_client: TestClient,
 ) -> None:

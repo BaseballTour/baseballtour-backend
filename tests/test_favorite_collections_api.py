@@ -147,6 +147,32 @@ def test_get_favorite_collections_returns_list(
     )
 
 
+def test_get_favorite_collections_returns_empty_list(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_collections.return_value = []
+    service.get_collection_thumbnails = AsyncMock(return_value={})
+
+    with patch(
+        (
+            "app.api.v1.endpoints.favorite_collections."
+            "FavoriteCollectionService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            "/api/v1/users/me/favorite-collections"
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": [],
+        "meta": {"count": 0, "nextPageToken": None},
+    }
+
+
 def test_get_favorite_collection_places_returns_places(
     authenticated_client: TestClient,
 ) -> None:
