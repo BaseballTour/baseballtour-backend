@@ -133,6 +133,10 @@ class ItineraryGenerationService:
             game = self._get_game_or_raise(
                 trip.game_id
             )
+            self._validate_game_in_trip_period(
+                trip=trip,
+                game=game,
+            )
             stadium = self._get_stadium_or_raise(
                 game.stadium_id
             )
@@ -517,6 +521,32 @@ class ItineraryGenerationService:
             )
 
         return game
+
+    @staticmethod
+    def _validate_game_in_trip_period(
+        *,
+        trip: TripRecord,
+        game: GameRecord,
+    ) -> None:
+        if not (
+            trip.trip_start_at
+            <= game.game_start_at
+            <= trip.trip_end_at
+        ):
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="GAME_OUTSIDE_TRIP_PERIOD",
+                message=(
+                    "경기시간이 여행 기간에 "
+                    "포함되지 않습니다."
+                ),
+                details={
+                    "gameId": game.game_id,
+                    "gameStartAt": game.game_start_at.isoformat(),
+                    "tripStartAt": trip.trip_start_at.isoformat(),
+                    "tripEndAt": trip.trip_end_at.isoformat(),
+                },
+            )
 
     def _get_stadium_or_raise(
         self,

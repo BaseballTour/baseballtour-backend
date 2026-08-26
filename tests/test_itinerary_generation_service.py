@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -579,6 +579,34 @@ async def test_generate_restores_status_when_game_missing() -> None:
     updates = context.trip_repository.update.call_args_list
 
     context.trip_repository.claim_generation.assert_called_once()
+    assert updates[-1].args[1]["status"] == "PLANNING"
+
+
+@pytest.mark.anyio
+async def test_generate_rejects_game_outside_trip_period() -> None:
+    context = make_service()
+    context.game_repository.get_by_id.return_value = SimpleNamespace(
+        game_id="game_001",
+        stadium_id="sajik",
+        game_start_at=END_AT + timedelta(hours=1),
+    )
+
+    with pytest.raises(AppException) as captured:
+        await context.service.generate(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == "GAME_OUTSIDE_TRIP_PERIOD"
+    assert captured.value.details["gameId"] == "game_001"
+    assert (
+        captured.value.details["gameStartAt"]
+        == (END_AT + timedelta(hours=1)).isoformat()
+    )
+    context.stadium_repository.get_by_id.assert_not_called()
+    context.recommendation_service.get_candidates.assert_not_awaited()
+    updates = context.trip_repository.update.call_args_list
     assert updates[-1].args[1]["status"] == "PLANNING"
 
 
