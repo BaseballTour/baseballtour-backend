@@ -11,6 +11,7 @@ import httpx
 from app.external.tour_api.client import (
     extract_items,
     get_nearby_places,
+    get_classification_codes,
     get_place_common_info,
     get_place_images,
     get_place_intro_info,
@@ -24,6 +25,7 @@ from app.external.tour_api.mapper import (
     tour_api_items_to_places,
 )
 from app.models.place import Place, PlaceCategory
+from app.schemas.tour import TourClassification
 from app.external.tour_api.business_hours import (
     parse_admission_deadline,
     parse_business_hours,
@@ -43,6 +45,12 @@ class _CacheEntry:
 @dataclass(frozen=True)
 class NearbyPlacePage:
     places: list[Place]
+    next_page_token: str | None
+
+
+@dataclass(frozen=True)
+class ClassificationPage:
+    classifications: list[TourClassification]
     next_page_token: str | None
 
 
@@ -191,6 +199,9 @@ class TourApiAdapter:
         num_of_rows: int = 20,
         category: PlaceCategory | None = None,
         *,
+        lcls_system1: str | None = None,
+        lcls_system2: str | None = None,
+        lcls_system3: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> NearbyPlacePage:
         normalized_keyword = keyword.strip()
@@ -201,6 +212,9 @@ class TourApiAdapter:
             "keyword",
             normalized_keyword,
             category.value if category is not None else None,
+            lcls_system1,
+            lcls_system2,
+            lcls_system3,
             page_no,
             num_of_rows,
         )
@@ -211,6 +225,9 @@ class TourApiAdapter:
                 page_no=page_no,
                 num_of_rows=num_of_rows,
                 content_type_id=content_type_id,
+                lcls_system1=lcls_system1,
+                lcls_system2=lcls_system2,
+                lcls_system3=lcls_system3,
                 client=client,
             )
             raw_items = extract_items(raw)
@@ -228,6 +245,77 @@ class TourApiAdapter:
             return NearbyPlacePage(
                 places,
                 str(page_no + 1) if has_next else None,
+            )
+
+        return await self._cached(key, load)
+
+    async def get_classification_page(
+        self,
+        page_no: int = 1,
+        num_of_rows: int = 100,
+        *,
+        lcls_system1: str | None = None,
+        lcls_system2: str | None = None,
+        lcls_system3: str | None = None,
+        client: httpx.AsyncClient | None = None,
+    ) -> ClassificationPage:
+        key = (
+            "classification",
+            lcls_system1,
+            lcls_system2,
+            lcls_system3,
+            page_no,
+            num_of_rows,
+        )
+
+        async def load() -> ClassificationPage:
+            raw = await get_classification_codes(
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                lcls_system1=lcls_system1,
+                lcls_system2=lcls_system2,
+                lcls_system3=lcls_system3,
+                client=client,
+            )
+            items = extract_items(raw)
+            classifications = [
+                TourClassification(
+                    lcls_system1=str(
+                        item.get("lclsSystm1") or ""
+                    ).strip(),
+                    lcls_system1_name=str(
+                        item.get("lclsSystm1Nm") or ""
+                    ).strip(),
+                    lcls_system2=empty_string_to_none(
+                        item.get("lclsSystm2")
+                    ),
+                    lcls_system2_name=empty_string_to_none(
+                        item.get("lclsSystm2Nm")
+                    ),
+                    lcls_system3=empty_string_to_none(
+                        item.get("lclsSystm3")
+                    ),
+                    lcls_system3_name=empty_string_to_none(
+                        item.get("lclsSystm3Nm")
+                    ),
+                )
+                for item in items
+                if str(item.get("lclsSystm1") or "").strip()
+                and str(item.get("lclsSystm1Nm") or "").strip()
+            ]
+            body = raw.get("response", {}).get("body", {})
+            try:
+                total_count = int(body.get("totalCount"))
+            except (AttributeError, TypeError, ValueError):
+                total_count = None
+            has_next = (
+                page_no * num_of_rows < total_count
+                if total_count is not None
+                else len(items) == num_of_rows
+            )
+            return ClassificationPage(
+                classifications=classifications,
+                next_page_token=str(page_no + 1) if has_next else None,
             )
 
         return await self._cached(key, load)

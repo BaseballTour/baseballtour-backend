@@ -153,6 +153,11 @@ SUCCESS_EXAMPLES = {
     ("get", "/api/v1/tour/nearby", "200"): _list([PLACE]),
     ("get", "/api/v1/tour/places/{placeId}", "200"): _success(PLACE),
     ("get", "/api/v1/tour/search", "200"): _list([PLACE]),
+    ("get", "/api/v1/tour/classifications", "200"): _list([{
+        "lclsSystem1": "FD", "lclsSystem1Name": "음식",
+        "lclsSystem2": "FD02", "lclsSystem2Name": "외국식",
+        "lclsSystem3": "FD020200", "lclsSystem3Name": "일식",
+    }]),
 }
 
 PARAMETER_DOCS = {
@@ -171,6 +176,9 @@ PARAMETER_DOCS = {
     "pageSize": ("한 페이지에서 반환할 최대 장소 수", 20),
     "pageToken": ("이전 응답의 nextPageToken. 첫 요청에서는 생략", "2"),
     "keyword": ("검색할 장소명 또는 키워드", "잠실 맛집"),
+    "lclsSystem1": ("TourAPI 신분류 대분류 코드", "FD"),
+    "lclsSystem2": ("TourAPI 신분류 중분류 코드", "FD02"),
+    "lclsSystem3": ("TourAPI 신분류 소분류 코드", "FD020200"),
 }
 
 

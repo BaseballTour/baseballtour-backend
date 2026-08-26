@@ -134,7 +134,39 @@ async def test_keyword_search_forwards_keyword_and_pagination(monkeypatch) -> No
         page_no=2,
         num_of_rows=10,
         content_type_id="39",
+        lcls_system1="FD",
+        lcls_system2="FD02",
+        lcls_system3="FD020200",
     )
     assert received["operation"] == "searchKeyword2"
     assert received["params"]["keyword"] == "잠실 맛집"
     assert received["params"]["contentTypeId"] == "39"
+    assert received["params"]["lclsSystm1"] == "FD"
+    assert received["params"]["lclsSystm2"] == "FD02"
+    assert received["params"]["lclsSystm3"] == "FD020200"
+
+
+@pytest.mark.anyio
+async def test_classification_codes_forward_hierarchy(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    received = {}
+
+    async def fake_request(operation, params, *, client=None):
+        received.update(operation=operation, params=params)
+        return {"response": {"body": {"items": {"item": []}}}}
+
+    monkeypatch.setattr(
+        client_module,
+        "_request_tour_api",
+        fake_request,
+    )
+    await client_module.get_classification_codes(
+        lcls_system1="FD",
+        lcls_system2="FD02",
+        lcls_system3="FD020200",
+    )
+    assert received["operation"] == "lclsSystmCode2"
+    assert received["params"]["lclsSystm1"] == "FD"
+    assert received["params"]["lclsSystm2"] == "FD02"
+    assert received["params"]["lclsSystm3"] == "FD020200"
