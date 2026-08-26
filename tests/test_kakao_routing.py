@@ -101,3 +101,21 @@ async def test_route_cache_avoids_duplicate_pair(monkeypatch) -> None:
 
     assert first == second
     getter.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_route_cache_avoids_repeating_recent_failure(monkeypatch) -> None:
+    routing._route_cache.clear()
+    getter = AsyncMock(side_effect=RuntimeError("route unavailable"))
+    monkeypatch.setattr(routing, "get_fastest_route", getter)
+
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="route unavailable"):
+            await routing.get_cached_fastest_route(
+                127.0,
+                37.5,
+                127.1,
+                37.6,
+            )
+
+    getter.assert_awaited_once()

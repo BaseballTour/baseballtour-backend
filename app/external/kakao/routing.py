@@ -17,9 +17,10 @@ KAKAO_PUBLIC_TRANSIT_URL = (
 )
 KAKAO_WALK_URL = "https://dapi.kakao.com/v2/routing/walk"
 KAKAO_ROUTE_CACHE_TTL_SECONDS = 1800
+KAKAO_ROUTE_FAILURE_CACHE_TTL_SECONDS = 60
 _route_cache: dict[
     tuple[float, float, float, float],
-    tuple[float, ProviderTravelTime],
+    tuple[float, ProviderTravelTime | RuntimeError],
 ] = {}
 
 
@@ -171,13 +172,23 @@ async def get_cached_fastest_route(
     now = monotonic()
     cached = _route_cache.get(key)
     if cached is not None and cached[0] > now:
+        if isinstance(cached[1], RuntimeError):
+            raise RuntimeError(str(cached[1])) from cached[1]
         return cached[1]
 
-    result = await get_fastest_route(
-        origin_longitude,
-        origin_latitude,
-        destination_longitude,
-        destination_latitude,
-    )
+    try:
+        result = await get_fastest_route(
+            origin_longitude,
+            origin_latitude,
+            destination_longitude,
+            destination_latitude,
+        )
+    except Exception as exc:
+        cached_error = RuntimeError(str(exc))
+        _route_cache[key] = (
+            now + KAKAO_ROUTE_FAILURE_CACHE_TTL_SECONDS,
+            cached_error,
+        )
+        raise cached_error from exc
     _route_cache[key] = (now + KAKAO_ROUTE_CACHE_TTL_SECONDS, result)
     return result

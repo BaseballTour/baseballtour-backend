@@ -25,6 +25,7 @@ serviceAccountKey.json
 .ruff_cache/
 .coverage
 htmlcov/
+artifacts/
 
 # IDE
 .idea/
