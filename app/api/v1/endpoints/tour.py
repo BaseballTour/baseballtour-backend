@@ -13,6 +13,7 @@ from app.schemas.response import (
     ListSuccessResponse,
     SuccessResponse,
 )
+from app.schemas.tour import TourClassification
 from app.services.place_enrichment import (
     enrich_place_with_kakao,
 )
@@ -65,6 +66,80 @@ def _parse_page_token(
         )
 
     return page_no
+
+
+def _validate_lcls_filters(
+    lcls_system1: str | None,
+    lcls_system2: str | None,
+    lcls_system3: str | None,
+) -> None:
+    if lcls_system2 is not None and lcls_system1 is None:
+        raise AppException(
+            status_code=400,
+            code="INVALID_CLASSIFICATION_FILTER",
+            message="신분류 중분류 검색에는 대분류 코드가 필요합니다.",
+        )
+    if lcls_system3 is not None and (
+        lcls_system1 is None or lcls_system2 is None
+    ):
+        raise AppException(
+            status_code=400,
+            code="INVALID_CLASSIFICATION_FILTER",
+            message="신분류 소분류 검색에는 대분류와 중분류 코드가 필요합니다.",
+        )
+
+
+@router.get(
+    "/classifications",
+    response_model=ListSuccessResponse[TourClassification],
+    summary="TourAPI 신분류 코드 목록 조회",
+)
+async def read_classifications(
+    lcls_system1: str | None = Query(
+        default=None,
+        alias="lclsSystem1",
+        pattern=r"^[A-Z]{2}$",
+    ),
+    lcls_system2: str | None = Query(
+        default=None,
+        alias="lclsSystem2",
+        pattern=r"^[A-Z]{2}[0-9]{2}$",
+    ),
+    lcls_system3: str | None = Query(
+        default=None,
+        alias="lclsSystem3",
+        pattern=r"^[A-Z]{2}[0-9]{6}$",
+    ),
+    page_size: int = Query(
+        default=100,
+        alias="pageSize",
+        ge=1,
+        le=1000,
+    ),
+    page_token: str | None = Query(
+        default=None,
+        alias="pageToken",
+    ),
+) -> ListSuccessResponse[TourClassification]:
+    _validate_lcls_filters(
+        lcls_system1,
+        lcls_system2,
+        lcls_system3,
+    )
+    page = await tour_api_adapter.get_classification_page(
+        page_no=_parse_page_token(page_token),
+        num_of_rows=page_size,
+        lcls_system1=lcls_system1,
+        lcls_system2=lcls_system2,
+        lcls_system3=lcls_system3,
+    )
+    return ListSuccessResponse(
+        data=page.classifications,
+        meta=ListMeta(
+            count=len(page.classifications),
+            next_page_token=page.next_page_token,
+        ),
+    )
 
 
 @router.get(
@@ -208,12 +283,47 @@ async def read_place_detail(
 async def search_places(
     keyword: str = Query(min_length=1, max_length=100, examples=["잠실 맛집"]),
     category: TourNearbyCategory | None = Query(default=None),
+    lcls_system1: str | None = Query(
+        default=None,
+        alias="lclsSystem1",
+        min_length=2,
+        max_length=2,
+        pattern=r"^[A-Z]{2}$",
+        description="TourAPI 신분류 대분류 코드",
+        examples=["FD"],
+    ),
+    lcls_system2: str | None = Query(
+        default=None,
+        alias="lclsSystem2",
+        min_length=4,
+        max_length=4,
+        pattern=r"^[A-Z]{2}[0-9]{2}$",
+        description="TourAPI 신분류 중분류 코드",
+        examples=["FD02"],
+    ),
+    lcls_system3: str | None = Query(
+        default=None,
+        alias="lclsSystem3",
+        min_length=8,
+        max_length=8,
+        pattern=r"^[A-Z]{2}[0-9]{6}$",
+        description="TourAPI 신분류 소분류 코드",
+        examples=["FD020200"],
+    ),
     page_size: int = Query(default=20, alias="pageSize", ge=1, le=100),
     page_token: str | None = Query(default=None, alias="pageToken"),
 ) -> ListSuccessResponse[Place]:
+    _validate_lcls_filters(
+        lcls_system1,
+        lcls_system2,
+        lcls_system3,
+    )
     page = await tour_api_adapter.search_place_page(
         keyword=keyword,
         category=PlaceCategory(category) if category is not None else None,
+        lcls_system1=lcls_system1,
+        lcls_system2=lcls_system2,
+        lcls_system3=lcls_system3,
         page_no=_parse_page_token(page_token),
         num_of_rows=page_size,
     )

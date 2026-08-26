@@ -278,6 +278,9 @@ async def search_places_by_keyword(
     num_of_rows: int = 20,
     *,
     content_type_id: str | None = None,
+    lcls_system1: str | None = None,
+    lcls_system2: str | None = None,
+    lcls_system3: str | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     """TourAPI 키워드 검색 결과를 조회합니다."""
@@ -290,8 +293,41 @@ async def search_places_by_keyword(
     }
     if content_type_id is not None:
         params["contentTypeId"] = content_type_id
+    if lcls_system1 is not None:
+        params["lclsSystm1"] = lcls_system1
+    if lcls_system2 is not None:
+        params["lclsSystm2"] = lcls_system2
+    if lcls_system3 is not None:
+        params["lclsSystm3"] = lcls_system3
     return await _request_tour_api(
         "searchKeyword2",
+        params,
+        client=client,
+    )
+
+
+async def get_classification_codes(
+    page_no: int = 1,
+    num_of_rows: int = 100,
+    *,
+    lcls_system1: str | None = None,
+    lcls_system2: str | None = None,
+    lcls_system3: str | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """TourAPI 신분류 코드와 한글명을 조회합니다."""
+    params: dict[str, Any] = {
+        "pageNo": page_no,
+        "numOfRows": num_of_rows,
+    }
+    if lcls_system1 is not None:
+        params["lclsSystm1"] = lcls_system1
+    if lcls_system2 is not None:
+        params["lclsSystm2"] = lcls_system2
+    if lcls_system3 is not None:
+        params["lclsSystm3"] = lcls_system3
+    return await _request_tour_api(
+        "lclsSystmCode2",
         params,
         client=client,
     )
