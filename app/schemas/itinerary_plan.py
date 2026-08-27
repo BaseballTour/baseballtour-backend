@@ -1,4 +1,6 @@
-from datetime import date
+from __future__ import annotations
+
+from datetime import date as Date
 from enum import Enum
 
 from pydantic import (
@@ -80,7 +82,7 @@ class ItineraryPlanResponse(ApiModel):
 class ItineraryPlanReorderRequest(ApiModel):
     """특정 날짜의 PLACE 항목 순서 변경 요청."""
 
-    date: date
+    date: Date
     item_ids: list[str] = Field(min_length=1)
 
     @field_validator("item_ids")
@@ -103,16 +105,19 @@ class ItineraryPlanReorderRequest(ApiModel):
 
 
 class ItineraryPlanAddItemRequest(ApiModel):
-    """특정 날짜에 장소를 추가하는 요청."""
+    """일정에 장소를 추가하는 요청."""
 
-    date: date
+    date: Date | None = Field(
+        default=None,
+        description="생략하면 일정의 첫째 날에 추가합니다.",
+    )
     place_id: str = Field(min_length=1)
     is_required: bool = True
     scheduled_start_at: AwareDatetime | None = Field(
         default=None,
         description=(
-            "사용자 지정 시작시각. 생략하면 직전 항목과 "
-            "이동시간을 기준으로 정합니다."
+            "사용자 지정 시작시각. 생략하면 대상 날짜의 마지막 "
+            "PLACE 뒤에 넣고 직전 항목과 이동시간을 기준으로 정합니다."
         ),
     )
 

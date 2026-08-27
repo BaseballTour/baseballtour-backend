@@ -702,8 +702,10 @@ async def delete_itinerary_item(
     response_model=SuccessResponse[ItineraryPlanResponse],
     summary="여행 일정 장소 추가",
     description=(
-        "특정 날짜의 ACTIVE 일정에 장소를 추가하고 "
-        "이동시간과 방문시간을 다시 계산합니다."
+        "ACTIVE 일정에 장소를 추가하고 이동시간과 방문시간을 다시 계산합니다. "
+        "date와 scheduledStartAt을 생략하면 첫째 날의 마지막 PLACE 뒤에 "
+        "추가합니다. 반환되는 itemId는 위치나 순서를 뜻하지 않는 고유 "
+        "식별자이므로 클라이언트는 문자열 형식을 해석하면 안 됩니다."
     ),
 )
 async def add_itinerary_item(
@@ -757,10 +759,19 @@ async def update_itinerary_item_fixed(
     "/{tripId}/plan/items/{itemId}/time",
     response_model=SuccessResponse[ItineraryPlanResponse],
     summary="여행 일정 장소 시작시간 변경",
+    description=(
+        "PLACE 유형의 itemId만 변경할 수 있습니다. "
+        "ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION "
+        "Anchor의 시간은 여행·경기·숙소 기본정보를 수정한 뒤 "
+        "일정을 재생성하여 변경합니다."
+    ),
 )
 async def update_itinerary_item_time(
-    trip_id: Annotated[str, Path(alias="tripId")],
-    item_id: Annotated[str, Path(alias="itemId")],
+    trip_id: Annotated[str, Path(alias="tripId", description="여행 ID")],
+    item_id: Annotated[
+        str,
+        Path(alias="itemId", description="시간을 변경할 PLACE 유형 Item ID"),
+    ],
     request: ItineraryPlanTimeUpdateRequest,
     user_id: Annotated[str, Depends(get_current_active_user_id)],
 ) -> SuccessResponse[ItineraryPlanResponse]:

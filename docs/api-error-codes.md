@@ -48,6 +48,7 @@
 | 400 | `GAME_OUTSIDE_TRIP_PERIOD` | 경기가 여행 기간 밖에 있음 |
 | 400 | `ITINERARY_INPUT_INVALID` | 일정 생성 입력 오류 |
 | 400 | `ITINERARY_EDIT_INVALID` | 순서 변경 등 엄격 편집 규칙 위반 |
+| 400 | `ITINERARY_ANCHOR_NOT_EDITABLE` | PLACE가 아닌 Anchor Item의 시간 변경 시도 |
 | 400 | `ITINERARY_ITEM_DATE_MISMATCH` | 장소 추가 날짜와 시작시각 날짜 불일치 |
 | 403 | `TRIP_ACCESS_DENIED` | 다른 사용자의 여행 접근 |
 | 404 | `TRIP_NOT_FOUND` | 여행 없음 |
@@ -57,6 +58,8 @@
 | 404 | `ITINERARY_PLACE_NOT_FOUND` | 추가할 TourAPI 장소 없음 |
 | 409 | `TRIP_GENERATION_IN_PROGRESS` | 일정 생성 중 중복 작업 |
 | 409 | `ITINERARY_PLACE_ALREADY_EXISTS` | 같은 날짜에 장소 중복 추가 |
+| 409 | `FIXED_ITEM_TIME_CONFLICT` | 재생성 시 고정 장소가 다른 필수·사용자 항목과 겹침. `details.fixedItem`, `details.conflictingItem`으로 충돌 항목 확인 |
+| 409 | `FIXED_ITEM_OUTSIDE_TRIP` | 고정 장소의 날짜가 변경된 여행 기간 밖에 있음. `details.conflictingItem`으로 항목 확인 |
 
 ## 찜 컬렉션·여행 후보
 

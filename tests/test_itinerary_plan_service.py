@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.core.exceptions import AppException
+from app.models.itinerary import ItineraryItemAddedBy
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
     ItineraryPlanFixedRequest,
@@ -374,6 +375,35 @@ async def test_update_item_time_keeps_manual_times_and_recalculates_travel() -> 
     assert items[2].scheduled_start_at.hour == 15
     assert items[2].scheduled_start_at.minute == 0
     assert items[2].travel_minutes_from_previous == 10
+
+
+@pytest.mark.anyio
+async def test_update_item_time_rejects_anchor_item_with_clear_error() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+    )
+
+    with pytest.raises(AppException) as captured:
+        await service.update_item_time(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+            item_id="arrival",
+            request=ItineraryPlanTimeUpdateRequest(
+                scheduled_start_at="2026-08-15T13:00:00+09:00"
+            ),
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == "ITINERARY_ANCHOR_NOT_EDITABLE"
+    assert captured.value.details == {"itemType": "ARRIVAL_POINT"}
+    plan_repository.update_schedule.assert_not_called()
 
 
 @pytest.mark.anyio
@@ -825,6 +855,54 @@ async def test_add_item_adds_place_and_updates_plan() -> None:
     )
 
     plan_repository.update_schedule.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_add_item_without_date_defaults_to_first_day_last_place() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    plan_repository.update_schedule.side_effect = lambda **kwargs: plan.model_copy(
+        update={
+            "days": kwargs["days"],
+            "total_travel_minutes": kwargs["total_travel_minutes"],
+        }
+    )
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock(
+        return_value=SimpleNamespace(
+            place_id="tour_654321",
+            name="첫째 날 추가 장소",
+            address="부산 추가 장소",
+            latitude=35.14,
+            longitude=129.07,
+            default_stay_minutes=60,
+        )
+    )
+
+    async def provider(*args) -> int:
+        return 10
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+        place_adapter=place_adapter,
+    )
+    result = await service.add_item(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        request=ItineraryPlanAddItemRequest(place_id="tour_654321"),
+    )
+
+    added = result.days[0].items[-1]
+    assert added.place_id == "tour_654321"
+    assert added.added_by == ItineraryItemAddedBy.USER
+    assert added.scheduled_start_at.isoformat() == "2026-08-15T16:10:00+09:00"
+    assert added.item_id.startswith("item_")
 
 
 @pytest.mark.anyio

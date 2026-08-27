@@ -101,9 +101,8 @@ REQUEST_EXAMPLES = {
     ("post", "/api/v1/trips/{tripId}/place-selections/import"): {"collectionId": "collection_001"},
     ("patch", "/api/v1/trips/{tripId}/place-selections/{placeId}"): {"isRequired": True},
     ("patch", "/api/v1/trips/{tripId}/plan/items/order"): {"date": "2026-08-16", "itemIds": ["item_1_2", "item_1_1"]},
-    ("post", "/api/v1/trips/{tripId}/plan/items"): {"date": "2026-08-16",
-        "placeId": PLACE["placeId"], "isRequired": True,
-        "scheduledStartAt": "2026-08-16T13:00:00+09:00"},
+    ("post", "/api/v1/trips/{tripId}/plan/items"): {
+        "placeId": PLACE["placeId"], "isRequired": True},
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/fixed"): {"isFixed": True},
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/time"): {"scheduledStartAt": "2026-08-17T14:00:00+09:00"},
     ("post", "/api/v1/users/me/bootstrap"): {"nickname": "민준", "birthYear": 2002, "supportTeamId": "lg"},
@@ -164,7 +163,11 @@ PARAMETER_DOCS = {
     "tripId": ("여행 문서 ID", "trip_001"), "gameId": ("경기 문서 ID", GAME["gameId"]),
     "collectionId": ("개인 찜 컬렉션 ID", "collection_001"),
     "placeId": ("내부 장소 ID. TourAPI 장소는 tour_{contentId} 형식", PLACE["placeId"]),
-    "itemId": ("저장된 일정 안에서 항목을 식별하는 ID", "item_1_1"),
+    "itemId": (
+        "저장된 일정 안에서 항목을 식별하는 불투명 ID. 날짜·순서 등 "
+        "문자열 형식을 해석하지 말고 응답 값을 그대로 사용",
+        "item_1_1",
+    ),
     "Idempotency-Key": ("여행 중복 생성을 방지하는 요청별 고유 문자열", "trip-create-20260816-001"),
     "date": ("한국시간 기준 경기 날짜(YYYY-MM-DD)", "2026-08-16"),
     "teamId": ("홈팀 또는 원정팀 구단 ID", "lg"),

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -482,6 +482,60 @@ def test_regeneration_preserves_fixed_item_and_drops_overlapping_algorithm_item(
     assert merged.days[0].items[0].is_fixed is True
 
 
+def test_regeneration_conflict_identifies_both_items() -> None:
+    fixed = ItineraryPlanItem(
+        item_id="item_manual_fixed",
+        type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_fixed",
+        name="사용자 고정 장소",
+        address="서울",
+        latitude=37.5,
+        longitude=127.0,
+        scheduled_start_at=datetime.fromisoformat("2026-08-15T14:00:00+09:00"),
+        scheduled_end_at=datetime.fromisoformat("2026-08-15T15:00:00+09:00"),
+        added_by=ItineraryItemAddedBy.USER,
+        is_required=True,
+        is_fixed=True,
+    )
+    stadium = fixed.model_copy(
+        update={
+            "item_id": "item_1_3",
+            "item_type": ItineraryItemType.STADIUM,
+            "place_id": "jamsil",
+            "name": "잠실야구장",
+            "added_by": None,
+            "is_fixed": False,
+        }
+    )
+    plan = ItineraryPlanDocument(
+        trip_id=TRIP_ID,
+        user_id=USER_ID,
+        algorithm_version="test",
+        total_travel_minutes=0,
+        days=[
+            ItineraryPlanDay(
+                date=START_AT.date(),
+                day_type="GAME_DAY",
+                items=[stadium],
+            )
+        ],
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    with pytest.raises(AppException) as captured:
+        ItineraryGenerationService._preserve_fixed_items(
+            plan=plan,
+            fixed_items=[(START_AT.date(), fixed)],
+        )
+
+    assert captured.value.code == "FIXED_ITEM_TIME_CONFLICT"
+    assert captured.value.details["fixedItem"]["itemId"] == "item_manual_fixed"
+    assert captured.value.details["conflictingItem"]["itemId"] == "item_1_3"
+    assert captured.value.details["conflictingItem"]["type"] == "STADIUM"
+
+
 @pytest.mark.anyio
 async def test_generate_rejects_missing_trip() -> None:
     context = make_service()
@@ -579,6 +633,34 @@ async def test_generate_restores_status_when_game_missing() -> None:
     updates = context.trip_repository.update.call_args_list
 
     context.trip_repository.claim_generation.assert_called_once()
+    assert updates[-1].args[1]["status"] == "PLANNING"
+
+
+@pytest.mark.anyio
+async def test_generate_rejects_game_outside_trip_period() -> None:
+    context = make_service()
+    context.game_repository.get_by_id.return_value = SimpleNamespace(
+        game_id="game_001",
+        stadium_id="sajik",
+        game_start_at=END_AT + timedelta(hours=1),
+    )
+
+    with pytest.raises(AppException) as captured:
+        await context.service.generate(
+            user_id=USER_ID,
+            trip_id=TRIP_ID,
+        )
+
+    assert captured.value.status_code == 400
+    assert captured.value.code == "GAME_OUTSIDE_TRIP_PERIOD"
+    assert captured.value.details["gameId"] == "game_001"
+    assert (
+        captured.value.details["gameStartAt"]
+        == (END_AT + timedelta(hours=1)).isoformat()
+    )
+    context.stadium_repository.get_by_id.assert_not_called()
+    context.recommendation_service.get_candidates.assert_not_awaited()
+    updates = context.trip_repository.update.call_args_list
     assert updates[-1].args[1]["status"] == "PLANNING"
 
 

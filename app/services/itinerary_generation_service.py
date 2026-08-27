@@ -133,6 +133,10 @@ class ItineraryGenerationService:
             game = self._get_game_or_raise(
                 trip.game_id
             )
+            self._validate_game_in_trip_period(
+                trip=trip,
+                game=game,
+            )
             stadium = self._get_stadium_or_raise(
                 game.stadium_id
             )
@@ -387,6 +391,12 @@ class ItineraryGenerationService:
                     status_code=status.HTTP_409_CONFLICT,
                     code="FIXED_ITEM_OUTSIDE_TRIP",
                     message="고정한 장소의 날짜가 현재 여행 기간에 없습니다.",
+                    details={
+                        "date": target_date.isoformat(),
+                        "conflictingItem": (
+                            ItineraryGenerationService._item_conflict_details(fixed)
+                        ),
+                    },
                 )
             day = days[day_index]
             retained: list[ItineraryPlanItem] = []
@@ -408,6 +418,15 @@ class ItineraryGenerationService:
                     status_code=status.HTTP_409_CONFLICT,
                     code="FIXED_ITEM_TIME_CONFLICT",
                     message="고정한 장소가 필수 일정 또는 사용자 장소와 충돌합니다.",
+                    details={
+                        "date": target_date.isoformat(),
+                        "fixedItem": (
+                            ItineraryGenerationService._item_conflict_details(fixed)
+                        ),
+                        "conflictingItem": (
+                            ItineraryGenerationService._item_conflict_details(item)
+                        ),
+                    },
                 )
             retained.append(fixed)
             retained.sort(key=lambda item: item.scheduled_start_at)
@@ -425,6 +444,19 @@ class ItineraryGenerationService:
         return plan.model_copy(
             update={"days": days, "total_travel_minutes": total}
         )
+
+    @staticmethod
+    def _item_conflict_details(item: ItineraryPlanItem) -> dict[str, object]:
+        """충돌한 일정 항목을 클라이언트가 식별할 수 있는 정보."""
+
+        return {
+            "itemId": item.item_id,
+            "type": item.item_type.value,
+            "placeId": item.place_id,
+            "name": item.name,
+            "scheduledStartAt": item.scheduled_start_at.isoformat(),
+            "scheduledEndAt": item.scheduled_end_at.isoformat(),
+        }
 
     def _get_owned_trip_or_raise(
         self,
@@ -517,6 +549,32 @@ class ItineraryGenerationService:
             )
 
         return game
+
+    @staticmethod
+    def _validate_game_in_trip_period(
+        *,
+        trip: TripRecord,
+        game: GameRecord,
+    ) -> None:
+        if not (
+            trip.trip_start_at
+            <= game.game_start_at
+            <= trip.trip_end_at
+        ):
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="GAME_OUTSIDE_TRIP_PERIOD",
+                message=(
+                    "경기시간이 여행 기간에 "
+                    "포함되지 않습니다."
+                ),
+                details={
+                    "gameId": game.game_id,
+                    "gameStartAt": game.game_start_at.isoformat(),
+                    "tripStartAt": trip.trip_start_at.isoformat(),
+                    "tripEndAt": trip.trip_end_at.isoformat(),
+                },
+            )
 
     def _get_stadium_or_raise(
         self,
