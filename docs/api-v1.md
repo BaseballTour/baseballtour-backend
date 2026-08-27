@@ -15,6 +15,8 @@
 | DELETE | `/trips/{tripId}` | 여행 삭제 |
 | GET | `/tour/nearby` | TourAPI 위치 기반 장소 조회 |
 | GET | `/tour/places/{placeId}` | 내부 장소 ID 기반 TourAPI 상세·소개·이미지 통합 조회 |
+| GET | `/accommodations/search` | Kakao 숙박업소 검색 |
+| GET | `/accommodations/reverse-geocode` | 지도 좌표를 숙소 Anchor 후보로 변환 |
 
 ### TourAPI 상세 조회
 
@@ -23,6 +25,14 @@ GET /api/v1/tour/places/tour_1603175
 ```
 
 `placeId`는 주변 장소 조회 응답의 값을 그대로 사용한다. 백엔드가 `tour_` 접두사를 제거해 TourAPI 원본 `contentId`를 얻고, 공통정보에서 `contentTypeId`를 확인한다. 성공 응답의 `data`는 내부 `Place` 모델이며 이미지·영업시간이 없으면 `null`이다.
+
+### 숙소를 포함한 여행 생성
+
+`POST /api/v1/trips`는 `gameId`, `tripStartAt`, `tripEndAt`, `arrivalPoint`,
+`departurePoint`, `accommodation`을 한 요청으로 받는다. `tripStartAt`은 도착역
+도착 일시, `tripEndAt`은 출발역 출발 일시로 사용한다. 경기 시작시각과 구장 정보는
+프론트가 중복 전송하지 않고 백엔드가 `gameId`로 조회한다. 숙소는 카카오 검색 또는
+지도 선택 결과를 사용하며 체크인·체크아웃 시각은 받지 않는다.
 
 ## 연결 예정
 

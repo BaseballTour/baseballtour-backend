@@ -55,19 +55,10 @@ class AccommodationInfo(ApiModel):
         le=180,
         description="숙소 경도",
     )
-    check_in_at: AwareDatetime
-    check_out_at: AwareDatetime
-
-    @model_validator(mode="after")
-    def validate_stay_period(
-        self,
-    ) -> "AccommodationInfo":
-        if self.check_out_at <= self.check_in_at:
-            raise ValueError(
-                "숙소 체크아웃 시간은 체크인 시간보다 늦어야 합니다."
-            )
-
-        return self
+    kakao_place_id: str | None = Field(
+        default=None,
+        description="Kakao 장소 검색으로 선택한 경우의 장소 ID",
+    )
 
 
 class TripCreateRequest(ApiModel):
@@ -91,7 +82,13 @@ class TripCreateRequest(ApiModel):
                         "latitude": 37.5547,
                         "longitude": 126.9706,
                     },
-                    "accommodation": None,
+                    "accommodation": {
+                        "kakaoPlaceId": "123456789",
+                        "name": "잠실 예시 호텔",
+                        "address": "서울특별시 송파구 올림픽로 00",
+                        "latitude": 37.5101,
+                        "longitude": 127.0767,
+                    },
                 }
             ]
         }
@@ -138,8 +135,6 @@ class TripUpdateRequest(ApiModel):
                         "address": "서울특별시 송파구",
                         "latitude": 37.513,
                         "longitude": 127.102,
-                        "checkInAt": "2026-08-15T22:00:00+09:00",
-                        "checkOutAt": "2026-08-16T10:00:00+09:00",
                     },
                 }
             ]
