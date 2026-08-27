@@ -343,24 +343,33 @@ class TourApiAdapter:
             )
 
             if content_type_id is not None:
-                intro, images = await asyncio.gather(
-                    get_place_intro_info(
-                        content_id,
-                        content_type_id,
-                        client=client,
-                    ),
-                    get_place_images(content_id, client=client),
+                intro_task = get_place_intro_info(
+                    content_id,
+                    content_type_id,
+                    client=client,
                 )
+                if empty_string_to_none(merged.get("firstimage")):
+                    intro = await intro_task
+                    images = None
+                else:
+                    intro, images = await asyncio.gather(
+                        intro_task,
+                        get_place_images(content_id, client=client),
+                    )
                 intro_items = extract_items(intro)
                 if intro_items:
                     merged.update(_normalize_intro(intro_items[0]))
             else:
-                images = await get_place_images(
-                    content_id,
-                    client=client,
+                images = (
+                    None
+                    if empty_string_to_none(merged.get("firstimage"))
+                    else await get_place_images(content_id, client=client)
                 )
 
-            if not empty_string_to_none(merged.get("firstimage")):
+            if (
+                not empty_string_to_none(merged.get("firstimage"))
+                and images is not None
+            ):
                 image_items = extract_items(images)
                 merged["firstimage"] = _first_image_url(image_items)
 

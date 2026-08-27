@@ -277,6 +277,37 @@ def test_game_day_auto_fill_places_visit_before_stadium() -> None:
     assert place_item.scheduled_end_at < stadium_item.scheduled_start_at
 
 
+def test_auto_fill_balances_recommendations_across_game_day() -> None:
+    recommendations = [
+        place(f"balanced_{index}") for index in range(1, 4)
+    ]
+    diagnostics = {}
+
+    result = generate_itinerary(
+        trip(),
+        [],
+        matrix(*(item.place_id for item in recommendations)),
+        recommended_places=recommendations,
+        recommendation_diagnostics=diagnostics,
+    )
+
+    scheduled_by_type = {
+        day.day_type: sum(
+            item.added_by == ItineraryItemAddedBy.ALGORITHM
+            for item in day.items
+        )
+        for day in result.days
+    }
+    assert scheduled_by_type["ARRIVAL_DAY"] == 1
+    assert scheduled_by_type["GAME_DAY"] == 1
+    assert scheduled_by_type["DEPARTURE_DAY"] == 1
+    assert diagnostics["scheduledByDay"] == {
+        "2026-08-14": 1,
+        "2026-08-15": 1,
+        "2026-08-16": 1,
+    }
+
+
 def test_departure_day_auto_fill_starts_in_morning() -> None:
     departure_day_restaurant = place(
         "departure_day_restaurant",

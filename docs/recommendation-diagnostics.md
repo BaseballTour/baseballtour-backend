@@ -11,7 +11,18 @@
 - `candidateCount`: 출처, 중복, 숙박, 체육시설, 카테고리 상한, 축제 기간 등을
   적용하고 상세정보 확인까지 마친 최종 후보 수다.
 - `scheduledCount`: 최종 일정에 실제로 삽입된 자동 추천 장소 수다.
+- `scheduledByDay`: 날짜별 자동 추천 삽입 수다. 도착일·출발일에 후보가 먼저
+  소진되지 않도록 가능한 날짜를 순환해 배치했는지 확인한다.
 - `categoryDistribution`: 최종 후보의 내부 `PlaceCategory`별 개수다.
+- `sourceCategoryDistribution`: 중복·출처·Anchor 필터 후 원천 후보의 카테고리
+  분포다. 특정 지역에서 TourAPI 자체에 쇼핑 등이 없는지를 구분할 수 있다.
+- `missingSourceCategories`: 원천 후보에 존재하지 않는 주요 카테고리 목록이다.
+  이 값에 포함된 카테고리는 백엔드가 임의의 장소로 채우지 않는다.
+- `businessHoursStatusDistribution`: 최종 후보의 `PARSED`, `MISSING`,
+  `UNPARSABLE`, `COMPLEX` 분포다. `PARSED`만 시간 제약에 사용하고 나머지는
+  원문 또는 `운영시간 확인 필요`로 표시한다.
+- `detailLookupCount`: 이번 후보 준비에서 상세 조회 대상으로 정한 장소 수다.
+  실제 TourAPI HTTP 호출 수는 대표 이미지 존재 여부 등에 따라 달라질 수 있다.
 
 ## `filteredCounts`
 
@@ -23,7 +34,8 @@
 - `ACCOMMODATION`: 숙박은 자동 추천 대상이 아님
 - `SPORTS_FACILITY`: 신분류 `VE10` 경기·체육시설
 - `DUPLICATE_PLACE`: 같은 `placeId` 중복
-- `CATEGORY_LIMIT`: 음식점·카페·쇼핑·축제 카테고리 상한 초과
+- `CATEGORY_LIMIT_RELAXED`: 지역 원천 카테고리가 부족해 soft cap을 완화하고
+  다른 카테고리로 후보 수를 보충함
 - `CANDIDATE_LIMIT`: 전체 후보 최대 개수 초과
 - `UNVERIFIED_FESTIVAL`: 운영정보를 안전하게 확인할 수 없는 축제
 - `OUTSIDE_EVENT_PERIOD`: 여행 기간과 행사 기간이 겹치지 않는 축제
@@ -56,14 +68,24 @@
     "fetchedCount": 40,
     "candidateCount": 12,
     "scheduledCount": 3,
+    "scheduledByDay": {
+      "2026-08-15": 1,
+      "2026-08-16": 1,
+      "2026-08-17": 1
+    },
     "categoryDistribution": {
       "CAFE": 2,
       "RESTAURANT": 4,
       "TOURIST_SPOT": 4
     },
+    "missingSourceCategories": ["SHOPPING"],
+    "businessHoursStatusDistribution": {
+      "MISSING": 3,
+      "PARSED": 9
+    },
+    "detailLookupCount": 12,
     "filteredCounts": {
       "ACCOMMODATION": 3,
-      "CATEGORY_LIMIT": 6,
       "SPORTS_FACILITY": 1
     },
     "placementRejectedAttempts": {

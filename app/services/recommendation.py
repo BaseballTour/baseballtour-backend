@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_RECOMMENDATION_RADIUS_METERS = 10_000
 DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
-DEFAULT_MAX_PAGES_PER_CENTER = 1
-DEFAULT_MAX_CANDIDATES = 15
+DEFAULT_MAX_PAGES_PER_CENTER = 2
+DEFAULT_MAX_CANDIDATES = 12
 DETAIL_CONCURRENCY = 5
 DINING_CATEGORY_MINIMUM = 2
 CATEGORY_MAXIMUMS = {
@@ -31,6 +31,10 @@ CATEGORY_MAXIMUMS = {
     PlaceCategory.CAFE: 2,
     PlaceCategory.SHOPPING: 2,
     PlaceCategory.FESTIVAL: 1,
+    PlaceCategory.TOURIST_SPOT: 4,
+    PlaceCategory.CULTURAL_FACILITY: 4,
+    PlaceCategory.ACTIVITY: 3,
+    PlaceCategory.OTHER: 1,
 }
 
 
@@ -89,13 +93,17 @@ class RecommendationService:
         for center in _deduplicate_centers(centers):
             nearby_places.extend(await self._load_all_nearby_pages(center))
 
+        eligible = _filter_and_deduplicate(
+            nearby_places,
+            excluded_ids=selected_ids,
+            excluded_places=excluded_anchors,
+            rejected=rejected,
+        )
+        source_categories = Counter(
+            _enum_value(place.category) for place in eligible
+        )
         filtered = _select_diverse_candidates(
-            _filter_and_deduplicate(
-                nearby_places,
-                excluded_ids=selected_ids,
-                excluded_places=excluded_anchors,
-                rejected=rejected,
-            ),
+            eligible,
             max_candidates=self._max_candidates,
             rejected=rejected,
         )
@@ -114,6 +122,21 @@ class RecommendationService:
         )
         rejected["UNVERIFIED_FESTIVAL"] += len(filtered) - len(detailed)
         rejected["OUTSIDE_EVENT_PERIOD"] += len(detailed) - len(available)
+        hours_statuses = Counter(
+            _enum_value(place.business_hours_status) for place in available
+        )
+        missing_categories = [
+            category.value
+            for category in (
+                PlaceCategory.RESTAURANT,
+                PlaceCategory.CAFE,
+                PlaceCategory.SHOPPING,
+                PlaceCategory.TOURIST_SPOT,
+                PlaceCategory.CULTURAL_FACILITY,
+                PlaceCategory.ACTIVITY,
+            )
+            if source_categories[category.value] == 0
+        ]
         logger.info(
             "자동 추천 후보 진단: fetched=%s selected=%s detailed=%s "
             "available=%s rejected=%s categories=%s",
@@ -134,6 +157,14 @@ class RecommendationService:
                             Counter(str(item.category) for item in available).items()
                         )
                     ),
+                    "sourceCategoryDistribution": dict(
+                        sorted(source_categories.items())
+                    ),
+                    "missingSourceCategories": missing_categories,
+                    "businessHoursStatusDistribution": dict(
+                        sorted(hours_statuses.items())
+                    ),
+                    "detailLookupCount": len(filtered),
                     "filteredCounts": dict(sorted(rejected.items())),
                 }
             )
@@ -327,7 +358,7 @@ def _select_diverse_candidates(
     max_candidates: int,
     rejected: Counter[str] | None = None,
 ) -> list[Place]:
-    """거리순 후보에 음식점·카페가 완전히 밀리지 않도록 최소 몫을 확보한다."""
+    """원천에 존재하는 카테고리를 순환 선별하고 부족분은 거리순으로 채운다."""
     ordered = sorted(places, key=_recommendation_sort_key)
     selected: list[Place] = []
     selected_ids: set[str] = set()
@@ -345,20 +376,46 @@ def _select_diverse_candidates(
             ) >= DINING_CATEGORY_MINIMUM:
                 break
 
+    category_order = sorted(
+        {place.category for place in ordered},
+        key=lambda category: CATEGORY_PRIORITY.get(category, 99),
+    )
+    category_queues = {
+        category: [
+            place
+            for place in ordered
+            if place.category == category and place.place_id not in selected_ids
+        ]
+        for category in category_order
+    }
+    category_counts = Counter(place.category for place in selected)
+
+    made_progress = True
+    while len(selected) < max_candidates and made_progress:
+        made_progress = False
+        for category in category_order:
+            queue = category_queues[category]
+            maximum = CATEGORY_MAXIMUMS.get(category, max_candidates)
+            if not queue or category_counts[category] >= maximum:
+                continue
+            place = queue.pop(0)
+            selected.append(place)
+            selected_ids.add(place.place_id)
+            category_counts[category] += 1
+            made_progress = True
+            if len(selected) >= max_candidates:
+                break
+
+    # 소분류가 없는 지역도 후보 수 자체가 줄지 않도록 soft cap을 완화합니다.
     for place in ordered:
         if len(selected) >= max_candidates:
             break
         if place.place_id in selected_ids:
             continue
-        maximum = CATEGORY_MAXIMUMS.get(place.category)
-        if maximum is not None and sum(
-            item.category == place.category for item in selected
-        ) >= maximum:
-            if rejected is not None:
-                rejected["CATEGORY_LIMIT"] += 1
-            continue
         selected.append(place)
         selected_ids.add(place.place_id)
+        if rejected is not None:
+            rejected["CATEGORY_LIMIT_RELAXED"] += 1
 
     if rejected is not None and len(selected) >= max_candidates:
         rejected["CANDIDATE_LIMIT"] += max(0, len(ordered) - len(selected))
@@ -400,6 +457,10 @@ def _distance(place: Place) -> float:
         if place.distance_meters is not None
         else float("inf")
     )
+
+
+def _enum_value(value: object) -> str:
+    return str(getattr(value, "value", value))
 
 
 def _recommendation_sort_key(place: Place) -> tuple[float, int, str]:
