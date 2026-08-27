@@ -9,10 +9,12 @@
 
 ## 확정된 사용 제한
 
-- 코스, 자동 추천, 개인 찜 컬렉션은 TourAPI 장소로만 구성한다.
-- Kakao Local 검색 결과를 독립적인 내부 `Place`로 만들거나 찜·일정 후보로
-  제공하지 않는다.
+- 관광 코스의 일반 장소, 자동 추천, 개인 찜 컬렉션은 TourAPI 장소로만 구성한다.
+- Kakao Local 검색 결과를 일반 `Place`나 추천 후보로 만들지 않는다.
 - Kakao API는 TourAPI 장소의 불충분한 정보를 보충하는 보조 수단으로만 사용한다.
+- 단, 사용자가 직접 선택하는 숙소 Anchor는 TourAPI의 숙소 누락을 보완하기 위해
+  Kakao 숙박업소 검색 또는 지도 좌표 선택을 허용한다. 이 결과는 일반 `Place`가
+  아니라 여행의 `accommodation` 입력으로만 저장한다.
 
 ## 현재 적용 범위
 
@@ -48,8 +50,9 @@
 - 이미지, 소개, 운영시간, 휴무일은 Kakao Local 응답의 보장 필드가 아니므로
   보충하지 않고 TourAPI 값 또는 `null`을 유지한다.
 
-카카오 단독 장소 도입은 현재 제품 정책에서 제외한다. 따라서 보충된 장소도
-TourAPI의 `placeId`, `source=TOUR_API`, `sourceContentId`를 유지한다.
+카카오 단독 일반 장소 도입은 현재 제품 정책에서 제외한다. 따라서 보충된 장소도
+TourAPI의 `placeId`, `source=TOUR_API`, `sourceContentId`를 유지한다. 숙소 선택은
+별도 `AccommodationCandidate` 계약을 사용하므로 이 원칙과 충돌하지 않는다.
 
 ## 환경변수
 

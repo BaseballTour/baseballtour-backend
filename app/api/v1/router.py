@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from app.api.openapi_responses import BASE_API_ERROR_RESPONSES
 
 from app.api.v1.endpoints.favorite_collections import router as favorite_collections_router
+from app.api.v1.endpoints.accommodations import router as accommodations_router
 from app.api.v1.endpoints.games import router as games_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.teams import router as teams_router
@@ -12,6 +13,11 @@ from app.api.v1.endpoints.users import router as users_router
 
 
 api_router = APIRouter(responses=BASE_API_ERROR_RESPONSES)
+
+api_router.include_router(
+    accommodations_router,
+    tags=["Accommodations"],
+)
 
 api_router.include_router(
     health_router,

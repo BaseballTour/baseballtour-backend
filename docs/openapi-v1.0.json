@@ -12844,15 +12844,17 @@
             "title": "Longitude",
             "description": "숙소 경도"
           },
-          "checkInAt": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Checkinat"
-          },
-          "checkOutAt": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Checkoutat"
+          "kakaoPlaceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kakaoplaceid",
+            "description": "Kakao 장소 검색으로 선택한 경우의 장소 ID"
           }
         },
         "additionalProperties": false,
@@ -12861,9 +12863,7 @@
           "name",
           "address",
           "latitude",
-          "longitude",
-          "checkInAt",
-          "checkOutAt"
+          "longitude"
         ],
         "title": "AccommodationInfo",
         "description": "여행 숙소 정보."
@@ -12886,11 +12886,9 @@
             "title": "Longitude",
             "description": "숙소 경도"
           },
-          "checkInAt": {
-            "title": "Checkinat"
-          },
-          "checkOutAt": {
-            "title": "Checkoutat"
+          "kakaoPlaceId": {
+            "title": "Kakaoplaceid",
+            "description": "Kakao 장소 검색으로 선택한 경우의 장소 ID"
           }
         },
         "additionalProperties": false,
@@ -12899,9 +12897,7 @@
           "name",
           "address",
           "latitude",
-          "longitude",
-          "checkInAt",
-          "checkOutAt"
+          "longitude"
         ],
         "title": "AccommodationInfo",
         "description": "여행 숙소 정보."
@@ -14873,8 +14869,6 @@
           {
             "accommodation": {
               "address": "서울특별시 송파구",
-              "checkInAt": "2026-08-15T22:00:00+09:00",
-              "checkOutAt": "2026-08-16T10:00:00+09:00",
               "latitude": 37.513,
               "longitude": 127.102,
               "name": "잠실 호텔"

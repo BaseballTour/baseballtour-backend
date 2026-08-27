@@ -239,22 +239,6 @@ def create_trip_document(
             address="부산광역시 부산진구",
             latitude=35.1577,
             longitude=129.0592,
-            check_in_at=datetime(
-                2026,
-                8,
-                14,
-                6,
-                0,
-                tzinfo=timezone.utc,
-            ),
-            check_out_at=datetime(
-                2026,
-                8,
-                16,
-                2,
-                0,
-                tzinfo=timezone.utc,
-            ),
         ),
         status="PLANNING",
         active_plan_id=None,
@@ -337,10 +321,8 @@ def test_create_idempotent_stores_camel_case_and_datetime(
         stored["tripStartAt"],
         datetime,
     )
-    assert isinstance(
-        stored["accommodation"]["checkInAt"],
-        datetime,
-    )
+    assert "checkInAt" not in stored["accommodation"]
+    assert "checkOutAt" not in stored["accommodation"]
 
 
 def test_get_missing_trip_returns_none() -> None:
