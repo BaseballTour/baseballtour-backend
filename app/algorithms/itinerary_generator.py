@@ -445,6 +445,7 @@ def _fill_routes_with_recommendations(
     }
     added: set[str] = set()
     rejected: Counter[str] = Counter()
+    scheduled_per_day: Counter[date] = Counter()
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
@@ -520,6 +521,7 @@ def _fill_routes_with_recommendations(
                     )
                     meal_gain = len(proposed_meals - current_meals)
                     score = (
+                        scheduled_per_day[target_date],
                         -meal_gain,
                         marginal,
                         -(result.anchor_slack_minutes or 0),
@@ -543,6 +545,7 @@ def _fill_routes_with_recommendations(
         _, target_date, proposed, place = best
         routes[target_date] = proposed
         added.add(place.place_id)
+        scheduled_per_day[target_date] += 1
         remaining.pop(place.place_id)
 
     logger.info(
@@ -553,6 +556,10 @@ def _fill_routes_with_recommendations(
     )
     if diagnostics is not None:
         diagnostics["scheduledCount"] = len(added)
+        diagnostics["scheduledByDay"] = {
+            target_date.isoformat(): scheduled_per_day[target_date]
+            for target_date in sorted(routes)
+        }
         diagnostics["placementRejectedAttempts"] = dict(
             sorted(rejected.items())
         )

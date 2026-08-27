@@ -102,6 +102,42 @@ async def test_detail_keeps_unknown_hours_and_image_as_none(monkeypatch) -> None
 
 
 @pytest.mark.anyio
+async def test_detail_skips_image_endpoint_when_common_has_thumbnail(
+    monkeypatch,
+) -> None:
+    image_calls = 0
+
+    async def common(*args, **kwargs):
+        return response_with(
+            {
+                "contentid": "123",
+                "contenttypeid": "12",
+                "title": "이미지 있는 장소",
+                "mapx": "127.0",
+                "mapy": "37.5",
+                "firstimage": "https://example.com/common.jpg",
+            }
+        )
+
+    async def intro(*args, **kwargs):
+        return response_with([])
+
+    async def images(*args, **kwargs):
+        nonlocal image_calls
+        image_calls += 1
+        return response_with([])
+
+    monkeypatch.setattr(adapter_module, "get_place_common_info", common)
+    monkeypatch.setattr(adapter_module, "get_place_intro_info", intro)
+    monkeypatch.setattr(adapter_module, "get_place_images", images)
+
+    place = await TourApiAdapter().get_place_detail("123")
+
+    assert place.thumbnail_url == "https://example.com/common.jpg"
+    assert image_calls == 0
+
+
+@pytest.mark.anyio
 async def test_detail_maps_festival_event_dates(monkeypatch) -> None:
     async def common(*args, **kwargs):
         return response_with(

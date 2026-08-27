@@ -224,10 +224,10 @@ async def test_caps_food_shopping_and_festival_candidates() -> None:
     assert sum(item.category == PlaceCategory.RESTAURANT for item in result) == 4
     assert sum(item.category == PlaceCategory.CAFE for item in result) == 2
     assert sum(item.category == PlaceCategory.SHOPPING for item in result) == 2
-    assert sum(item.category == PlaceCategory.TOURIST_SPOT for item in result) == 6
+    assert sum(item.category == PlaceCategory.TOURIST_SPOT for item in result) == 4
     assert diagnostics["fetchedCount"] == len(candidates)
     assert diagnostics["candidateCount"] == len(result)
-    assert diagnostics["filteredCounts"]["CATEGORY_LIMIT"] > 0
+    assert diagnostics["filteredCounts"]["CANDIDATE_LIMIT"] > 0
 
 
 @pytest.mark.anyio
@@ -329,12 +329,12 @@ async def test_default_candidate_pool_is_limited_before_detail_lookup() -> None:
         centers=[RecommendationCenter(latitude=35.19, longitude=129.06)]
     )
 
-    assert len(result) == 15
+    assert len(result) == 12
     assert [place.distance_meters for place in result] == list(
-        map(float, range(1, 16))
+        map(float, range(1, 13))
     )
-    assert adapter.get_nearby_place_page.await_count == 1
-    assert adapter.get_place_detail.await_count == 15
+    assert adapter.get_nearby_place_page.await_count == 2
+    assert adapter.get_place_detail.await_count == 12
 
 
 @pytest.mark.anyio
@@ -390,3 +390,51 @@ async def test_candidate_pool_reserves_restaurants_and_cafes() -> None:
         place.category == PlaceCategory.RESTAURANT for place in result
     ) == 2
     assert sum(place.category == PlaceCategory.CAFE for place in result) == 2
+
+
+@pytest.mark.anyio
+async def test_candidate_pool_round_robins_available_categories() -> None:
+    places = [
+        *[
+            make_place(f"tour_spot_{index}", distance=float(index))
+            for index in range(1, 10)
+        ],
+        make_place(
+            "tour_culture",
+            category=PlaceCategory.CULTURAL_FACILITY,
+            distance=100,
+        ),
+        make_place(
+            "tour_activity",
+            category=PlaceCategory.ACTIVITY,
+            distance=110,
+        ),
+        make_place(
+            "tour_shopping",
+            category=PlaceCategory.SHOPPING,
+            distance=120,
+        ),
+    ]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(places=places, next_page_token=None)
+    )
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: next(
+            place for place in places if place.source_content_id == content_id
+        )
+    )
+    diagnostics = {}
+
+    result = await RecommendationService(adapter, max_candidates=6).get_candidates(
+        centers=[RecommendationCenter(latitude=35.19, longitude=129.06)],
+        diagnostics=diagnostics,
+    )
+
+    categories = {place.category for place in result}
+    assert PlaceCategory.CULTURAL_FACILITY in categories
+    assert PlaceCategory.ACTIVITY in categories
+    assert PlaceCategory.SHOPPING in categories
+    assert diagnostics["detailLookupCount"] == 6
+    assert "CAFE" in diagnostics["missingSourceCategories"]
+    assert diagnostics["businessHoursStatusDistribution"] == {"MISSING": 6}
