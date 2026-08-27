@@ -79,22 +79,6 @@ def make_trip_record(
             address="부산광역시 부산진구",
             latitude=35.1577,
             longitude=129.0592,
-            check_in_at=datetime(
-                2026,
-                8,
-                14,
-                6,
-                0,
-                tzinfo=timezone.utc,
-            ),
-            check_out_at=datetime(
-                2026,
-                8,
-                16,
-                2,
-                0,
-                tzinfo=timezone.utc,
-            ),
         ),
         status="PLANNING",
         active_plan_id=None,
@@ -124,8 +108,6 @@ def make_create_body() -> dict:
             "address": "부산광역시 부산진구",
             "latitude": 35.1577,
             "longitude": 129.0592,
-            "checkInAt": "2026-08-14T15:00:00+09:00",
-            "checkOutAt": "2026-08-16T11:00:00+09:00",
         },
     }
 

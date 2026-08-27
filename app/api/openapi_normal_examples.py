@@ -77,6 +77,16 @@ USER = {
     "onboardingCompleted": True, "createdAt": "2026-08-12T15:00:00+09:00",
     "updatedAt": "2026-08-12T15:00:00+09:00",
 }
+ACCOMMODATION_CANDIDATE = {
+    "kakaoPlaceId": "123456789", "name": "잠실 예시 호텔",
+    "address": "서울특별시 송파구 올림픽로 00",
+    "roadAddressName": "서울특별시 송파구 올림픽로 00",
+    "latitude": 37.5101, "longitude": 127.0767,
+    "phone": "02-1234-5678",
+    "placeUrl": "https://place.map.kakao.com/123456789",
+    "categoryName": "여행 > 숙박 > 호텔",
+    "selectionType": "KAKAO_PLACE",
+}
 
 
 def _success(data: Any) -> dict[str, Any]:
@@ -119,6 +129,14 @@ SELECTION = {"placeId": PLACE["placeId"], "isRequired": True,
              "createdAt": "2026-08-15T10:10:00+09:00"}
 
 SUCCESS_EXAMPLES = {
+    ("get", "/api/v1/accommodations/search", "200"): _list([
+        ACCOMMODATION_CANDIDATE
+    ]),
+    ("get", "/api/v1/accommodations/reverse-geocode", "200"): _success({
+        **ACCOMMODATION_CANDIDATE,
+        "kakaoPlaceId": None,
+        "selectionType": "MAP_POINT",
+    }),
     ("get", "/", "200"): _success({"name": "BaseballTour Backend", "environment": "development", "status": "running"}),
     ("get", "/api/v1/health", "200"): _success({"status": "healthy"}),
     ("get", "/api/v1/users/me/favorite-collections", "200"): _list([COLLECTION]),
