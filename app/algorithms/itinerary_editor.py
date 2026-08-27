@@ -15,6 +15,21 @@ from app.schemas.itinerary_plan import (
 class ItineraryEditError(ValueError):
     """일정 편집 결과를 유효한 시간표로 만들 수 없을 때 발생합니다."""
 
+    def __init__(self, message: str, *, details: dict | None = None) -> None:
+        super().__init__(message)
+        self.details = details
+
+
+def _conflict_item(item: ItineraryPlanItem) -> dict[str, object]:
+    return {
+        "itemId": item.item_id,
+        "type": item.item_type.value,
+        "placeId": item.place_id,
+        "name": item.name,
+        "scheduledStartAt": item.scheduled_start_at.isoformat(),
+        "scheduledEndAt": item.scheduled_end_at.isoformat(),
+    }
+
 
 def item_node_id(
     item: ItineraryPlanItem,
@@ -98,7 +113,11 @@ def reorder_place_items(
     for index, item in enumerate(day.items):
         if item.is_fixed and new_items[index].item_id != item.item_id:
             raise ItineraryEditError(
-                "고정한 장소의 순서는 변경할 수 없습니다."
+                "고정한 장소의 순서는 변경할 수 없습니다.",
+                details={
+                    "fixedItem": _conflict_item(item),
+                    "conflictingItem": _conflict_item(new_items[index]),
+                },
             )
 
     return ItineraryPlanDay(
@@ -180,7 +199,14 @@ def recalculate_day_schedule(
             if earliest_arrival > start:
                 raise ItineraryEditError(
                     "변경한 일정으로는 고정 일정에 "
-                    "제시간에 도착할 수 없습니다."
+                    "제시간에 도착할 수 없습니다.",
+                    details={
+                        "conflictingItem": _conflict_item(item),
+                        "previousItem": (
+                            _conflict_item(rebuilt[-1]) if rebuilt else None
+                        ),
+                        "earliestArrivalAt": earliest_arrival.isoformat(),
+                    },
                 )
 
         elif item.item_type == ItineraryItemType.ACCOMMODATION:

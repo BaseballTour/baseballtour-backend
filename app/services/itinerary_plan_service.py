@@ -216,6 +216,7 @@ class ItineraryPlanService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 code="ITINERARY_EDIT_INVALID",
                 message=str(exc),
+                details=exc.details,
             ) from exc
 
         updated_days = list(plan.days)
@@ -345,6 +346,7 @@ class ItineraryPlanService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 code="ITINERARY_EDIT_INVALID",
                 message=str(exc),
+                details=exc.details,
             ) from exc
 
         updated_days = list(plan.days)
@@ -403,11 +405,20 @@ class ItineraryPlanService:
             user_id=user_id,
         )
 
+        if not plan.days:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ITINERARY_DAY_NOT_FOUND",
+                message="장소를 추가할 날짜의 일정을 찾을 수 없습니다.",
+            )
+
+        target_date = request.date or plan.days[0].date
+
         day_index = next(
             (
                 index
                 for index, day in enumerate(plan.days)
-                if day.date == request.date
+                if day.date == target_date
             ),
             None,
         )
@@ -436,7 +447,7 @@ class ItineraryPlanService:
 
         if (
             request.scheduled_start_at is not None
-            and request.scheduled_start_at.date() != request.date
+            and request.scheduled_start_at.date() != target_date
         ):
             raise AppException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -444,15 +455,24 @@ class ItineraryPlanService:
                 message="date와 scheduledStartAt의 날짜가 일치해야 합니다.",
             )
 
-        if any(
-            item.item_type == ItineraryItemType.PLACE
-            and item.place_id == request.place_id
-            for item in day.items
-        ):
+        existing_item = next(
+            (
+                item
+                for item in day.items
+                if item.item_type == ItineraryItemType.PLACE
+                and item.place_id == request.place_id
+            ),
+            None,
+        )
+        if existing_item is not None:
             raise AppException(
                 status_code=status.HTTP_409_CONFLICT,
                 code="ITINERARY_PLACE_ALREADY_EXISTS",
                 message="해당 장소가 이미 일정에 포함되어 있습니다.",
+                details={
+                    "date": day.date.isoformat(),
+                    "conflictingItem": self._item_conflict_details(existing_item),
+                },
             )
 
         content_id = request.place_id.removeprefix(
@@ -571,6 +591,7 @@ class ItineraryPlanService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 code="ITINERARY_EDIT_INVALID",
                 message=str(exc),
+                details=exc.details,
             ) from exc
 
         updated_days = list(plan.days)
@@ -600,6 +621,19 @@ class ItineraryPlanService:
 
         return updated
 
+    @staticmethod
+    def _item_conflict_details(item: ItineraryPlanItem) -> dict[str, object]:
+        """프론트가 충돌 항목을 식별하고 강조하는 데 필요한 최소 정보."""
+
+        return {
+            "itemId": item.item_id,
+            "type": item.item_type.value,
+            "placeId": item.place_id,
+            "name": item.name,
+            "scheduledStartAt": item.scheduled_start_at.isoformat(),
+            "scheduledEndAt": item.scheduled_end_at.isoformat(),
+        }
+
     async def update_item_fixed(
         self,
         *,
@@ -624,6 +658,7 @@ class ItineraryPlanService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 code="ITINERARY_EDIT_INVALID",
                 message=str(exc),
+                details=exc.details,
             ) from exc
         return self._save_updated_day(plan, day_index, updated_day)
 
@@ -727,6 +762,7 @@ class ItineraryPlanService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 code="ITINERARY_EDIT_INVALID",
                 message=str(exc),
+                details=exc.details,
             ) from exc
         return self._save_updated_days(plan, updated_days)
 

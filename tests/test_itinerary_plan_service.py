@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.core.exceptions import AppException
+from app.models.itinerary import ItineraryItemAddedBy
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
     ItineraryPlanFixedRequest,
@@ -854,6 +855,54 @@ async def test_add_item_adds_place_and_updates_plan() -> None:
     )
 
     plan_repository.update_schedule.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_add_item_without_date_defaults_to_first_day_last_place() -> None:
+    trip = make_trip()
+    plan = make_editable_plan()
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = trip
+    plan_repository = Mock()
+    plan_repository.get_by_id.return_value = plan
+    plan_repository.update_schedule.side_effect = lambda **kwargs: plan.model_copy(
+        update={
+            "days": kwargs["days"],
+            "total_travel_minutes": kwargs["total_travel_minutes"],
+        }
+    )
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock(
+        return_value=SimpleNamespace(
+            place_id="tour_654321",
+            name="첫째 날 추가 장소",
+            address="부산 추가 장소",
+            latitude=35.14,
+            longitude=129.07,
+            default_stay_minutes=60,
+        )
+    )
+
+    async def provider(*args) -> int:
+        return 10
+
+    service = ItineraryPlanService(
+        trip_repository=trip_repository,
+        itinerary_plan_repository=plan_repository,
+        travel_time_provider=provider,
+        place_adapter=place_adapter,
+    )
+    result = await service.add_item(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        request=ItineraryPlanAddItemRequest(place_id="tour_654321"),
+    )
+
+    added = result.days[0].items[-1]
+    assert added.place_id == "tour_654321"
+    assert added.added_by == ItineraryItemAddedBy.USER
+    assert added.scheduled_start_at.isoformat() == "2026-08-15T16:10:00+09:00"
+    assert added.item_id.startswith("item_")
 
 
 @pytest.mark.anyio

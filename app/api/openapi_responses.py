@@ -5,14 +5,14 @@ from typing import Any
 from app.schemas.response import ErrorResponse
 
 
-def _example(code: str, message: str, details: list[Any] | None = None) -> dict:
+def _example(code: str, message: str, details: Any | None = None) -> dict:
     return {
         "value": {
             "success": False,
             "error": {
                 "code": code,
                 "message": message,
-                "details": details or [],
+                "details": details if details is not None else [],
             },
         }
     }
@@ -128,6 +128,15 @@ TRIP_ERROR_RESPONSES = {
         "현재 상태 또는 기존 데이터와 충돌",
         generation_in_progress=_example("TRIP_GENERATION_IN_PROGRESS", "일정 생성이 이미 진행 중입니다."),
         place_exists=_example("ITINERARY_PLACE_ALREADY_EXISTS", "해당 장소가 이미 일정에 포함되어 있습니다."),
+        fixed_item_conflict=_example(
+            "FIXED_ITEM_TIME_CONFLICT",
+            "고정한 장소가 필수 일정 또는 사용자 장소와 충돌합니다.",
+            {
+                "date": "2026-08-16",
+                "fixedItem": {"itemId": "item_manual_abcd", "type": "PLACE"},
+                "conflictingItem": {"itemId": "item_1_3", "type": "STADIUM"},
+            },
+        ),
         selection_exists=_example("PLACE_SELECTION_ALREADY_EXISTS", "이미 선택된 장소입니다."),
         idempotency_conflict=_example("TRIP_IDEMPOTENCY_CONFLICT", "같은 멱등성 키가 다른 요청에 사용되었습니다."),
     ),

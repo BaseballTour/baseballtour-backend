@@ -482,6 +482,60 @@ def test_regeneration_preserves_fixed_item_and_drops_overlapping_algorithm_item(
     assert merged.days[0].items[0].is_fixed is True
 
 
+def test_regeneration_conflict_identifies_both_items() -> None:
+    fixed = ItineraryPlanItem(
+        item_id="item_manual_fixed",
+        type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_fixed",
+        name="사용자 고정 장소",
+        address="서울",
+        latitude=37.5,
+        longitude=127.0,
+        scheduled_start_at=datetime.fromisoformat("2026-08-15T14:00:00+09:00"),
+        scheduled_end_at=datetime.fromisoformat("2026-08-15T15:00:00+09:00"),
+        added_by=ItineraryItemAddedBy.USER,
+        is_required=True,
+        is_fixed=True,
+    )
+    stadium = fixed.model_copy(
+        update={
+            "item_id": "item_1_3",
+            "item_type": ItineraryItemType.STADIUM,
+            "place_id": "jamsil",
+            "name": "잠실야구장",
+            "added_by": None,
+            "is_fixed": False,
+        }
+    )
+    plan = ItineraryPlanDocument(
+        trip_id=TRIP_ID,
+        user_id=USER_ID,
+        algorithm_version="test",
+        total_travel_minutes=0,
+        days=[
+            ItineraryPlanDay(
+                date=START_AT.date(),
+                day_type="GAME_DAY",
+                items=[stadium],
+            )
+        ],
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    with pytest.raises(AppException) as captured:
+        ItineraryGenerationService._preserve_fixed_items(
+            plan=plan,
+            fixed_items=[(START_AT.date(), fixed)],
+        )
+
+    assert captured.value.code == "FIXED_ITEM_TIME_CONFLICT"
+    assert captured.value.details["fixedItem"]["itemId"] == "item_manual_fixed"
+    assert captured.value.details["conflictingItem"]["itemId"] == "item_1_3"
+    assert captured.value.details["conflictingItem"]["type"] == "STADIUM"
+
+
 @pytest.mark.anyio
 async def test_generate_rejects_missing_trip() -> None:
     context = make_service()

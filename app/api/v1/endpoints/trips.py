@@ -702,8 +702,10 @@ async def delete_itinerary_item(
     response_model=SuccessResponse[ItineraryPlanResponse],
     summary="여행 일정 장소 추가",
     description=(
-        "특정 날짜의 ACTIVE 일정에 장소를 추가하고 "
-        "이동시간과 방문시간을 다시 계산합니다."
+        "ACTIVE 일정에 장소를 추가하고 이동시간과 방문시간을 다시 계산합니다. "
+        "date와 scheduledStartAt을 생략하면 첫째 날의 마지막 PLACE 뒤에 "
+        "추가합니다. 반환되는 itemId는 위치나 순서를 뜻하지 않는 고유 "
+        "식별자이므로 클라이언트는 문자열 형식을 해석하면 안 됩니다."
     ),
 )
 async def add_itinerary_item(

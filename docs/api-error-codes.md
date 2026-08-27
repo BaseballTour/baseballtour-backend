@@ -58,6 +58,8 @@
 | 404 | `ITINERARY_PLACE_NOT_FOUND` | 추가할 TourAPI 장소 없음 |
 | 409 | `TRIP_GENERATION_IN_PROGRESS` | 일정 생성 중 중복 작업 |
 | 409 | `ITINERARY_PLACE_ALREADY_EXISTS` | 같은 날짜에 장소 중복 추가 |
+| 409 | `FIXED_ITEM_TIME_CONFLICT` | 재생성 시 고정 장소가 다른 필수·사용자 항목과 겹침. `details.fixedItem`, `details.conflictingItem`으로 충돌 항목 확인 |
+| 409 | `FIXED_ITEM_OUTSIDE_TRIP` | 고정 장소의 날짜가 변경된 여행 기간 밖에 있음. `details.conflictingItem`으로 항목 확인 |
 
 ## 찜 컬렉션·여행 후보
 

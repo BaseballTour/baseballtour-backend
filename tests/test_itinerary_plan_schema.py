@@ -179,8 +179,9 @@ def test_add_item_request_uses_camel_case() -> None:
 
 def test_add_item_request_defaults_to_required() -> None:
     request = ItineraryPlanAddItemRequest(
-        date="2026-08-15",
         place_id="tour_123456",
     )
 
     assert request.is_required is True
+    assert request.date is None
+    assert request.scheduled_start_at is None
