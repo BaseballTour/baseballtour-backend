@@ -48,7 +48,7 @@ TRIP_DETAIL = {
     "departurePoint": {"name": "서울역", "latitude": 37.5547, "longitude": 126.9706},
     "accommodation": {
         "accommodationId": "accommodation_kakao_123456789",
-        "kakaoPlaceId": "123456789", "name": "고척 예시 호텔",
+        "name": "고척 예시 호텔",
         "address": "서울특별시 구로구 경인로 00",
         "latitude": 37.4985, "longitude": 126.868,
     },

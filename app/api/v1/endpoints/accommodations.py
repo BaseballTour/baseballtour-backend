@@ -19,7 +19,7 @@ router = APIRouter(prefix="/accommodations")
     summary="Kakao 숙소 검색",
     description=(
         "Kakao Local에서 숙박(AD5) 장소만 검색합니다. 선택한 후보의 이름·주소·"
-        "좌표와 kakaoPlaceId를 여행 accommodation에 복사해 저장합니다."
+        "좌표와 accommodationId를 여행 accommodation에 복사해 저장합니다."
     ),
 )
 async def search_accommodations(

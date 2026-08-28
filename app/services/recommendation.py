@@ -27,7 +27,11 @@ DEFAULT_MAX_CANDIDATES = 12
 DETAIL_CONCURRENCY = 5
 NEARBY_PAGE_TIMEOUT_SECONDS = 6.0
 DETAIL_TIMEOUT_SECONDS = 5.0
-DINING_CATEGORY_MINIMUM = 2
+DINING_CATEGORY_MINIMUMS = {
+    PlaceCategory.RESTAURANT: 4,
+    PlaceCategory.CAFE: 2,
+}
+BREAKFAST_LCLS_SYSTEM2 = "FD03"
 CATEGORY_MAXIMUMS = {
     PlaceCategory.RESTAURANT: 4,
     PlaceCategory.CAFE: 2,
@@ -382,9 +386,25 @@ def _select_diverse_candidates(
     selected: list[Place] = []
     selected_ids: set[str] = set()
 
+    breakfast_candidate = next(
+        (
+            place
+            for place in ordered
+            if place.category == PlaceCategory.RESTAURANT
+            and place.lcls_system2 == BREAKFAST_LCLS_SYSTEM2
+        ),
+        None,
+    )
+    if breakfast_candidate is not None and max_candidates > 0:
+        selected.append(breakfast_candidate)
+        selected_ids.add(breakfast_candidate.place_id)
+
     for category in (PlaceCategory.RESTAURANT, PlaceCategory.CAFE):
         for place in (
-            item for item in ordered if item.category == category
+            item
+            for item in ordered
+            if item.category == category
+            and item.place_id not in selected_ids
         ):
             if len(selected) >= max_candidates:
                 break
@@ -392,7 +412,7 @@ def _select_diverse_candidates(
             selected_ids.add(place.place_id)
             if sum(
                 item.category == category for item in selected
-            ) >= DINING_CATEGORY_MINIMUM:
+            ) >= DINING_CATEGORY_MINIMUMS[category]:
                 break
 
     category_order = sorted(

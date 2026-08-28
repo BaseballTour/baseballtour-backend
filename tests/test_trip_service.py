@@ -300,7 +300,6 @@ def test_create_trip_stores_prefixed_accommodation_id() -> None:
         update={
             "accommodation": AccommodationInfo(
                 accommodation_id="accommodation_kakao_12345",
-                kakao_place_id="12345",
                 name="서면 숙소",
                 address="부산광역시 부산진구",
                 latitude=35.1577004,

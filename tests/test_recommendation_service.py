@@ -468,6 +468,53 @@ async def test_candidate_pool_reserves_restaurants_and_cafes() -> None:
 
 
 @pytest.mark.anyio
+async def test_candidate_pool_reserves_fd03_breakfast_restaurant() -> None:
+    places = [
+        *[
+            make_place(
+                f"tour_restaurant_{index}",
+                category=PlaceCategory.RESTAURANT,
+                distance=float(index),
+            )
+            for index in range(1, 6)
+        ],
+        make_place(
+            "tour_breakfast",
+            category=PlaceCategory.RESTAURANT,
+            distance=500,
+            lcls_system2="FD03",
+        ),
+        *[
+            make_place(f"tour_spot_{index}", distance=10 + index)
+            for index in range(1, 10)
+        ],
+    ]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(places=places, next_page_token=None)
+    )
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: next(
+            place
+            for place in places
+            if place.source_content_id == content_id
+        )
+    )
+
+    result = await RecommendationService(
+        adapter,
+        max_candidates=8,
+    ).get_candidates(
+        centers=[RecommendationCenter(latitude=35.19, longitude=129.06)]
+    )
+
+    assert any(place.lcls_system2 == "FD03" for place in result)
+    assert sum(
+        place.category == PlaceCategory.RESTAURANT for place in result
+    ) >= 4
+
+
+@pytest.mark.anyio
 async def test_candidate_pool_round_robins_available_categories() -> None:
     places = [
         *[

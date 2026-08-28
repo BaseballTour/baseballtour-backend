@@ -71,11 +71,6 @@ class AccommodationInfo(ApiModel):
         le=180,
         description="숙소 경도",
     )
-    kakao_place_id: str | None = Field(
-        default=None,
-        description="Kakao 장소 검색으로 선택한 경우의 장소 ID",
-    )
-
     @field_validator("latitude", "longitude")
     @classmethod
     def round_coordinate(cls, value: float) -> float:
@@ -105,7 +100,6 @@ class TripCreateRequest(ApiModel):
                     },
                     "accommodation": {
                         "accommodationId": "accommodation_kakao_123456789",
-                        "kakaoPlaceId": "123456789",
                         "name": "잠실 예시 호텔",
                         "address": "서울특별시 송파구 올림픽로 00",
                         "latitude": 37.5101,

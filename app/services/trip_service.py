@@ -5,10 +5,7 @@ import json
 from fastapi import status
 from pydantic import ValidationError
 
-from app.core.accommodation_ids import (
-    build_kakao_accommodation_id,
-    is_valid_accommodation_id,
-)
+from app.core.accommodation_ids import is_valid_accommodation_id
 from app.core.exceptions import AppException
 from app.repositories.game_repository import GameRepository
 from app.repositories.itinerary_plan_repository import (
@@ -256,33 +253,6 @@ class TripService:
                     ),
                 },
             )
-
-        if accommodation.kakao_place_id is not None:
-            try:
-                expected_id = build_kakao_accommodation_id(
-                    accommodation.kakao_place_id
-                )
-            except ValueError as exc:
-                raise AppException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    code="ACCOMMODATION_INVALID",
-                    message="숙소 정보를 확인해 주세요.",
-                    details={
-                        "field": "accommodation.kakaoPlaceId",
-                        "reason": str(exc),
-                    },
-                ) from exc
-
-            if accommodation.accommodation_id != expected_id:
-                raise AppException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    code="ACCOMMODATION_INVALID",
-                    message="숙소 정보를 확인해 주세요.",
-                    details={
-                        "field": "accommodation.accommodationId",
-                        "reason": "Kakao 숙소 ID와 일치하지 않습니다.",
-                    },
-                )
 
     def delete_trip(
         self,

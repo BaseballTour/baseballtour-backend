@@ -65,7 +65,6 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
   },
   "accommodation": {
     "accommodationId": "accommodation_kakao_123456789",
-    "kakaoPlaceId": "123456789",
     "name": "잠실 예시 호텔",
     "address": "서울특별시 송파구 ...",
     "latitude": 37.51,
@@ -82,8 +81,9 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
 - `gameId`: 백엔드가 경기 시작시각과 경기장을 조회하는 기준
 
 앱은 체크인·체크아웃 시각을 입력받거나 일정 제약으로 사용하지 않는다. 지도 좌표
-선택은 `kakaoPlaceId`를 생략한다. 잘못된 접두사, Kakao 원본 ID와 불일치하는 ID,
-ID 누락은 HTTP 422 `ACCOMMODATION_INVALID`로 반환한다.
+여행 생성·수정 요청에는 `kakaoPlaceId`를 다시 보내지 않는다. 지도 선택도 동일하게
+`accommodationId`만 사용한다. 잘못된 접두사나 ID 누락은 HTTP 422
+`ACCOMMODATION_INVALID`로 반환한다.
 
 현재 숙소 전용 컬렉션은 없으므로 `accommodationId`만 보내 숙소 전체 정보를 다시
 조회하지 않는다. 여행 문서에는 식별자와 당시 선택한 이름·주소·좌표 스냅샷을 함께
