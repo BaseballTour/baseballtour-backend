@@ -328,6 +328,27 @@ async def test_generate_supplies_real_recommendation_candidates() -> None:
     )
 
 
+def test_recommendation_centers_include_accommodation_and_departure() -> None:
+    trip = SimpleNamespace(
+        arrival_point=SimpleNamespace(latitude=37.55, longitude=126.97),
+        departure_point=SimpleNamespace(latitude=37.56, longitude=126.98),
+        accommodation=SimpleNamespace(latitude=37.49, longitude=126.86),
+    )
+    stadium = SimpleNamespace(latitude=37.50, longitude=126.87)
+
+    centers = ItineraryGenerationService._recommendation_centers(
+        trip=trip,
+        stadium=stadium,
+    )
+
+    assert [(center.latitude, center.longitude) for center in centers] == [
+        (37.50, 126.87),
+        (37.55, 126.97),
+        (37.56, 126.98),
+        (37.49, 126.86),
+    ]
+
+
 def test_build_trip_input_normalizes_firestore_times_to_korea() -> None:
     trip = make_trip().model_copy(
         update={

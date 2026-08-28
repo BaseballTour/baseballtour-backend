@@ -280,13 +280,13 @@ async def test_caps_food_shopping_and_festival_candidates() -> None:
         diagnostics=diagnostics,
     )
 
-    assert sum(item.category == PlaceCategory.RESTAURANT for item in result) == 4
+    assert sum(item.category == PlaceCategory.RESTAURANT for item in result) == 6
     assert sum(item.category == PlaceCategory.CAFE for item in result) == 2
     assert sum(item.category == PlaceCategory.SHOPPING for item in result) == 2
     assert sum(item.category == PlaceCategory.TOURIST_SPOT for item in result) == 4
     assert diagnostics["fetchedCount"] == len(candidates)
     assert diagnostics["candidateCount"] == len(result)
-    assert diagnostics["filteredCounts"]["CANDIDATE_LIMIT"] > 0
+    assert diagnostics["filteredCounts"]["CATEGORY_LIMIT"] > 0
 
 
 @pytest.mark.anyio
@@ -404,12 +404,12 @@ async def test_default_candidate_pool_is_limited_before_detail_lookup() -> None:
         centers=[RecommendationCenter(latitude=35.19, longitude=129.06)]
     )
 
-    assert len(result) == 12
+    assert len(result) == 20
     assert [place.distance_meters for place in result] == list(
-        map(float, range(1, 13))
+        map(float, range(1, 21))
     )
     assert adapter.get_nearby_place_page.await_count == 2
-    assert adapter.get_place_detail.await_count == 12
+    assert adapter.get_place_detail.await_count == 20
 
 
 @pytest.mark.anyio
@@ -460,7 +460,7 @@ async def test_candidate_pool_reserves_restaurants_and_cafes() -> None:
         centers=[RecommendationCenter(latitude=35.19, longitude=129.06)]
     )
 
-    assert len(result) == 10
+    assert len(result) == 8
     assert sum(
         place.category == PlaceCategory.RESTAURANT for place in result
     ) == 2
