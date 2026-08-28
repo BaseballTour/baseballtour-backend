@@ -471,6 +471,11 @@ def _fill_routes_with_recommendations(
             current_cost = route_travel_minutes(
                 args["start_id"], current, args["end_id"], matrix
             )
+            minimum_anchor_slack = (
+                0
+                if day_type == DayType.GAME_DAY
+                else AUTO_FILL_MIN_REMAINING_MINUTES
+            )
             for place in sorted(
                 remaining.values(), key=lambda item: item.place_id
             ):
@@ -505,7 +510,7 @@ def _fill_routes_with_recommendations(
                     if (
                         result.anchor_slack_minutes is None
                         or result.anchor_slack_minutes
-                        < AUTO_FILL_MIN_REMAINING_MINUTES
+                        < minimum_anchor_slack
                     ):
                         rejected["INSUFFICIENT_TIME"] += 1
                         continue
@@ -545,12 +550,11 @@ def _fill_routes_with_recommendations(
                             place, visit.start.time()
                         ),
                         marginal,
-                        -(result.anchor_slack_minutes or 0),
-                        -closing_slack,
                         abs(
                             result.anchor_slack_minutes
-                            - AUTO_FILL_MIN_REMAINING_MINUTES
+                            - minimum_anchor_slack
                         ),
+                        -closing_slack,
                         target_date.toordinal(),
                         index,
                         place.place_id,
