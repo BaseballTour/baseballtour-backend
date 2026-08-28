@@ -50,6 +50,7 @@ class ProviderTravelTime:
     minutes: int
     mode: TravelMode
     source: TravelTimeSource
+    distance_meters: int | None = None
 
 
 TravelTimeProvider = Callable[
@@ -63,6 +64,7 @@ class TravelTimeMatrix:
     minutes: dict[tuple[str, str], int]
     modes: dict[tuple[str, str], TravelMode] | None = None
     sources: dict[tuple[str, str], TravelTimeSource] | None = None
+    distances_meters: dict[tuple[str, str], int] | None = None
 
     def get(self, origin_id: str, destination_id: str) -> int:
         if origin_id == destination_id:
@@ -90,6 +92,17 @@ class TravelTimeMatrix:
         if self.sources is None:
             return TravelTimeSource.FAKE
         return self.sources.get((origin_id, destination_id))
+
+    def get_distance_meters(
+        self,
+        origin_id: str,
+        destination_id: str,
+    ) -> int:
+        if origin_id == destination_id:
+            return 0
+        if self.distances_meters is None:
+            return 0
+        return self.distances_meters.get((origin_id, destination_id), 0)
 
 
 def haversine_kilometers(origin: Coordinate, destination: Coordinate) -> float:
@@ -140,6 +153,7 @@ async def build_travel_time_matrix(
     minutes: dict[tuple[str, str], int] = {}
     modes: dict[tuple[str, str], TravelMode] = {}
     sources: dict[tuple[str, str], TravelTimeSource] = {}
+    distances_meters: dict[tuple[str, str], int] = {}
 
     routes: list[tuple[str, MatrixNode, str, MatrixNode]] = []
 
@@ -151,9 +165,13 @@ async def build_travel_time_matrix(
             if key in minutes:
                 continue
             walk_minutes = estimated_walking_minutes(origin, destination)
+            estimated_distance = round(
+                haversine_kilometers(origin, destination) * 1_250
+            )
             minutes[key] = walk_minutes
             modes[key] = TravelMode.WALK
             sources[key] = TravelTimeSource.ESTIMATED
+            distances_meters[key] = estimated_distance
             if provider_route_keys is None or key in provider_route_keys:
                 routes.append(
                     (origin_id, origin, destination_id, destination)
@@ -208,6 +226,8 @@ async def build_travel_time_matrix(
                 minutes[key] = provider_result.minutes
                 modes[key] = provider_result.mode
                 sources[key] = provider_result.source
+                if provider_result.distance_meters is not None:
+                    distances_meters[key] = provider_result.distance_meters
             elif provider_result < minutes[key]:
                 # 기존 int Provider(ODsay 및 테스트 double)와의 호환성.
                 minutes[key] = provider_result
@@ -250,6 +270,7 @@ async def build_travel_time_matrix(
         minutes=minutes,
         modes=modes,
         sources=sources,
+        distances_meters=distances_meters,
     )
 
 

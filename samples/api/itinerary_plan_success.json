@@ -6,6 +6,7 @@
     "status": "ACTIVE",
     "algorithmVersion": "auto-fill-v0.4",
     "totalTravelMinutes": 25,
+    "totalTravelDistanceMeters": 8400,
     "days": [
       {
         "date": "2026-08-16",
@@ -26,6 +27,7 @@
             "scheduledStartAt": "2026-08-16T13:00:00+09:00",
             "scheduledEndAt": "2026-08-16T14:00:00+09:00",
             "travelMinutesFromPrevious": 25,
+            "travelDistanceMetersFromPrevious": 8400,
             "transferBufferMinutes": 15,
             "travelMode": "TRANSIT",
             "travelTimeSource": "KAKAO",

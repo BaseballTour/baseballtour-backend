@@ -9,6 +9,7 @@ from app.models.place import (
     PlaceCategory,
     PlaceSource,
 )
+from app.schemas.player_pick import PlayerPickResponse
 
 
 client = TestClient(app)
@@ -112,11 +113,11 @@ def test_nearby_rejects_invalid_page_token() -> None:
     )
 
 
-def test_nearby_rejects_unsupported_category() -> None:
+def test_nearby_rejects_other_category() -> None:
     response = client.get(
         "/api/v1/tour/nearby",
         params={
-            "category": "CAFE",
+            "category": "OTHER",
         },
     )
 
@@ -187,3 +188,43 @@ def test_detail_rejects_raw_content_id() -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_PLACE_ID"
+
+
+def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
+    received: dict[str, str | None] = {}
+
+    class FakePlayerPickService:
+        async def get_player_picks(
+            self,
+            *,
+            stadium_id: str,
+            player_name: str | None = None,
+        ) -> list[PlayerPickResponse]:
+            received["stadium_id"] = stadium_id
+            received["player_name"] = player_name
+            return [
+                PlayerPickResponse(
+                    player_pick_id="player_pick_001",
+                    stadium_id=stadium_id,
+                    player_name=player_name or "테스트 선수",
+                    place=make_place(),
+                )
+            ]
+
+    monkeypatch.setattr(
+        tour_endpoint,
+        "PlayerPickService",
+        FakePlayerPickService,
+    )
+
+    response = client.get(
+        "/api/v1/tour/player-picks",
+        params={"stadiumId": "gocheok", "playerName": "테스트 선수"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["place"]["placeId"] == "tour_123456"
+    assert received == {
+        "stadium_id": "gocheok",
+        "player_name": "테스트 선수",
+    }

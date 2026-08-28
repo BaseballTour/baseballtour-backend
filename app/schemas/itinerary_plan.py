@@ -49,6 +49,7 @@ class ItineraryPlanDocument(ApiModel):
     status: ItineraryPlanStatus = ItineraryPlanStatus.ACTIVE
     algorithm_version: str = Field(min_length=1)
     total_travel_minutes: int = Field(ge=0)
+    total_travel_distance_meters: int = Field(default=0, ge=0)
     days: list[ItineraryPlanDay] = Field(default_factory=list)
     excluded_places: list[ExcludedPlace] = Field(
         default_factory=list
@@ -72,6 +73,7 @@ class ItineraryPlanResponse(ApiModel):
     status: ItineraryPlanStatus
     algorithm_version: str = Field(min_length=1)
     total_travel_minutes: int = Field(ge=0)
+    total_travel_distance_meters: int = Field(default=0, ge=0)
     days: list[ItineraryPlanDay] = Field(default_factory=list)
     excluded_places: list[ExcludedPlace] = Field(
         default_factory=list

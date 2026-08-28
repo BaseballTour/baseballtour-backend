@@ -158,10 +158,16 @@ def generate_itinerary(
         for day in days
         for item in day.items
     )
+    total_distance = sum(
+        item.travel_distance_meters_from_previous
+        for day in days
+        for item in day.items
+    )
     return ItineraryResult(
         trip_id=trip.trip_id,
         algorithm_version="auto-fill-v0.4",
         total_travel_minutes=total,
+        total_travel_distance_meters=total_distance,
         days=days,
         excluded_places=excluded,
         auto_fill_applied=bool(auto_ids),
@@ -251,6 +257,9 @@ def _schedule_day(
                 scheduled_start_at=visit.start,
                 scheduled_end_at=visit.end,
                 travel_minutes_from_previous=visit.travel_minutes,
+                travel_distance_meters_from_previous=(
+                    matrix.get_distance_meters(previous_id, place.place_id)
+                ),
                 transfer_buffer_minutes=transfer_buffer(
                     previous_id, place.place_id
                 ),
@@ -285,6 +294,9 @@ def _schedule_day(
                 sequence=len(items) + 1,
                 place_id=trip.game_anchor.stadium_id,
                 travel=travel,
+                travel_distance=matrix.get_distance_meters(
+                    previous_id, "stadium"
+                ),
                 transfer_buffer=transfer_buffer(previous_id, "stadium"),
                 travel_mode=matrix.get_mode(previous_id, "stadium"),
                 travel_time_source=matrix.get_source(previous_id, "stadium"),
@@ -315,6 +327,9 @@ def _schedule_day(
                 sequence=len(items) + 1,
                 place_id=trip.accommodation.place_id,
                 travel=travel,
+                travel_distance=matrix.get_distance_meters(
+                    previous_id, "accommodation"
+                ),
                 transfer_buffer=transfer_buffer(previous_id, "accommodation"),
                 travel_mode=matrix.get_mode(previous_id, "accommodation"),
                 travel_time_source=matrix.get_source(previous_id, "accommodation"),
@@ -332,6 +347,9 @@ def _schedule_day(
                 trip.trip_end_at,
                 sequence=len(items) + 1,
                 travel=travel,
+                travel_distance=matrix.get_distance_meters(
+                    previous_id, "departure"
+                ),
                 transfer_buffer=transfer_buffer(previous_id, "departure"),
                 travel_mode=matrix.get_mode(previous_id, "departure"),
                 travel_time_source=matrix.get_source(previous_id, "departure"),
@@ -799,6 +817,7 @@ def _anchor_item(
     sequence: int = 1,
     place_id: str | None = None,
     travel: int = 0,
+    travel_distance: int = 0,
     transfer_buffer: int = 0,
     travel_mode: TravelMode | None = None,
     travel_time_source: TravelTimeSource | None = None,
@@ -814,6 +833,7 @@ def _anchor_item(
         scheduled_start_at=start,
         scheduled_end_at=end,
         travel_minutes_from_previous=travel,
+        travel_distance_meters_from_previous=travel_distance,
         transfer_buffer_minutes=transfer_buffer,
         travel_mode=travel_mode,
         travel_time_source=travel_time_source,

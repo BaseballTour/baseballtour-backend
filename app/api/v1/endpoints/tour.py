@@ -8,6 +8,7 @@ from app.external.tour_api.adapter import (
     tour_api_adapter,
 )
 from app.models.place import Place, PlaceCategory
+from app.schemas.player_pick import PlayerPickResponse
 from app.schemas.response import (
     ListMeta,
     ListSuccessResponse,
@@ -17,6 +18,7 @@ from app.schemas.tour import TourClassification
 from app.services.place_enrichment import (
     enrich_place_with_kakao,
 )
+from app.services.player_pick_service import PlayerPickService
 
 
 router = APIRouter(
@@ -29,6 +31,7 @@ router = APIRouter(
 TourNearbyCategory = Literal[
     "TOURIST_SPOT",
     "RESTAURANT",
+    "CAFE",
     "ACCOMMODATION",
     "CULTURAL_FACILITY",
     "SHOPPING",
@@ -87,6 +90,29 @@ def _validate_lcls_filters(
             code="INVALID_CLASSIFICATION_FILTER",
             message="신분류 소분류 검색에는 대분류와 중분류 코드가 필요합니다.",
         )
+
+
+@router.get(
+    "/player-picks",
+    response_model=ListSuccessResponse[PlayerPickResponse],
+    summary="구장·선수별 추천 장소 조회",
+)
+async def read_player_picks(
+    stadium_id: str = Query(alias="stadiumId", min_length=1),
+    player_name: str | None = Query(
+        default=None,
+        alias="playerName",
+        min_length=1,
+    ),
+) -> ListSuccessResponse[PlayerPickResponse]:
+    picks = await PlayerPickService().get_player_picks(
+        stadium_id=stadium_id,
+        player_name=player_name,
+    )
+    return ListSuccessResponse(
+        data=picks,
+        meta=ListMeta(count=len(picks), next_page_token=None),
+    )
 
 
 @router.get(
