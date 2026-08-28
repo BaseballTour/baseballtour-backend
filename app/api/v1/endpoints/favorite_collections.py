@@ -214,7 +214,7 @@ def delete_favorite_collection(
         "동일 장소를 다시 저장해도 중복 문서를 생성하지 않습니다."
     ),
 )
-def save_favorite_collection_item(
+async def save_favorite_collection_item(
     collection_id: Annotated[
         str,
         Path(
@@ -236,7 +236,7 @@ def save_favorite_collection_item(
 ) -> SuccessResponse[FavoriteCollectionItemResponse]:
     service = FavoriteCollectionService()
 
-    item = service.save_item(
+    item = await service.save_item(
         user_id=user_id,
         collection_id=collection_id,
         place_id=place_id,

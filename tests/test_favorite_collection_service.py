@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from app.core.exceptions import AppException
+from app.models.place import Place, PlaceCategory, PlaceSource
 from app.schemas.favorite_collection import (
     FavoriteCollectionCreateRequest,
     FavoriteCollectionDocument,
@@ -158,6 +160,20 @@ class StubFavoriteCollectionRepository:
             and stored_collection_id == collection_id
         ]
 
+    def update_item_snapshot(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        place_id: str,
+        place_snapshot: Place,
+    ) -> None:
+        key = (user_id, collection_id, place_id)
+        existing = self.items[key]
+        self.items[key] = existing.model_copy(
+            update={"place_snapshot": place_snapshot}
+        )
+
     def delete_item(
         self,
         *,
@@ -183,9 +199,23 @@ def create_service() -> tuple[
     StubFavoriteCollectionRepository,
 ]:
     repository = StubFavoriteCollectionRepository()
+    place_adapter = Mock()
+    place_adapter.get_place_detail = AsyncMock(
+        return_value=Place(
+            place_id="tour_123456",
+            name="테스트 장소",
+            category=PlaceCategory.TOURIST_SPOT,
+            latitude=37.5,
+            longitude=127.0,
+            address="서울특별시",
+            source=PlaceSource.TOUR_API,
+            source_content_id="123456",
+        )
+    )
 
     service = FavoriteCollectionService(
         repository=repository,
+        place_adapter=place_adapter,
     )
 
     return service, repository
@@ -312,17 +342,20 @@ def test_delete_missing_collection_raises_not_found() -> None:
     )
 
 
-def test_save_item_saves_tour_place() -> None:
+@pytest.mark.anyio
+async def test_save_item_saves_tour_place_snapshot() -> None:
     service, repository = create_service()
     seed_collection(repository)
 
-    item = service.save_item(
+    item = await service.save_item(
         user_id=USER_ID,
         collection_id=COLLECTION_ID,
         place_id="tour_123456",
     )
 
     assert item.place_id == "tour_123456"
+    assert item.place_snapshot is not None
+    assert item.place_snapshot.name == "테스트 장소"
     assert item.created_at.tzinfo is not None
 
     assert repository.get_items(
@@ -331,12 +364,13 @@ def test_save_item_saves_tour_place() -> None:
     ) == [item]
 
 
-def test_save_item_rejects_non_tour_place() -> None:
+@pytest.mark.anyio
+async def test_save_item_rejects_non_tour_place() -> None:
     service, repository = create_service()
     seed_collection(repository)
 
     with pytest.raises(AppException) as exception_info:
-        service.save_item(
+        await service.save_item(
             user_id=USER_ID,
             collection_id=COLLECTION_ID,
             place_id="kakao_123456",
@@ -348,11 +382,12 @@ def test_save_item_rejects_non_tour_place() -> None:
     assert exception.code == "INVALID_FAVORITE_PLACE"
 
 
-def test_save_item_missing_collection_raises_not_found() -> None:
+@pytest.mark.anyio
+async def test_save_item_missing_collection_raises_not_found() -> None:
     service, _ = create_service()
 
     with pytest.raises(AppException) as exception_info:
-        service.save_item(
+        await service.save_item(
             user_id=USER_ID,
             collection_id="missing",
             place_id="tour_123456",
@@ -367,11 +402,12 @@ def test_save_item_missing_collection_raises_not_found() -> None:
     )
 
 
-def test_delete_item_removes_saved_place() -> None:
+@pytest.mark.anyio
+async def test_delete_item_removes_saved_place() -> None:
     service, repository = create_service()
     seed_collection(repository)
 
-    service.save_item(
+    await service.save_item(
         user_id=USER_ID,
         collection_id=COLLECTION_ID,
         place_id="tour_123456",
@@ -407,3 +443,70 @@ def test_delete_missing_item_raises_not_found() -> None:
         exception.code
         == "FAVORITE_COLLECTION_ITEM_NOT_FOUND"
     )
+
+
+@pytest.mark.anyio
+async def test_collection_places_use_snapshot_without_external_api() -> None:
+    repository = StubFavoriteCollectionRepository()
+    seed_collection(repository)
+    snapshot = Place(
+        place_id="tour_123456",
+        name="저장된 장소",
+        category=PlaceCategory.TOURIST_SPOT,
+        latitude=37.5,
+        longitude=127.0,
+        source=PlaceSource.TOUR_API,
+        source_content_id="123456",
+    )
+    repository.items[(USER_ID, COLLECTION_ID, snapshot.place_id)] = (
+        FavoriteCollectionItemDocument(
+            place_id=snapshot.place_id,
+            place_snapshot=snapshot,
+            created_at=FIXED_TIME,
+        )
+    )
+    adapter = Mock()
+    adapter.get_place_detail = AsyncMock()
+    service = FavoriteCollectionService(
+        repository=repository,
+        place_adapter=adapter,
+    )
+
+    places = await service.get_collection_places(
+        user_id=USER_ID,
+        collection_id=COLLECTION_ID,
+    )
+
+    assert places == [snapshot]
+    adapter.get_place_detail.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_legacy_collection_item_failure_does_not_fail_whole_request() -> None:
+    repository = StubFavoriteCollectionRepository()
+    seed_collection(repository)
+    repository.items[(USER_ID, COLLECTION_ID, "tour_legacy")] = (
+        FavoriteCollectionItemDocument(
+            place_id="tour_legacy",
+            created_at=FIXED_TIME,
+        )
+    )
+    adapter = Mock()
+    adapter.get_place_detail = AsyncMock(
+        side_effect=AppException(
+            status_code=503,
+            code="EXTERNAL_API_TIMEOUT",
+            message="TourAPI 요청 시간이 초과되었습니다.",
+        )
+    )
+    service = FavoriteCollectionService(
+        repository=repository,
+        place_adapter=adapter,
+    )
+
+    places = await service.get_collection_places(
+        user_id=USER_ID,
+        collection_id=COLLECTION_ID,
+    )
+
+    assert places == []

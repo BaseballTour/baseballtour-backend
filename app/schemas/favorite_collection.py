@@ -1,5 +1,6 @@
 from pydantic import AwareDatetime, Field
 
+from app.models.place import Place
 from app.schemas.base import ApiModel
 
 
@@ -49,9 +50,16 @@ class FavoriteCollectionResponse(ApiModel):
 
 
 class FavoriteCollectionItemDocument(ApiModel):
-    """장소 원본을 복제하지 않고 places 문서 ID만 참조한다."""
+    """찜 장소 ID와 조회 장애에 대비한 장소 스냅샷."""
 
     place_id: str = Field(min_length=1)
+    place_snapshot: Place | None = Field(
+        default=None,
+        description=(
+            "찜 저장 시점의 장소 정보. 기존 ID 전용 문서와의 "
+            "호환을 위해 null을 허용합니다."
+        ),
+    )
     created_at: AwareDatetime
 
 

@@ -1,11 +1,13 @@
 from datetime import datetime
 from hashlib import sha256
+import logging
 from typing import Any
 
 from google.cloud.exceptions import NotFound
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 from google.cloud.firestore_v1.transaction import transactional
+from pydantic import ValidationError
 
 from app.core.firebase import get_firestore_client
 from app.schemas.trip import (
@@ -13,6 +15,9 @@ from app.schemas.trip import (
     TripRecord,
     TripStatus,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class TripIdempotencyConflictError(Exception):
@@ -23,6 +28,23 @@ class TripRepository:
     """Firestore trips Collection 접근을 담당합니다."""
 
     COLLECTION_NAME = "trips"
+
+    @staticmethod
+    def _to_record(*, trip_id: str, data: dict[str, Any]) -> TripRecord:
+        """Firestore 여행 문서를 검증하고 실패 위치를 진단 로그에 남깁니다."""
+
+        try:
+            return TripRecord(
+                trip_id=trip_id,
+                **data,
+            )
+        except ValidationError as error:
+            logger.error(
+                "여행 문서 모델 검증 실패: trip_id=%s errors=%s",
+                trip_id,
+                error.errors(include_input=False),
+            )
+            raise
 
     def __init__(self, client: Client | None = None) -> None:
         self._client = client or get_firestore_client()
@@ -76,9 +98,9 @@ class TripRepository:
                 ):
                     raise TripIdempotencyConflictError()
 
-                return TripRecord(
+                return self._to_record(
                     trip_id=snapshot.id,
-                    **data,
+                    data=data,
                 )
 
             transaction.set(
@@ -109,9 +131,9 @@ class TripRepository:
 
         data = snapshot.to_dict() or {}
 
-        return TripRecord(
+        return self._to_record(
             trip_id=snapshot.id,
-            **data,
+            data=data,
         )
 
     def get_by_user_id(
@@ -141,9 +163,9 @@ class TripRepository:
             data = snapshot.to_dict() or {}
 
             trips.append(
-                TripRecord(
+                self._to_record(
                     trip_id=snapshot.id,
-                    **data,
+                    data=data,
                 )
             )
 

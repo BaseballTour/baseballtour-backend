@@ -6,6 +6,7 @@ from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
 from app.core.ids import new_prefixed_id
+from app.models.place import Place
 from app.schemas.favorite_collection import (
     FavoriteCollectionDocument,
     FavoriteCollectionItemDocument,
@@ -191,12 +192,25 @@ class FavoriteCollectionRepository:
             .document(item.place_id)
         )
 
-        try:
-            document_reference.create(
-                item.model_dump(
+        item_data = item.model_dump(
+            by_alias=True,
+            exclude_none=True,
+            exclude={"place_snapshot"},
+        )
+        if item.place_snapshot is not None:
+            # Firestore가 지원하지 않는 date/Enum 값을 포함할 수 있으므로
+            # 장소 스냅샷만 JSON 호환 값으로 정규화합니다.
+            item_data["placeSnapshot"] = (
+                item.place_snapshot.model_dump(
+                    mode="json",
                     by_alias=True,
                     exclude_none=False,
                 )
+            )
+
+        try:
+            document_reference.create(
+                item_data
             )
         except AlreadyExists:
             snapshot = document_reference.get()
@@ -233,6 +247,33 @@ class FavoriteCollectionRepository:
         return sorted(
             items,
             key=lambda item: item.created_at,
+        )
+
+    def update_item_snapshot(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        place_id: str,
+        place_snapshot: Place,
+    ) -> None:
+        """기존 ID 전용 찜 문서에 장소 스냅샷을 보충합니다."""
+
+        (
+            self._get_items_collection(
+                user_id=user_id,
+                collection_id=collection_id,
+            )
+            .document(place_id)
+            .update(
+                {
+                    "placeSnapshot": place_snapshot.model_dump(
+                        mode="json",
+                        by_alias=True,
+                        exclude_none=False,
+                    )
+                }
+            )
         )
 
     def delete_item(

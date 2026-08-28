@@ -284,12 +284,12 @@ def test_save_favorite_collection_item_returns_saved_item(
     authenticated_client: TestClient,
 ) -> None:
     service = Mock()
-    service.save_item.return_value = (
+    service.save_item = AsyncMock(return_value=(
         FavoriteCollectionItemDocument(
             place_id="tour_123456",
             created_at=FIXED_TIME,
         )
-    )
+    ))
 
     with patch(
         (
@@ -315,7 +315,7 @@ def test_save_favorite_collection_item_returns_saved_item(
         "createdAt": "2026-08-20T19:00:00+09:00",
     }
 
-    service.save_item.assert_called_once_with(
+    service.save_item.assert_awaited_once_with(
         user_id=USER_ID,
         collection_id=COLLECTION_ID,
         place_id="tour_123456",
