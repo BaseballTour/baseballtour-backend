@@ -106,7 +106,6 @@ def make_create_body() -> dict:
         },
         "accommodation": {
             "accommodationId": "accommodation_kakao_123456789",
-            "kakaoPlaceId": "123456789",
             "name": "서면 숙소",
             "address": "부산광역시 부산진구",
             "latitude": 35.1577,
@@ -175,9 +174,6 @@ def test_create_trip_returns_created_summary(
     )
     assert arguments["request"].arrival_point.name == "부산역"
     assert arguments["request"].departure_point.name == "부산역"
-    assert arguments["request"].accommodation.kakao_place_id == (
-        "123456789"
-    )
     assert arguments["request"].accommodation.accommodation_id == (
         "accommodation_kakao_123456789"
     )

@@ -36,7 +36,8 @@ GET /api/v1/tour/places/tour_1603175
 
 숙소 검색 응답은 `accommodation_kakao_{Kakao 장소 ID}`, 지도 선택 응답은
 `accommodation_map_{hash}` 형식의 `accommodationId`를 제공한다. 프론트는 이 ID와
-이름·주소·좌표가 포함된 후보 객체를 여행 요청에 그대로 전달한다. 숙소 전용 DB가
+이름·주소·좌표를 여행 요청에 전달하며 검색 응답의 `kakaoPlaceId`는 다시 보내지
+않는다. 숙소 전용 DB가
 아직 없으므로 ID만으로 숙소를 복원하지 않고 여행 문서에 선택 당시 스냅샷을 함께
 저장한다. 좌표는 소수점 6자리로 정규화하며, 잘못된 ID는 HTTP 422
 `ACCOMMODATION_INVALID`로 응답한다.

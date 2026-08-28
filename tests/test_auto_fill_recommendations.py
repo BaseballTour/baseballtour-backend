@@ -205,6 +205,63 @@ def test_departure_day_dinner_is_filled_when_time_is_available() -> None:
     assert dinner.scheduled_end_at < departure.scheduled_start_at
 
 
+def test_departure_day_prioritizes_breakfast_lunch_and_dinner() -> None:
+    breakfast = place(
+        "breakfast_restaurant",
+        category=PlaceCategory.RESTAURANT,
+        lcls_system2="FD03",
+    )
+    lunch = place("lunch_restaurant", category=PlaceCategory.RESTAURANT)
+    dinner = place("dinner_restaurant", category=PlaceCategory.RESTAURANT)
+    arrival_lunch = place(
+        "arrival_lunch_restaurant", category=PlaceCategory.RESTAURANT
+    )
+    morning_stop = place("morning_stop")
+    afternoon_stop = place("afternoon_stop")
+    evening_stop = place("evening_stop")
+    recommendations = [
+        breakfast,
+        lunch,
+        dinner,
+        arrival_lunch,
+        morning_stop,
+        afternoon_stop,
+        evening_stop,
+    ]
+
+    result = generate_itinerary(
+        same_day_arrival_game_trip(),
+        [],
+        matrix(*(item.place_id for item in recommendations)),
+        recommended_places=recommendations,
+    )
+
+    departure_day = result.days[1]
+    restaurants = [
+        item
+        for item in departure_day.items
+        if item.category == PlaceCategory.RESTAURANT
+    ]
+    meal_periods = {
+        "BREAKFAST"
+        if 7 <= item.scheduled_start_at.hour <= 10
+        else "LUNCH"
+        if 11 <= item.scheduled_start_at.hour <= 14
+        else "DINNER"
+        if 17 <= item.scheduled_start_at.hour <= 20
+        else "OTHER"
+        for item in restaurants
+    }
+
+    assert {"BREAKFAST", "LUNCH", "DINNER"} <= meal_periods
+    breakfast_item = next(
+        item
+        for item in restaurants
+        if 7 <= item.scheduled_start_at.hour <= 10
+    )
+    assert breakfast_item.place_id == breakfast.place_id
+
+
 def test_user_place_is_kept_and_marked_as_user() -> None:
     selected = place("selected", default_stay_minutes=600)
     recommendation = place("recommendation", default_stay_minutes=600)

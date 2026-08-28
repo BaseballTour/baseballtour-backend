@@ -27,6 +27,7 @@ from app.models.itinerary import (
     TripInput,
 )
 from app.models.place import (
+    BusinessHoursRule,
     BusinessRuleStatus,
     Place,
     PlaceCategory,
@@ -480,11 +481,18 @@ def _fill_routes_with_recommendations(
                 ):
                     rejected["UNVERIFIED_FESTIVAL"] += 1
                     continue
+                candidate = _place_for_next_meal_period(
+                    place,
+                    current_meals,
+                    target_date=target_date,
+                    available_start=args["available_start"],
+                    available_end=args["available_end"],
+                )
+                if candidate is None:
+                    rejected["NO_AVAILABLE_MEAL_PERIOD"] += 1
+                    continue
                 for index in range(len(current) + 1):
-                    proposed = [*current[:index], place, *current[index:]]
-                    if _has_consecutive_restaurants(proposed):
-                        rejected["CONSECUTIVE_RESTAURANT"] += 1
-                        continue
+                    proposed = [*current[:index], candidate, *current[index:]]
                     result = simulate_route_detailed(proposed, **args)
                     if not result.feasible:
                         reason = (
@@ -507,11 +515,20 @@ def _fill_routes_with_recommendations(
                     if marginal > AUTO_FILL_MAX_DETOUR_MINUTES:
                         rejected["ROUTE_INEFFICIENT"] += 1
                         continue
+                    if _has_duplicate_meal_restaurants(result.visits):
+                        rejected["CONSECUTIVE_RESTAURANT"] += 1
+                        continue
                     visit = next(
                         item
                         for item in result.visits
                         if item.place.place_id == place.place_id
                     )
+                    if (
+                        place.category == PlaceCategory.RESTAURANT
+                        and _meal_period(visit.start.time()) is None
+                    ):
+                        rejected["OUTSIDE_MEAL_PERIOD"] += 1
+                        continue
                     closing_slack = (
                         result.closing_slack_minutes
                         if result.closing_slack_minutes is not None
@@ -522,14 +539,14 @@ def _fill_routes_with_recommendations(
                     )
                     meal_gain = len(proposed_meals - current_meals)
                     score = (
-                        scheduled_per_day[target_date],
                         -meal_gain,
+                        scheduled_per_day[target_date],
+                        _meal_time_category_priority(
+                            place, visit.start.time()
+                        ),
                         marginal,
                         -(result.anchor_slack_minutes or 0),
                         -closing_slack,
-                        _meal_time_category_priority(
-                            place.category, visit.start.time()
-                        ),
                         abs(
                             result.anchor_slack_minutes
                             - AUTO_FILL_MIN_REMAINING_MINUTES
@@ -578,17 +595,36 @@ def _has_consecutive_restaurants(route: list[Place]) -> bool:
     )
 
 
+def _has_duplicate_meal_restaurants(visits) -> bool:
+    """같은 식사 시간대에 식당이 연달아 추천되는 경우만 차단한다."""
+
+    for previous, current in zip(visits, visits[1:]):
+        if (
+            previous.place.category != PlaceCategory.RESTAURANT
+            or current.place.category != PlaceCategory.RESTAURANT
+        ):
+            continue
+        previous_period = _meal_period(previous.start.time())
+        current_period = _meal_period(current.start.time())
+        if previous_period is not None and previous_period == current_period:
+            return True
+    return False
+
+
 def _meal_time_category_priority(
-    category: PlaceCategory | str,
+    place: Place,
     visit_time: time,
 ) -> int:
     minute = visit_time.hour * 60 + visit_time.minute
-    is_meal_time = 11 * 60 <= minute <= 14 * 60 or 17 * 60 <= minute <= 20 * 60
-    if is_meal_time:
-        return 0 if category == PlaceCategory.RESTAURANT else 1
+    if 7 * 60 <= minute <= 10 * 60 + 30:
+        if place.category != PlaceCategory.RESTAURANT:
+            return 2
+        return 0 if place.lcls_system2 == "FD03" else 1
+    if 11 * 60 <= minute <= 14 * 60 or 17 * 60 <= minute <= 20 * 60:
+        return 0 if place.category == PlaceCategory.RESTAURANT else 1
     return (
         0
-        if category
+        if place.category
         in {
             PlaceCategory.TOURIST_SPOT,
             PlaceCategory.CAFE,
@@ -598,18 +634,92 @@ def _meal_time_category_priority(
     )
 
 
+def _meal_period(visit_time: time) -> str | None:
+    minute = visit_time.hour * 60 + visit_time.minute
+    if 7 * 60 <= minute <= 10 * 60 + 30:
+        return "BREAKFAST"
+    if 11 * 60 <= minute <= 14 * 60:
+        return "LUNCH"
+    if 17 * 60 <= minute <= 20 * 60:
+        return "DINNER"
+    return None
+
+
+MEAL_WINDOWS = (
+    ("BREAKFAST", time(7, 0), time(10, 30)),
+    ("LUNCH", time(11, 0), time(14, 0)),
+    ("DINNER", time(17, 0), time(20, 0)),
+)
+
+
+def _place_for_next_meal_period(
+    place: Place,
+    covered_periods: set[str],
+    *,
+    target_date: date,
+    available_start: datetime,
+    available_end: datetime,
+) -> Place | None:
+    """식당을 아직 비어 있는 다음 식사 시간대로 제한해 대기 배치한다."""
+
+    if place.category != PlaceCategory.RESTAURANT:
+        return place
+    if _is_closed(place, target_date):
+        return None
+
+    weekday = list(Weekday)[target_date.weekday()]
+    real_open, real_close = _hours_for_date(place, target_date)
+    parsed_open = _parse_time(real_open)
+    parsed_close = _parse_time(real_close)
+
+    for period, window_open, window_close in MEAL_WINDOWS:
+        if period in covered_periods:
+            continue
+        open_at = max(
+            datetime.combine(target_date, window_open, available_start.tzinfo),
+            available_start,
+        )
+        close_at = min(
+            datetime.combine(target_date, window_close, available_end.tzinfo),
+            available_end,
+        )
+        if parsed_open is not None:
+            open_at = max(
+                open_at,
+                datetime.combine(target_date, parsed_open, open_at.tzinfo),
+            )
+        if parsed_close is not None:
+            close_at = min(
+                close_at,
+                datetime.combine(target_date, parsed_close, close_at.tzinfo),
+            )
+        if open_at + timedelta(minutes=place.default_stay_minutes) > close_at:
+            continue
+        return place.model_copy(
+            update={
+                "business_hours_status": BusinessRuleStatus.PARSED,
+                "business_hours_rules": [
+                    BusinessHoursRule(
+                        weekdays=[weekday],
+                        open_time=open_at.strftime("%H:%M"),
+                        close_time=close_at.strftime("%H:%M"),
+                    )
+                ],
+            }
+        )
+    return None
+
+
 def _covered_meal_periods(visits) -> set[str]:
-    """일정에 실제 식당 방문이 배치된 점심·저녁 구간을 반환합니다."""
+    """일정에 실제 식당 방문이 배치된 아침·점심·저녁 구간을 반환합니다."""
 
     covered: set[str] = set()
     for visit in visits:
         if visit.place.category != PlaceCategory.RESTAURANT:
             continue
-        minute = visit.start.hour * 60 + visit.start.minute
-        if 11 * 60 <= minute <= 14 * 60:
-            covered.add("LUNCH")
-        if 17 * 60 <= minute <= 20 * 60:
-            covered.add("DINNER")
+        period = _meal_period(visit.start.time())
+        if period is not None:
+            covered.add(period)
     return covered
 
 
