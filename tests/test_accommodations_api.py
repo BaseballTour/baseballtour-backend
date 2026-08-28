@@ -75,6 +75,21 @@ def test_accommodation_search_openapi_uses_page_size_15() -> None:
     assert parameter["schema"]["maximum"] == 15
     assert parameter["example"] == 15
 
+    keyword_parameter = next(
+        item
+        for item in operation["parameters"]
+        if item["name"] == "keyword"
+    )
+    assert keyword_parameter["example"] == "잠실 호텔"
+
+
+def test_reverse_geocode_openapi_uses_user_facing_summary() -> None:
+    operation = app.openapi()["paths"][
+        "/api/v1/accommodations/reverse-geocode"
+    ]["get"]
+
+    assert operation["summary"] == "지도에서 숙소 검색"
+
 
 def test_search_requires_coordinate_pair() -> None:
     response = client.get(
