@@ -5,6 +5,10 @@ import json
 from fastapi import status
 from pydantic import ValidationError
 
+from app.core.accommodation_ids import (
+    build_kakao_accommodation_id,
+    is_valid_accommodation_id,
+)
 from app.core.exceptions import AppException
 from app.repositories.game_repository import GameRepository
 from app.repositories.itinerary_plan_repository import (
@@ -66,6 +70,8 @@ class TripService:
         idempotency_key: str,
     ) -> TripRecord:
         """로그인 사용자의 여행을 생성합니다."""
+
+        self._validate_accommodation(request.accommodation)
 
         game = self._get_game_or_raise(
             request.game_id
@@ -158,6 +164,12 @@ class TripService:
     ) -> TripRecord:
         """로그인 사용자가 소유한 여행 기본정보를 수정합니다."""
 
+        if (
+            "accommodation" in request.model_fields_set
+            and request.accommodation is not None
+        ):
+            self._validate_accommodation(request.accommodation)
+
         current_trip = self._get_owned_trip_or_raise(
             user_id=user_id,
             trip_id=trip_id,
@@ -223,6 +235,54 @@ class TripService:
             )
 
         return updated_trip
+
+    @staticmethod
+    def _validate_accommodation(accommodation) -> None:
+        if accommodation is None:
+            return
+
+        if not is_valid_accommodation_id(
+            accommodation.accommodation_id
+        ):
+            raise AppException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code="ACCOMMODATION_INVALID",
+                message="숙소 정보를 확인해 주세요.",
+                details={
+                    "field": "accommodation.accommodationId",
+                    "reason": (
+                        "숙소 검색 응답의 accommodation_ 접두사 ID를 "
+                        "그대로 전달해야 합니다."
+                    ),
+                },
+            )
+
+        if accommodation.kakao_place_id is not None:
+            try:
+                expected_id = build_kakao_accommodation_id(
+                    accommodation.kakao_place_id
+                )
+            except ValueError as exc:
+                raise AppException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    code="ACCOMMODATION_INVALID",
+                    message="숙소 정보를 확인해 주세요.",
+                    details={
+                        "field": "accommodation.kakaoPlaceId",
+                        "reason": str(exc),
+                    },
+                ) from exc
+
+            if accommodation.accommodation_id != expected_id:
+                raise AppException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    code="ACCOMMODATION_INVALID",
+                    message="숙소 정보를 확인해 주세요.",
+                    details={
+                        "field": "accommodation.accommodationId",
+                        "reason": "Kakao 숙소 ID와 일치하지 않습니다.",
+                    },
+                )
 
     def delete_trip(
         self,

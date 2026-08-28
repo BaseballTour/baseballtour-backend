@@ -86,6 +86,7 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
         for item in day.items
         if item.item_type == ItineraryItemType.ACCOMMODATION
     )
+    assert accommodation.place_id == trip.accommodation.place_id
     assert (
         accommodation.scheduled_end_at
         - accommodation.scheduled_start_at

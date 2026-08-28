@@ -25,6 +25,8 @@ DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
 DEFAULT_MAX_PAGES_PER_CENTER = 2
 DEFAULT_MAX_CANDIDATES = 12
 DETAIL_CONCURRENCY = 5
+NEARBY_PAGE_TIMEOUT_SECONDS = 6.0
+DETAIL_TIMEOUT_SECONDS = 5.0
 DINING_CATEGORY_MINIMUM = 2
 CATEGORY_MAXIMUMS = {
     PlaceCategory.RESTAURANT: 4,
@@ -90,8 +92,19 @@ class RecommendationService:
         nearby_places: list[Place] = []
         rejected: Counter[str] = Counter()
 
-        for center in _deduplicate_centers(centers):
-            nearby_places.extend(await self._load_all_nearby_pages(center))
+        center_results = await asyncio.gather(
+            *(
+                self._load_all_nearby_pages(center)
+                for center in _deduplicate_centers(centers)
+            )
+        )
+        if center_results and all(failed for _, failed in center_results):
+            raise asyncio.TimeoutError(
+                "모든 추천 기준점의 TourAPI 조회에 실패했습니다."
+            )
+
+        for places, _ in center_results:
+            nearby_places.extend(places)
 
         eligible = _filter_and_deduplicate(
             nearby_places,
@@ -173,18 +186,22 @@ class RecommendationService:
     async def _load_all_nearby_pages(
         self,
         center: RecommendationCenter,
-    ) -> list[Place]:
+    ) -> tuple[list[Place], bool]:
         places: list[Place] = []
         page_no = 1
+        first_page_failed = False
 
         while page_no <= self._max_pages_per_center:
             try:
-                page = await self._place_adapter.get_nearby_place_page(
-                    longitude=center.longitude,
-                    latitude=center.latitude,
-                    radius=self._radius,
-                    page_no=page_no,
-                    num_of_rows=self._page_size,
+                page = await asyncio.wait_for(
+                    self._place_adapter.get_nearby_place_page(
+                        longitude=center.longitude,
+                        latitude=center.latitude,
+                        radius=self._radius,
+                        page_no=page_no,
+                        num_of_rows=self._page_size,
+                    ),
+                    timeout=NEARBY_PAGE_TIMEOUT_SECONDS,
                 )
             except Exception as exc:
                 # 추천 실패는 사용자가 선택한 장소의 일정 생성을 막지 않습니다.
@@ -193,6 +210,7 @@ class RecommendationService:
                     page_no,
                     exc,
                 )
+                first_page_failed = page_no == 1
                 break
 
             places.extend(page.places)
@@ -209,7 +227,7 @@ class RecommendationService:
                 break
             page_no = next_page
 
-        return places
+        return places, first_page_failed
 
     async def _resolve_details(self, places: list[Place]) -> list[Place]:
         semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
@@ -221,8 +239,9 @@ class RecommendationService:
 
             try:
                 async with semaphore:
-                    detailed = await self._place_adapter.get_place_detail(
-                        content_id
+                    detailed = await asyncio.wait_for(
+                        self._place_adapter.get_place_detail(content_id),
+                        timeout=DETAIL_TIMEOUT_SECONDS,
                     )
             except Exception as exc:
                 logger.info(

@@ -75,6 +75,7 @@ def make_trip_record(
             longitude=129.0414,
         ),
         accommodation=AccommodationInfo(
+            accommodation_id="accommodation_kakao_123456789",
             name="서면 숙소",
             address="부산광역시 부산진구",
             latitude=35.1577,
@@ -104,6 +105,7 @@ def make_create_body() -> dict:
             "longitude": 129.0414,
         },
         "accommodation": {
+            "accommodationId": "accommodation_kakao_123456789",
             "kakaoPlaceId": "123456789",
             "name": "서면 숙소",
             "address": "부산광역시 부산진구",
@@ -176,9 +178,31 @@ def test_create_trip_returns_created_summary(
     assert arguments["request"].accommodation.kakao_place_id == (
         "123456789"
     )
+    assert arguments["request"].accommodation.accommodation_id == (
+        "accommodation_kakao_123456789"
+    )
     assert (
         arguments["idempotency_key"]
         == "trip-create-request-001"
+    )
+
+
+def test_create_trip_returns_accommodation_specific_validation_error(
+    authenticated_client: TestClient,
+) -> None:
+    body = make_create_body()
+    body["accommodation"]["accommodationId"] = "123456789"
+
+    response = authenticated_client.post(
+        "/api/v1/trips",
+        json=body,
+        headers={"Idempotency-Key": "invalid-accommodation-id"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "ACCOMMODATION_INVALID"
+    assert response.json()["error"]["message"] == (
+        "숙소 정보를 확인해 주세요."
     )
 
 
@@ -257,6 +281,9 @@ def test_get_trip_returns_detail(
     assert data["arrivalPoint"]["name"] == "부산역"
     assert data["departurePoint"]["name"] == "부산역"
     assert data["accommodation"]["name"] == "서면 숙소"
+    assert data["accommodation"]["accommodationId"] == (
+        "accommodation_kakao_123456789"
+    )
     assert data["activePlanId"] is None
     assert "updatedAt" in data
     assert "userId" not in data

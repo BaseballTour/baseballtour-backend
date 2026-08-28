@@ -9,6 +9,7 @@ from app.repositories.trip_repository import (
 )
 from app.schemas.game import GameRecord, GameStatus
 from app.schemas.trip import (
+    AccommodationInfo,
     TripCreateRequest,
     TripDocument,
     TripPoint,
@@ -264,6 +265,60 @@ def test_create_trip_saves_owner_and_initial_status() -> None:
     assert trip.game_id == GAME_ID
     assert trip.status.value == "PLANNING"
     assert trip.active_plan_id is None
+
+
+def test_create_trip_requires_prefixed_accommodation_id() -> None:
+    service, _ = create_service()
+    request = create_request().model_copy(
+        update={
+            "accommodation": AccommodationInfo(
+                name="서면 숙소",
+                address="부산광역시 부산진구",
+                latitude=35.1577,
+                longitude=129.0592,
+            )
+        }
+    )
+
+    with pytest.raises(AppException) as exception_info:
+        service.create_trip(
+            user_id="user-001",
+            request=request,
+            idempotency_key="missing-accommodation-id",
+        )
+
+    assert exception_info.value.status_code == 422
+    assert exception_info.value.code == "ACCOMMODATION_INVALID"
+    assert exception_info.value.details["field"] == (
+        "accommodation.accommodationId"
+    )
+
+
+def test_create_trip_stores_prefixed_accommodation_id() -> None:
+    service, _ = create_service()
+    request = create_request().model_copy(
+        update={
+            "accommodation": AccommodationInfo(
+                accommodation_id="accommodation_kakao_12345",
+                kakao_place_id="12345",
+                name="서면 숙소",
+                address="부산광역시 부산진구",
+                latitude=35.1577004,
+                longitude=129.0592004,
+            )
+        }
+    )
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=request,
+        idempotency_key="valid-accommodation-id",
+    )
+
+    assert trip.accommodation.accommodation_id == (
+        "accommodation_kakao_12345"
+    )
+    assert trip.accommodation.latitude == 35.1577
 
 
 def test_create_trip_rejects_missing_game() -> None:

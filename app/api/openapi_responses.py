@@ -140,9 +140,44 @@ TRIP_ERROR_RESPONSES = {
         selection_exists=_example("PLACE_SELECTION_ALREADY_EXISTS", "이미 선택된 장소입니다."),
         idempotency_conflict=_example("TRIP_IDEMPOTENCY_CONFLICT", "같은 멱등성 키가 다른 요청에 사용되었습니다."),
     ),
+    422: _response(
+        "여행 입력값 검증 실패",
+        validation_error=_example(
+            "VALIDATION_ERROR",
+            "입력값을 확인해 주세요.",
+        ),
+        invalid_accommodation=_example(
+            "ACCOMMODATION_INVALID",
+            "숙소 정보를 확인해 주세요.",
+            [{
+                "field": "accommodation.accommodationId",
+                "reason": (
+                    "숙소 검색 응답의 accommodation_ 접두사 ID를 "
+                    "그대로 전달해야 합니다."
+                ),
+            }],
+        ),
+    ),
     429: TOUR_API_ERROR_RESPONSES[429],
     502: TOUR_API_ERROR_RESPONSES[502],
-    503: TOUR_API_ERROR_RESPONSES[503],
+    503: _response(
+        "외부 장소·추천 서비스 연결 실패",
+        timeout=_example(
+            "EXTERNAL_API_TIMEOUT",
+            "TourAPI 요청 시간이 초과되었습니다.",
+        ),
+        unavailable=_example(
+            "EXTERNAL_API_UNAVAILABLE",
+            "TourAPI를 일시적으로 사용할 수 없습니다.",
+        ),
+        recommendation_timeout=_example(
+            "RECOMMENDATION_TIMEOUT",
+            (
+                "추천 장소를 불러오는 데 시간이 초과되었습니다. "
+                "잠시 후 다시 시도해 주세요."
+            ),
+        ),
+    ),
 }
 
 

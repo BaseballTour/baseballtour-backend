@@ -1,6 +1,14 @@
 from enum import Enum
 
-from pydantic import AwareDatetime, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+
+from app.core.accommodation_ids import ACCOMMODATION_ID_PATTERN
 
 from app.schemas.base import ApiModel
 
@@ -37,6 +45,14 @@ class TripPoint(ApiModel):
 class AccommodationInfo(ApiModel):
     """여행 숙소 정보."""
 
+    accommodation_id: str | None = Field(
+        default=None,
+        pattern=ACCOMMODATION_ID_PATTERN.pattern,
+        description=(
+            "앱 내부 숙소 ID. 신규 여행 입력은 accommodation_ 접두사가 "
+            "포함된 값을 반드시 전달합니다."
+        ),
+    )
     name: str = Field(
         min_length=1,
         description="숙소 이름",
@@ -59,6 +75,11 @@ class AccommodationInfo(ApiModel):
         default=None,
         description="Kakao 장소 검색으로 선택한 경우의 장소 ID",
     )
+
+    @field_validator("latitude", "longitude")
+    @classmethod
+    def round_coordinate(cls, value: float) -> float:
+        return round(value, 6)
 
 
 class TripCreateRequest(ApiModel):
@@ -83,6 +104,7 @@ class TripCreateRequest(ApiModel):
                         "longitude": 126.9706,
                     },
                     "accommodation": {
+                        "accommodationId": "accommodation_kakao_123456789",
                         "kakaoPlaceId": "123456789",
                         "name": "잠실 예시 호텔",
                         "address": "서울특별시 송파구 올림픽로 00",
