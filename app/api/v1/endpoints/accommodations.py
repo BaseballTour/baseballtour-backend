@@ -23,7 +23,7 @@ router = APIRouter(prefix="/accommodations")
     ),
 )
 async def search_accommodations(
-    keyword: str = Query(min_length=1, max_length=100, examples=["고척 호텔"]),
+    keyword: str = Query(min_length=1, max_length=100, examples=["잠실 호텔"]),
     longitude: float | None = Query(default=None, ge=-180, le=180),
     latitude: float | None = Query(default=None, ge=-90, le=90),
     radius: int = Query(default=20_000, ge=0, le=20_000),
@@ -74,10 +74,11 @@ async def search_accommodations(
 @router.get(
     "/reverse-geocode",
     response_model=SuccessResponse[AccommodationCandidate],
-    summary="지도 선택 좌표를 숙소 Anchor 후보로 변환",
+    summary="지도에서 숙소 검색",
     description=(
-        "사용자가 지도에서 선택한 좌표를 주소로 변환합니다. 건물명이 없으면 "
-        "주소가 name으로 반환되며 프론트에서 숙소 이름을 수정할 수 있습니다."
+        "사용자가 지도에서 숙소 위치를 선택하면 해당 좌표의 주소를 검색합니다. "
+        "건물명이 없으면 주소가 name으로 반환되며 프론트에서 숙소 이름을 "
+        "수정할 수 있습니다."
     ),
 )
 async def resolve_accommodation_map_point(
