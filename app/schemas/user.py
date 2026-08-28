@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.team import SupportTeamResponse
@@ -40,20 +40,42 @@ class UserBootstrapRequest(ApiModel):
     support_team_id: str
 
 
-class SupportTeamUpdateRequest(ApiModel):
-    """응원팀 설정 및 변경 요청."""
+class UserUpdateRequest(ApiModel):
+    """사용자 프로필 수정 요청."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
+                    "nickname": "민준",
                     "supportTeamId": "LG",
                 }
             ]
         }
     )
 
-    support_team_id: str
+    nickname: str | None = Field(
+        default=None,
+        min_length=1,
+        description="변경할 닉네임",
+    )
+    support_team_id: str | None = Field(
+        default=None,
+        min_length=1,
+        description="변경할 응원팀 ID",
+    )
+
+    @model_validator(mode="after")
+    def validate_update_fields(self) -> "UserUpdateRequest":
+        if (
+            self.nickname is None
+            and self.support_team_id is None
+        ):
+            raise ValueError(
+                "수정할 사용자 정보를 하나 이상 입력해야 합니다."
+            )
+
+        return self
 
 
 class UserResponse(ApiModel):
