@@ -61,6 +61,21 @@ def test_search_accommodations_uses_kakao_lodging_category(monkeypatch) -> None:
     assert body["meta"]["nextPageToken"] == "2"
 
 
+def test_accommodation_search_openapi_uses_page_size_15() -> None:
+    operation = app.openapi()["paths"][
+        "/api/v1/accommodations/search"
+    ]["get"]
+    parameter = next(
+        item
+        for item in operation["parameters"]
+        if item["name"] == "pageSize"
+    )
+
+    assert parameter["schema"]["default"] == 15
+    assert parameter["schema"]["maximum"] == 15
+    assert parameter["example"] == 15
+
+
 def test_search_requires_coordinate_pair() -> None:
     response = client.get(
         "/api/v1/accommodations/search",

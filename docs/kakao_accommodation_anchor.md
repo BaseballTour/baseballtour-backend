@@ -23,7 +23,8 @@ GET /api/v1/accommodations/search?keyword=잠실 호텔&longitude=127.076&latitu
 
 - Kakao 카테고리 그룹 `AD5`를 강제하여 숙박업소만 조회한다.
 - 좌표를 보낼 때는 경도와 위도를 함께 보내야 한다.
-- `pageToken`과 `pageSize`로 다음 페이지를 조회할 수 있다.
+- `pageToken`과 `pageSize`로 다음 페이지를 조회할 수 있으며 `pageSize`의 기본값과
+  최대값은 모두 15다.
 - 응답의 `kakaoPlaceId`는 외부 출처 식별자이며 일반 `placeId`가 아니다.
 
 ## 지도 좌표 선택
@@ -36,10 +37,28 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
 아니므로 `selectionType=MAP_POINT`, `kakaoPlaceId=null`이다. 주소 검색이 실패하면
 `ACCOMMODATION_ADDRESS_NOT_FOUND`를 반환한다.
 
-## 여행 요청 예시
+## 여행 생성 요청 예시
+
+숙소 선택은 별도 저장 요청이 아니라 경기와 여행 시간, 도착·출발 지점을 담는
+여행 생성 요청에 함께 포함한다. 프론트는 경기 시간과 경기장 정보를 중복해서
+보내지 않고 `gameId`만 보내며, 백엔드가 Game과 Stadium을 조회한다.
 
 ```json
 {
+  "gameId": "game_20260922_lg_doosan",
+  "title": "잠실 원정 1박 2일",
+  "tripStartAt": "2026-09-22T12:00:00+09:00",
+  "tripEndAt": "2026-09-23T19:00:00+09:00",
+  "arrivalPoint": {
+    "name": "서울역",
+    "latitude": 37.5547,
+    "longitude": 126.9706
+  },
+  "departurePoint": {
+    "name": "서울역",
+    "latitude": 37.5547,
+    "longitude": 126.9706
+  },
   "accommodation": {
     "kakaoPlaceId": "123456789",
     "name": "잠실 예시 호텔",
@@ -49,6 +68,12 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
   }
 }
 ```
+
+- `tripStartAt`: 도착역에 도착하는 일시이자 여행 일정 시작
+- `tripEndAt`: 출발역에서 출발하는 일시이자 여행 일정 종료
+- `arrivalPoint`, `departurePoint`: 역 이름과 좌표
+- `accommodation`: 사용자가 카카오 검색 또는 지도에서 선택한 숙소
+- `gameId`: 백엔드가 경기 시작시각과 경기장을 조회하는 기준
 
 앱은 체크인·체크아웃 시각을 입력받거나 일정 제약으로 사용하지 않는다. 지도 좌표
 선택은 `kakaoPlaceId`를 생략한다.

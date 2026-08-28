@@ -46,7 +46,12 @@ TRIP_DETAIL = {
     **TRIP_SUMMARY,
     "arrivalPoint": {"name": "서울역", "latitude": 37.5547, "longitude": 126.9706},
     "departurePoint": {"name": "서울역", "latitude": 37.5547, "longitude": 126.9706},
-    "accommodation": None, "activePlanId": "plan_001",
+    "accommodation": {
+        "kakaoPlaceId": "123456789", "name": "고척 예시 호텔",
+        "address": "서울특별시 구로구 경인로 00",
+        "latitude": 37.4985, "longitude": 126.868,
+    },
+    "activePlanId": "plan_001",
     "updatedAt": "2026-08-15T11:00:00+09:00",
 }
 PLAN = {
@@ -105,7 +110,8 @@ REQUEST_EXAMPLES = {
         "tripStartAt": "2026-08-16T12:00:00+09:00",
         "tripEndAt": "2026-08-17T23:00:00+09:00",
         "arrivalPoint": TRIP_DETAIL["arrivalPoint"],
-        "departurePoint": TRIP_DETAIL["departurePoint"], "accommodation": None},
+        "departurePoint": TRIP_DETAIL["departurePoint"],
+        "accommodation": TRIP_DETAIL["accommodation"]},
     ("patch", "/api/v1/trips/{tripId}"): {"title": "수정한 고척 원정 여행"},
     ("post", "/api/v1/trips/{tripId}/place-selections"): {"placeId": PLACE["placeId"], "isRequired": True},
     ("post", "/api/v1/trips/{tripId}/place-selections/import"): {"collectionId": "collection_001"},
@@ -202,6 +208,13 @@ PARAMETER_DOCS = {
     "lclsSystem3": ("TourAPI 신분류 소분류 코드", "FD020200"),
 }
 
+OPERATION_PARAMETER_DOCS = {
+    ("get", "/api/v1/accommodations/search", "pageSize"): (
+        "한 페이지에서 반환할 최대 숙소 수(기본값·최대값 15)",
+        15,
+    ),
+}
+
 
 def apply_normal_examples(schema: dict[str, Any]) -> dict[str, Any]:
     result = deepcopy(schema)
@@ -221,7 +234,10 @@ def apply_normal_examples(schema: dict[str, Any]) -> dict[str, Any]:
                     media = response.setdefault("content", {}).setdefault("application/json", {})
                     media["examples"] = {"normal": {"summary": "정상 응답", "value": example}}
             for parameter in operation.get("parameters", []):
-                doc = PARAMETER_DOCS.get(parameter.get("name"))
+                parameter_name = parameter.get("name")
+                doc = OPERATION_PARAMETER_DOCS.get(
+                    (method_key, path, parameter_name)
+                ) or PARAMETER_DOCS.get(parameter_name)
                 if doc is not None:
                     parameter["description"], parameter["example"] = doc
     return result

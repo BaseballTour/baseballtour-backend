@@ -82,7 +82,13 @@ class TripCreateRequest(ApiModel):
                         "latitude": 37.5547,
                         "longitude": 126.9706,
                     },
-                    "accommodation": None,
+                    "accommodation": {
+                        "kakaoPlaceId": "123456789",
+                        "name": "잠실 예시 호텔",
+                        "address": "서울특별시 송파구 올림픽로 00",
+                        "latitude": 37.5101,
+                        "longitude": 127.0767,
+                    },
                 }
             ]
         }

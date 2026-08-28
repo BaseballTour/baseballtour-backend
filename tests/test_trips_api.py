@@ -104,6 +104,7 @@ def make_create_body() -> dict:
             "longitude": 129.0414,
         },
         "accommodation": {
+            "kakaoPlaceId": "123456789",
             "name": "서면 숙소",
             "address": "부산광역시 부산진구",
             "latitude": 35.1577,
@@ -164,6 +165,17 @@ def test_create_trip_returns_created_summary(
 
     assert arguments["user_id"] == USER_ID
     assert arguments["request"].game_id == GAME_ID
+    assert arguments["request"].trip_start_at.isoformat() == (
+        "2026-08-14T10:30:00+09:00"
+    )
+    assert arguments["request"].trip_end_at.isoformat() == (
+        "2026-08-16T19:00:00+09:00"
+    )
+    assert arguments["request"].arrival_point.name == "부산역"
+    assert arguments["request"].departure_point.name == "부산역"
+    assert arguments["request"].accommodation.kakao_place_id == (
+        "123456789"
+    )
     assert (
         arguments["idempotency_key"]
         == "trip-create-request-001"
