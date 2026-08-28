@@ -27,13 +27,13 @@ GET /api/v1/accommodations/search?keyword=잠실 호텔&longitude=127.076&latitu
   최대값은 모두 15다.
 - 응답의 `kakaoPlaceId`는 외부 출처 식별자이며 일반 `placeId`가 아니다.
 
-## 지도 좌표 선택
+## 지도에서 숙소 검색
 
 ```http
 GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
 ```
 
-지도에서 선택한 좌표를 Kakao 주소로 변환한다. 특정 Kakao 장소를 선택한 것이
+지도에서 선택한 숙소 위치를 Kakao 주소로 검색한다. 특정 Kakao 장소를 선택한 것이
 아니므로 `selectionType=MAP_POINT`, `kakaoPlaceId=null`이다. 주소 검색이 실패하면
 `ACCOMMODATION_ADDRESS_NOT_FOUND`를 반환한다.
 

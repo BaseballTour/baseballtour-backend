@@ -24,12 +24,12 @@
               "minLength": 1,
               "maxLength": 100,
               "examples": [
-                "고척 호텔"
+                "잠실 호텔"
               ],
               "title": "Keyword"
             },
-            "description": "검색할 장소명 또는 키워드",
-            "example": "잠실 맛집"
+            "description": "검색할 숙소 이름 또는 숙박 관련 키워드",
+            "example": "잠실 호텔"
           },
           {
             "name": "longitude",
@@ -212,8 +212,8 @@
         "tags": [
           "Accommodations"
         ],
-        "summary": "지도 선택 좌표를 숙소 Anchor 후보로 변환",
-        "description": "사용자가 지도에서 선택한 좌표를 주소로 변환합니다. 건물명이 없으면 주소가 name으로 반환되며 프론트에서 숙소 이름을 수정할 수 있습니다.",
+        "summary": "지도에서 숙소 검색",
+        "description": "사용자가 지도에서 숙소 위치를 선택하면 해당 좌표의 주소를 검색합니다. 건물명이 없으면 주소가 name으로 반환되며 프론트에서 숙소 이름을 수정할 수 있습니다.",
         "operationId": "resolve_accommodation_map_point_api_v1_accommodations_reverse_geocode_get",
         "parameters": [
           {
@@ -14112,7 +14112,7 @@
           "selectionType"
         ],
         "title": "AccommodationCandidate",
-        "description": "검색 또는 지도 좌표로 선택할 수 있는 숙소 Anchor 후보."
+        "description": "검색 결과 또는 지도에서 선택한 숙소 정보."
       },
       "AccommodationInfo-Input": {
         "properties": {

@@ -209,6 +209,10 @@ PARAMETER_DOCS = {
 }
 
 OPERATION_PARAMETER_DOCS = {
+    ("get", "/api/v1/accommodations/search", "keyword"): (
+        "검색할 숙소 이름 또는 숙박 관련 키워드",
+        "잠실 호텔",
+    ),
     ("get", "/api/v1/accommodations/search", "pageSize"): (
         "한 페이지에서 반환할 최대 숙소 수(기본값·최대값 15)",
         15,

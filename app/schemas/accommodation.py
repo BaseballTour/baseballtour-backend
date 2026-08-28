@@ -11,7 +11,7 @@ class AccommodationSelectionType(str, Enum):
 
 
 class AccommodationCandidate(ApiModel):
-    """검색 또는 지도 좌표로 선택할 수 있는 숙소 Anchor 후보."""
+    """검색 결과 또는 지도에서 선택한 숙소 정보."""
 
     kakao_place_id: str | None = None
     name: str = Field(min_length=1)

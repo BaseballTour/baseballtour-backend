@@ -16,7 +16,7 @@
 | GET | `/tour/nearby` | TourAPI 위치 기반 장소 조회 |
 | GET | `/tour/places/{placeId}` | 내부 장소 ID 기반 TourAPI 상세·소개·이미지 통합 조회 |
 | GET | `/accommodations/search` | Kakao 숙박업소 검색 |
-| GET | `/accommodations/reverse-geocode` | 지도 좌표를 숙소 Anchor 후보로 변환 |
+| GET | `/accommodations/reverse-geocode` | 지도에서 선택한 숙소의 주소 검색 |
 
 ### TourAPI 상세 조회
 
