@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_RECOMMENDATION_RADIUS_METERS = 10_000
 DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
-DEFAULT_MAX_PAGES_PER_CENTER = 2
-DEFAULT_MAX_CANDIDATES = 12
+DEFAULT_MAX_PAGES_PER_CENTER = 3
+DEFAULT_MAX_CANDIDATES = 20
 DETAIL_CONCURRENCY = 5
 NEARBY_PAGE_TIMEOUT_SECONDS = 6.0
 DETAIL_TIMEOUT_SECONDS = 5.0
 DINING_CATEGORY_MINIMUMS = {
-    PlaceCategory.RESTAURANT: 4,
+    PlaceCategory.RESTAURANT: 6,
     PlaceCategory.CAFE: 2,
 }
 BREAKFAST_LCLS_SYSTEM2 = "FD03"
@@ -445,14 +445,28 @@ def _select_diverse_candidates(
             if len(selected) >= max_candidates:
                 break
 
-    # 소분류가 없는 지역도 후보 수 자체가 줄지 않도록 soft cap을 완화합니다.
+    # 카테고리가 한두 종류뿐인 지역에서만 후보 수가 지나치게 줄지 않도록
+    # soft cap을 완화합니다. 여러 카테고리가 있으면 분포 상한을 지킵니다.
+    relax_category_caps = len({place.category for place in ordered}) <= 2
     for place in ordered:
         if len(selected) >= max_candidates:
             break
         if place.place_id in selected_ids:
             continue
+        maximum = CATEGORY_MAXIMUMS.get(place.category, max_candidates)
+        if (
+            (
+                place.category == PlaceCategory.RESTAURANT
+                or not relax_category_caps
+            )
+            and category_counts[place.category] >= maximum
+        ):
+            if rejected is not None:
+                rejected["CATEGORY_LIMIT"] += 1
+            continue
         selected.append(place)
         selected_ids.add(place.place_id)
+        category_counts[place.category] += 1
         if rejected is not None:
             rejected["CATEGORY_LIMIT_RELAXED"] += 1
 

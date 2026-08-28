@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import permutations
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -148,6 +148,38 @@ def test_arrival_anchor_is_first_when_arrival_day_is_game_day() -> None:
         >= same_day_arrival_game_trip().trip_start_at
         for item in first_day.items
     )
+
+
+def test_game_day_does_not_add_extra_slack_before_stadium() -> None:
+    recommendation = place(
+        "fills_before_stadium",
+        default_stay_minutes=280,
+    )
+
+    result = generate_itinerary(
+        same_day_arrival_game_trip(),
+        [],
+        matrix(recommendation.place_id),
+        recommended_places=[recommendation],
+    )
+
+    game_day = result.days[0]
+    recommended = next(
+        item
+        for item in game_day.items
+        if item.place_id == recommendation.place_id
+    )
+    stadium = next(
+        item
+        for item in game_day.items
+        if item.item_type == ItineraryItemType.STADIUM
+    )
+    arrival_at_stadium = recommended.scheduled_end_at + timedelta(
+        minutes=stadium.travel_minutes_from_previous
+        + stadium.transfer_buffer_minutes
+    )
+
+    assert arrival_at_stadium == stadium.scheduled_start_at
 
 
 def test_lunch_restaurant_is_prioritized_over_non_meal_place() -> None:

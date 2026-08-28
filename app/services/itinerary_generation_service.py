@@ -181,16 +181,10 @@ class ItineraryGenerationService:
                 recommendation_diagnostics: dict[str, object] = {}
                 recommended_places = await asyncio.wait_for(
                     self._recommendation_service.get_candidates(
-                        centers=[
-                            RecommendationCenter(
-                                latitude=stadium.latitude,
-                                longitude=stadium.longitude,
-                            ),
-                            RecommendationCenter(
-                                latitude=trip.arrival_point.latitude,
-                                longitude=trip.arrival_point.longitude,
-                            ),
-                        ],
+                        centers=self._recommendation_centers(
+                            trip=trip,
+                            stadium=stadium,
+                        ),
                         selected_place_ids=recommendation_excluded_ids,
                         excluded_places=[
                             ExcludedRecommendationPlace(
@@ -659,6 +653,7 @@ class ItineraryGenerationService:
                     for selection in selections
                 ],
             )
+
         except ValidationError as error:
             raise AppException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -673,6 +668,32 @@ class ItineraryGenerationService:
                     ),
                 },
             ) from error
+
+    @staticmethod
+    def _recommendation_centers(*, trip, stadium) -> list[RecommendationCenter]:
+        """각 날짜의 시작·종료 Anchor 주변에서 추천 후보를 확보합니다."""
+
+        points = [
+            stadium,
+            trip.arrival_point,
+            trip.departure_point,
+        ]
+        if trip.accommodation is not None:
+            points.append(trip.accommodation)
+        centers: list[RecommendationCenter] = []
+        seen: set[tuple[float, float]] = set()
+        for point in points:
+            key = (round(point.latitude, 5), round(point.longitude, 5))
+            if key in seen:
+                continue
+            seen.add(key)
+            centers.append(
+                RecommendationCenter(
+                    latitude=point.latitude,
+                    longitude=point.longitude,
+                )
+            )
+        return centers
 
     async def _resolve_places(
         self,
