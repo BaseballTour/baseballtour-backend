@@ -21,13 +21,13 @@ def test_personal_collection_does_not_store_team_or_region_metadata() -> None:
     }
 
 
-def test_favorite_item_only_references_place() -> None:
+def test_legacy_favorite_item_allows_missing_snapshot() -> None:
     item = FavoriteCollectionItemDocument(
         place_id="tour_123456",
         created_at=datetime.now(timezone.utc),
     )
 
-    assert item.model_dump() == {
+    assert item.model_dump(exclude_none=True) == {
         "placeId": "tour_123456",
         "createdAt": item.created_at,
     }

@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
+import logging
 from zoneinfo import ZoneInfo
 
 from fastapi import status
@@ -57,6 +58,7 @@ from app.services.recommendation import (
 ItineraryGenerator = Callable[..., ItineraryResult]
 RECOMMENDATION_TIMEOUT_SECONDS = 30.0
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
+logger = logging.getLogger(__name__)
 
 
 class ItineraryGenerationService:
@@ -200,14 +202,26 @@ class ItineraryGenerationService:
                     timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError:
-                raise AppException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    code="RECOMMENDATION_TIMEOUT",
-                    message=(
-                        "추천 장소를 불러오는 데 시간이 초과되었습니다. "
-                        "잠시 후 다시 시도해 주세요."
-                    ),
+                logger.warning(
+                    "추천 장소 조회 시간 초과, 선택 장소와 Anchor로 "
+                    "축소 일정을 생성합니다: trip_id=%s",
+                    trip_id,
                 )
+                recommended_places = []
+                recommendation_diagnostics["filteredCounts"] = {
+                    "RECOMMENDATION_TIMEOUT": 1,
+                }
+            except AppException as error:
+                logger.warning(
+                    "추천 외부 API 실패, 선택 장소와 Anchor로 축소 "
+                    "일정을 생성합니다: trip_id=%s code=%s",
+                    trip_id,
+                    error.code,
+                )
+                recommended_places = []
+                recommendation_diagnostics["filteredCounts"] = {
+                    "RECOMMENDATION_EXTERNAL_API_FAILED": 1,
+                }
 
             matrix_places = list(
                 {

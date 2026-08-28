@@ -711,24 +711,52 @@ async def test_generate_restores_generated_status_on_regeneration_failure() -> N
 
 
 @pytest.mark.anyio
-async def test_generate_returns_explicit_error_after_recommendation_timeout() -> None:
+async def test_generate_falls_back_after_recommendation_timeout() -> None:
     generator = Mock(return_value=make_result())
     context = make_service(generator=generator)
     context.recommendation_service.get_candidates.side_effect = (
         asyncio.TimeoutError
     )
 
-    with pytest.raises(AppException) as captured:
-        await context.service.generate(
-            user_id=USER_ID,
-            trip_id=TRIP_ID,
-        )
+    result = await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
 
-    assert captured.value.status_code == 503
-    assert captured.value.code == "RECOMMENDATION_TIMEOUT"
-    generator.assert_not_called()
-    updates = context.trip_repository.update.call_args_list
-    assert updates[-1].args[1]["status"] == "PLANNING"
+    assert result.status == ItineraryPlanStatus.ACTIVE
+    generator.assert_called_once()
+    assert generator.call_args.kwargs["recommended_places"] == []
+    diagnostics = generator.call_args.kwargs[
+        "recommendation_diagnostics"
+    ]
+    assert diagnostics["filteredCounts"] == {
+        "RECOMMENDATION_TIMEOUT": 1,
+    }
+
+
+@pytest.mark.anyio
+async def test_generate_falls_back_after_recommendation_external_failure() -> None:
+    generator = Mock(return_value=make_result())
+    context = make_service(generator=generator)
+    context.recommendation_service.get_candidates.side_effect = AppException(
+        status_code=503,
+        code="EXTERNAL_API_TIMEOUT",
+        message="TourAPI 요청 시간이 초과되었습니다.",
+    )
+
+    result = await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    assert result.status == ItineraryPlanStatus.ACTIVE
+    assert generator.call_args.kwargs["recommended_places"] == []
+    diagnostics = generator.call_args.kwargs[
+        "recommendation_diagnostics"
+    ]
+    assert diagnostics["filteredCounts"] == {
+        "RECOMMENDATION_EXTERNAL_API_FAILED": 1,
+    }
 
 
 @pytest.mark.anyio

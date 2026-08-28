@@ -17,6 +17,29 @@ from app.schemas.trip import (
 )
 
 
+def test_invalid_trip_document_logs_document_id_and_field_errors(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level("ERROR"):
+        with pytest.raises(ValueError):
+            TripRepository._to_record(
+                trip_id="trip_invalid",
+                data={
+                    "userId": "user_001",
+                    "gameId": "game_001",
+                    "title": "잘못된 여행",
+                    "tripStartAt": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "tripEndAt": datetime(2026, 8, 2, tzinfo=timezone.utc),
+                    "status": "INVALID_STATUS",
+                    "createdAt": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "updatedAt": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                },
+            )
+
+    assert "trip_id=trip_invalid" in caplog.text
+    assert "status" in caplog.text
+
+
 class FakeDocumentSnapshot:
     def __init__(
         self,

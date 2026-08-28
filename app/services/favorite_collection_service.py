@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
+import logging
 
 from fastapi import status
 
@@ -16,6 +17,9 @@ from app.schemas.favorite_collection import (
     FavoriteCollectionRecord,
     FavoriteCollectionUpdateRequest,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class FavoriteCollectionService:
@@ -73,9 +77,20 @@ class FavoriteCollectionService:
             )
             if not items:
                 return collection.collection_id, None
+            if items[0].place_snapshot is not None:
+                return (
+                    collection.collection_id,
+                    items[0].place_snapshot.thumbnail_url,
+                )
             try:
                 place = await self._place_adapter.get_place_detail(
                     items[0].place_id.removeprefix("tour_")
+                )
+                self._repository.update_item_snapshot(
+                    user_id=user_id,
+                    collection_id=collection.collection_id,
+                    place_id=items[0].place_id,
+                    place_snapshot=place,
                 )
                 return collection.collection_id, place.thumbnail_url
             except (AppException, ValueError):
@@ -97,16 +112,35 @@ class FavoriteCollectionService:
             user_id=user_id,
             collection_id=collection_id,
         )
-        return list(
-            await asyncio.gather(
-                *(
-                    self._place_adapter.get_place_detail(
-                        item.place_id.removeprefix("tour_")
-                    )
-                    for item in items
+        places: list[Place] = []
+
+        async def resolve(item: FavoriteCollectionItemDocument) -> Place | None:
+            if item.place_snapshot is not None:
+                return item.place_snapshot
+            try:
+                place = await self._place_adapter.get_place_detail(
+                    item.place_id.removeprefix("tour_")
                 )
-            )
-        )
+                self._repository.update_item_snapshot(
+                    user_id=user_id,
+                    collection_id=collection_id,
+                    place_id=item.place_id,
+                    place_snapshot=place,
+                )
+                return place
+            except (AppException, ValueError) as error:
+                logger.warning(
+                    "기존 찜 장소 상세조회 실패: collection_id=%s "
+                    "place_id=%s error_type=%s",
+                    collection_id,
+                    item.place_id,
+                    type(error).__name__,
+                )
+                return None
+
+        resolved = await asyncio.gather(*(resolve(item) for item in items))
+        places.extend(place for place in resolved if place is not None)
+        return places
 
     def update_collection(
         self,
@@ -155,7 +189,7 @@ class FavoriteCollectionService:
             collection_id=collection_id,
         )
 
-    def save_item(
+    async def save_item(
         self,
         *,
         user_id: str,
@@ -176,8 +210,13 @@ class FavoriteCollectionService:
                 message="TourAPI 장소만 찜할 수 있습니다.",
             )
 
+        place = await self._place_adapter.get_place_detail(
+            place_id.removeprefix("tour_")
+        )
+
         item = FavoriteCollectionItemDocument(
             place_id=place_id,
+            place_snapshot=place,
             created_at=datetime.now(timezone.utc),
         )
 
