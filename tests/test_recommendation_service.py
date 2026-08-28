@@ -1,8 +1,10 @@
+import asyncio
 from unittest.mock import AsyncMock, Mock
 from datetime import date
 
 import pytest
 
+from app.services import recommendation as recommendation_module
 from app.external.tour_api.adapter import NearbyPlacePage
 from app.models.place import (
     BusinessRuleStatus,
@@ -45,6 +47,63 @@ def make_place(
     )
     values.update(updates)
     return Place(**values)
+
+
+@pytest.mark.anyio
+async def test_loads_multiple_recommendation_centers_in_parallel() -> None:
+    started = 0
+    both_started = asyncio.Event()
+
+    async def load_page(**kwargs):
+        nonlocal started
+        started += 1
+        if started == 2:
+            both_started.set()
+        await asyncio.wait_for(both_started.wait(), timeout=0.2)
+        return NearbyPlacePage(places=[], next_page_token=None)
+
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(side_effect=load_page)
+    adapter.get_place_detail = AsyncMock()
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[
+            RecommendationCenter(latitude=37.5, longitude=127.0),
+            RecommendationCenter(latitude=37.6, longitude=127.1),
+        ]
+    )
+
+    assert result == []
+    assert adapter.get_nearby_place_page.await_count == 2
+
+
+@pytest.mark.anyio
+async def test_detail_timeout_keeps_nearby_candidate(monkeypatch) -> None:
+    candidate = make_place("tour_slow_detail")
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(
+            places=[candidate],
+            next_page_token=None,
+        )
+    )
+
+    async def slow_detail(content_id):
+        await asyncio.sleep(0.05)
+        return candidate
+
+    adapter.get_place_detail = AsyncMock(side_effect=slow_detail)
+    monkeypatch.setattr(
+        recommendation_module,
+        "DETAIL_TIMEOUT_SECONDS",
+        0.01,
+    )
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)]
+    )
+
+    assert [place.place_id for place in result] == ["tour_slow_detail"]
 
 
 @pytest.mark.anyio
@@ -285,6 +344,22 @@ async def test_nearby_or_detail_failure_does_not_fail_recommendation() -> None:
     )
 
     assert result == [fallback]
+
+
+@pytest.mark.anyio
+async def test_all_nearby_centers_failed_raises_timeout() -> None:
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        side_effect=RuntimeError("TourAPI unavailable")
+    )
+
+    with pytest.raises(asyncio.TimeoutError):
+        await RecommendationService(adapter).get_candidates(
+            centers=[
+                RecommendationCenter(latitude=35.19, longitude=129.06),
+                RecommendationCenter(latitude=35.11, longitude=129.04),
+            ]
+        )
 
 
 @pytest.mark.anyio

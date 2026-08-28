@@ -88,6 +88,7 @@ class ExcludedReasonCode(str, Enum):
 
 
 class GeoPoint(AlgorithmModel):
+    place_id: str | None = None
     name: str
     address: str = ""
     latitude: float = Field(ge=-90, le=90)

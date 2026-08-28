@@ -1,5 +1,9 @@
 from typing import Any
 
+from app.core.accommodation_ids import (
+    build_kakao_accommodation_id,
+    build_map_accommodation_id,
+)
 from app.schemas.accommodation import (
     AccommodationCandidate,
     AccommodationSelectionType,
@@ -37,15 +41,17 @@ def kakao_place_to_accommodation(
 ) -> AccommodationCandidate:
     """Kakao 키워드 장소 결과를 숙소 Anchor 후보로 변환합니다."""
 
+    kakao_place_id = str(item.get("id") or "").strip()
     return AccommodationCandidate(
-        kakao_place_id=str(item.get("id") or "").strip() or None,
+        accommodation_id=build_kakao_accommodation_id(kakao_place_id),
+        kakao_place_id=kakao_place_id,
         name=str(item.get("place_name") or "").strip(),
         address=kakao_address(item),
         road_address_name=(
             str(item.get("road_address_name") or "").strip() or None
         ),
-        latitude=float(item.get("y")),
-        longitude=float(item.get("x")),
+        latitude=round(float(item.get("y")), 6),
+        longitude=round(float(item.get("x")), 6),
         phone=str(item.get("phone") or "").strip() or None,
         place_url=str(item.get("place_url") or "").strip() or None,
         category_name=(
@@ -70,12 +76,19 @@ def kakao_address_to_accommodation(
     road_address = str(road.get("address_name") or "").strip()
     address = road_address or str(address_item.get("address_name") or "").strip()
     building_name = str(road.get("building_name") or "").strip()
+    normalized_latitude = round(latitude, 6)
+    normalized_longitude = round(longitude, 6)
     return AccommodationCandidate(
+        accommodation_id=build_map_accommodation_id(
+            latitude=normalized_latitude,
+            longitude=normalized_longitude,
+            address=address,
+        ),
         kakao_place_id=None,
         name=building_name or address,
         address=address,
         road_address_name=road_address or None,
-        latitude=latitude,
-        longitude=longitude,
+        latitude=normalized_latitude,
+        longitude=normalized_longitude,
         selection_type=AccommodationSelectionType.MAP_POINT,
     )

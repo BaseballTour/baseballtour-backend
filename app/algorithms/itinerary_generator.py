@@ -312,6 +312,7 @@ def _schedule_day(
                 start,
                 start + timedelta(minutes=ACCOMMODATION_STAY_MINUTES),
                 sequence=len(items) + 1,
+                place_id=trip.accommodation.place_id,
                 travel=travel,
                 transfer_buffer=transfer_buffer(previous_id, "accommodation"),
                 travel_mode=matrix.get_mode(previous_id, "accommodation"),

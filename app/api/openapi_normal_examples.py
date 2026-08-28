@@ -47,6 +47,7 @@ TRIP_DETAIL = {
     "arrivalPoint": {"name": "서울역", "latitude": 37.5547, "longitude": 126.9706},
     "departurePoint": {"name": "서울역", "latitude": 37.5547, "longitude": 126.9706},
     "accommodation": {
+        "accommodationId": "accommodation_kakao_123456789",
         "kakaoPlaceId": "123456789", "name": "고척 예시 호텔",
         "address": "서울특별시 구로구 경인로 00",
         "latitude": 37.4985, "longitude": 126.868,
@@ -83,6 +84,7 @@ USER = {
     "updatedAt": "2026-08-12T15:00:00+09:00",
 }
 ACCOMMODATION_CANDIDATE = {
+    "accommodationId": "accommodation_kakao_123456789",
     "kakaoPlaceId": "123456789", "name": "잠실 예시 호텔",
     "address": "서울특별시 송파구 올림픽로 00",
     "roadAddressName": "서울특별시 송파구 올림픽로 00",
@@ -140,6 +142,7 @@ SUCCESS_EXAMPLES = {
     ]),
     ("get", "/api/v1/accommodations/reverse-geocode", "200"): _success({
         **ACCOMMODATION_CANDIDATE,
+        "accommodationId": "accommodation_map_0123456789abcdef",
         "kakaoPlaceId": None,
         "selectionType": "MAP_POINT",
     }),

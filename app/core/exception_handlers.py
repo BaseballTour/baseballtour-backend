@@ -112,10 +112,23 @@ def register_exception_handlers(app: FastAPI) -> None:
             for error in exc.errors()
         ]
 
+        accommodation_error = any(
+            "accommodation" in error["loc"]
+            for error in exc.errors()
+        )
+
         return create_error_response(
             status_code=422,
-            code="VALIDATION_ERROR",
-            message="입력값을 확인해 주세요.",
+            code=(
+                "ACCOMMODATION_INVALID"
+                if accommodation_error
+                else "VALIDATION_ERROR"
+            ),
+            message=(
+                "숙소 정보를 확인해 주세요."
+                if accommodation_error
+                else "입력값을 확인해 주세요."
+            ),
             details=details,
         )
 

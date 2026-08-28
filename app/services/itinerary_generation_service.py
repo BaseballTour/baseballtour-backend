@@ -55,7 +55,7 @@ from app.services.recommendation import (
 
 
 ItineraryGenerator = Callable[..., ItineraryResult]
-RECOMMENDATION_TIMEOUT_SECONDS = 20.0
+RECOMMENDATION_TIMEOUT_SECONDS = 30.0
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
@@ -206,10 +206,14 @@ class ItineraryGenerationService:
                     timeout=RECOMMENDATION_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError:
-                recommended_places = []
-                recommendation_diagnostics = {
-                    "filteredCounts": {"RECOMMENDATION_TIMEOUT": 1}
-                }
+                raise AppException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code="RECOMMENDATION_TIMEOUT",
+                    message=(
+                        "추천 장소를 불러오는 데 시간이 초과되었습니다. "
+                        "잠시 후 다시 시도해 주세요."
+                    ),
+                )
 
             matrix_places = list(
                 {
@@ -608,6 +612,7 @@ class ItineraryGenerationService:
 
         if trip.accommodation is not None:
             accommodation = GeoPoint(
+                place_id=trip.accommodation.accommodation_id,
                 name=trip.accommodation.name,
                 address=trip.accommodation.address,
                 latitude=trip.accommodation.latitude,

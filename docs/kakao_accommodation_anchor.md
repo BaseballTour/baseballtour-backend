@@ -25,7 +25,10 @@ GET /api/v1/accommodations/search?keyword=잠실 호텔&longitude=127.076&latitu
 - 좌표를 보낼 때는 경도와 위도를 함께 보내야 한다.
 - `pageToken`과 `pageSize`로 다음 페이지를 조회할 수 있으며 `pageSize`의 기본값과
   최대값은 모두 15다.
-- 응답의 `kakaoPlaceId`는 외부 출처 식별자이며 일반 `placeId`가 아니다.
+- 앱 내부 숙소 ID는 `accommodation_kakao_{kakaoPlaceId}` 형식의
+  `accommodationId`다. `kakaoPlaceId`는 원본 제공자 식별자로 함께 유지한다.
+- 위도·경도는 화면과 API 계약에 불필요한 자릿수를 줄이기 위해 소수점 6자리로
+  정규화한다(약 0.1m 수준).
 
 ## 지도에서 숙소 검색
 
@@ -34,7 +37,8 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
 ```
 
 지도에서 선택한 숙소 위치를 Kakao 주소로 검색한다. 특정 Kakao 장소를 선택한 것이
-아니므로 `selectionType=MAP_POINT`, `kakaoPlaceId=null`이다. 주소 검색이 실패하면
+아니므로 `selectionType=MAP_POINT`, `kakaoPlaceId=null`이며, 좌표와 주소에서 만든
+`accommodation_map_{hash}` 형식의 ID를 반환한다. 주소 검색이 실패하면
 `ACCOMMODATION_ADDRESS_NOT_FOUND`를 반환한다.
 
 ## 여행 생성 요청 예시
@@ -60,6 +64,7 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
     "longitude": 126.9706
   },
   "accommodation": {
+    "accommodationId": "accommodation_kakao_123456789",
     "kakaoPlaceId": "123456789",
     "name": "잠실 예시 호텔",
     "address": "서울특별시 송파구 ...",
@@ -72,11 +77,17 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
 - `tripStartAt`: 도착역에 도착하는 일시이자 여행 일정 시작
 - `tripEndAt`: 출발역에서 출발하는 일시이자 여행 일정 종료
 - `arrivalPoint`, `departurePoint`: 역 이름과 좌표
-- `accommodation`: 사용자가 카카오 검색 또는 지도에서 선택한 숙소
+- `accommodation`: 사용자가 카카오 검색 또는 지도에서 선택한 숙소. 검색 응답의
+  `accommodationId`를 포함한 객체 전체를 그대로 전달한다.
 - `gameId`: 백엔드가 경기 시작시각과 경기장을 조회하는 기준
 
 앱은 체크인·체크아웃 시각을 입력받거나 일정 제약으로 사용하지 않는다. 지도 좌표
-선택은 `kakaoPlaceId`를 생략한다.
+선택은 `kakaoPlaceId`를 생략한다. 잘못된 접두사, Kakao 원본 ID와 불일치하는 ID,
+ID 누락은 HTTP 422 `ACCOMMODATION_INVALID`로 반환한다.
+
+현재 숙소 전용 컬렉션은 없으므로 `accommodationId`만 보내 숙소 전체 정보를 다시
+조회하지 않는다. 여행 문서에는 식별자와 당시 선택한 이름·주소·좌표 스냅샷을 함께
+저장한다. 프론트는 검색 후보 객체 전체를 여행 생성 요청에 넘겨야 한다.
 
 ## 일정 생성 정책
 
@@ -85,6 +96,8 @@ GET /api/v1/accommodations/reverse-geocode?longitude=129.0756&latitude=35.1796
 - 사용자가 숙소 Item 순서를 옮기면 30분 체류시간을 적용한다.
 - 숙소 체크인·체크아웃 가능 시간은 수집하거나 검증하지 않는다.
 - 일반 관광 장소 자동 추천은 계속 TourAPI 장소만 사용한다.
+- 숙소 검색·경로 계산이 성공했더라도 TourAPI 추천 수집이 제한시간을 넘으면 빈
+  추천으로 성공 처리하지 않고 HTTP 503 `RECOMMENDATION_TIMEOUT`을 반환한다.
 
 ## 환경변수와 보안
 

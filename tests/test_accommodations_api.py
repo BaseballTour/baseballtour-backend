@@ -47,6 +47,7 @@ def test_search_accommodations_uses_kakao_lodging_category(monkeypatch) -> None:
     assert received["query"] == "고척 호텔"
     body = response.json()
     assert body["data"][0] == {
+        "accommodationId": "accommodation_kakao_12345",
         "kakaoPlaceId": "12345",
         "name": "고척 스테이 호텔",
         "address": "서울 구로구 경인로 430",
@@ -123,10 +124,31 @@ def test_reverse_geocode_builds_map_point_candidate(monkeypatch) -> None:
 
     assert response.status_code == 200
     data = response.json()["data"]
+    assert data["accommodationId"].startswith("accommodation_map_")
     assert data["kakaoPlaceId"] is None
     assert data["name"] == "사용자 선택 숙소"
     assert data["address"] == "서울 구로구 경인로 430"
     assert data["selectionType"] == "MAP_POINT"
+
+
+def test_search_rounds_coordinates_to_six_decimal_places(monkeypatch) -> None:
+    hotel = kakao_hotel()
+    hotel["x"] = "126.866150991821"
+    hotel["y"] = "37.5003852751098"
+
+    async def fake_search(query, **kwargs):
+        return KakaoPlacePage(documents=[hotel], is_end=True)
+
+    monkeypatch.setattr(endpoint, "search_place_page", fake_search)
+    response = client.get(
+        "/api/v1/accommodations/search",
+        params={"keyword": "고척 호텔"},
+    )
+
+    assert response.status_code == 200
+    candidate = response.json()["data"][0]
+    assert candidate["latitude"] == 37.500385
+    assert candidate["longitude"] == 126.866151
 
 
 def test_reverse_geocode_returns_not_found_for_empty_result(monkeypatch) -> None:
