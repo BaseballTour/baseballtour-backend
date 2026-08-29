@@ -27,7 +27,11 @@ from app.external.tour_api.adapter import (
     TourApiAdapter,
     tour_api_adapter,
 )
-from app.models.itinerary import ItineraryItemAddedBy, ItineraryItemType
+from app.models.itinerary import (
+    ItineraryItemAddedBy,
+    ItineraryItemType,
+    normalize_short_description,
+)
 from app.repositories.itinerary_plan_repository import (
     ItineraryPlanRepository,
 )
@@ -512,6 +516,9 @@ class ItineraryPlanService:
             place_id=request.place_id,
             category=getattr(place, "category", None),
             thumbnail_url=getattr(place, "thumbnail_url", None),
+            short_description=normalize_short_description(
+                getattr(place, "overview", None)
+            ),
             overview=getattr(place, "overview", None),
             name=place.name,
             address=place.address or place.name,

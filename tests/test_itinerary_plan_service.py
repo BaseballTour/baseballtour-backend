@@ -795,6 +795,11 @@ async def test_add_item_adds_place_and_updates_plan() -> None:
             latitude=35.14,
             longitude=129.07,
             default_stay_minutes=60,
+            thumbnail_url=(
+                "https:"
+                + "//example.com/new-place.jpg"
+            ),
+            overview="부산의 새 장소를\n  소개합니다.",
         )
     )
 
@@ -846,6 +851,16 @@ async def test_add_item_adds_place_and_updates_plan() -> None:
     assert added.item_id.startswith("item_")
     assert added.sequence == 4
     assert added.is_required is True
+    assert added.thumbnail_url == (
+        "https:"
+        + "//example.com/new-place.jpg"
+    )
+    assert added.overview == (
+        "부산의 새 장소를\n  소개합니다."
+    )
+    assert added.short_description == (
+        "부산의 새 장소를 소개합니다."
+    )
     assert added.travel_minutes_from_previous == 10
 
     assert result.total_travel_minutes == 30

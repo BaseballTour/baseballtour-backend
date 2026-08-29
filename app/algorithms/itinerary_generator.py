@@ -21,6 +21,7 @@ from app.models.itinerary import (
     ItineraryItem,
     ItineraryItemAddedBy,
     ItineraryItemType,
+    normalize_short_description,
     ItineraryResult,
     TravelMode,
     TravelTimeSource,
@@ -249,6 +250,9 @@ def _schedule_day(
                 place_id=place.place_id,
                 category=place.category,
                 thumbnail_url=place.thumbnail_url,
+                short_description=normalize_short_description(
+                    place.overview
+                ),
                 overview=place.overview,
                 name=place.name,
                 address=place.address or place.name,
