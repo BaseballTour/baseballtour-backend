@@ -22,7 +22,7 @@ from app.algorithms.travel_time import (
 )
 from app.core.exceptions import AppException
 from app.core.time import KOREA_TIMEZONE
-from app.external.odsay.client import get_cached_transit_minutes
+from app.external.kakao.routing import get_cached_fastest_route
 from app.external.tour_api.adapter import (
     TourApiAdapter,
     tour_api_adapter,
@@ -56,7 +56,7 @@ class ItineraryPlanService:
         trip_repository: TripRepository | None = None,
         itinerary_plan_repository: ItineraryPlanRepository | None = None,
         travel_time_provider: TravelTimeProvider | None = (
-            get_cached_transit_minutes
+            get_cached_fastest_route
         ),
         place_adapter: TourApiAdapter | None = None,
     ) -> None:

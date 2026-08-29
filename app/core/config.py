@@ -16,7 +16,6 @@ class Settings(BaseSettings):
 
     tour_api_key: str = ""
     kakao_rest_api_key: str = ""
-    odsay_api_key: str = ""
     firebase_credentials_path: str = (
         "secrets/firebase-service-account.json"
     )

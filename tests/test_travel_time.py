@@ -48,7 +48,7 @@ async def test_matrix_uses_provider_and_deduplicates_nodes() -> None:
     assert matrix.get("a", "b") == 1
     assert matrix.get("b", "a") == 1
     assert matrix.get_mode("a", "b").value == "TRANSIT"
-    assert matrix.get_source("a", "b").value == "ODSAY"
+    assert matrix.get_source("a", "b").value == "ESTIMATED"
     assert calls == 2
 
 
