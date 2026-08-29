@@ -1,22 +1,105 @@
-# API 명세서 v1.0 초안
+# API 명세서 v1.1
 
 공통 prefix: `/api/v1`
+단, 루트 상태 확인 API `/`는 prefix를 사용하지 않는다.
 
-## 구현 완료
+## API 목록
 
 | Method | Path | 설명 |
 | --- | --- | --- |
-| GET | `/games` | 날짜·구단·구장·상태별 경기 목록 |
-| GET | `/games/{gameId}` | 경기 상세 |
-| POST | `/trips` | 여행 기본정보 생성 |
-| GET | `/trips` | 내 여행 목록 |
-| GET | `/trips/{tripId}` | 여행 상세 |
+| GET | `/` | API 기본 정보 |
+| GET | `/accommodations/reverse-geocode` | 지도에서 숙소 검색 |
+| GET | `/accommodations/search` | Kakao 숙소 검색 |
+| GET | `/attendance-logs/{attendanceLogId}/itinerary` | 직관 로그 일정 조회 |
+| GET | `/games` | KBO 경기 목록 조회 |
+| GET | `/games/{gameId}` | KBO 경기 상세 조회 |
+| GET | `/health` | 서버 상태 확인 |
+| GET | `/teams` | KBO 구단 목록 조회 |
+| GET | `/terms` | 활성 약관 목록 조회 |
+| GET | `/tour/classifications` | TourAPI 신분류 코드 목록 조회 |
+| GET | `/tour/nearby` | Read Nearby Places |
+| GET | `/tour/places/{placeId}` | Read Place Detail |
+| GET | `/tour/player-picks` | 구장·선수별 추천 장소 조회 |
+| GET | `/tour/search` | 관광 장소 키워드 검색 |
+| GET | `/trips` | 내 여행 목록 조회 |
+| POST | `/trips` | 여행 생성 |
+| GET | `/trips/{tripId}` | 여행 상세 조회 |
 | PATCH | `/trips/{tripId}` | 여행 기본정보 수정 |
 | DELETE | `/trips/{tripId}` | 여행 삭제 |
-| GET | `/tour/nearby` | TourAPI 위치 기반 장소 조회 |
-| GET | `/tour/places/{placeId}` | 내부 장소 ID 기반 TourAPI 상세·소개·이미지 통합 조회 |
-| GET | `/accommodations/search` | Kakao 숙박업소 검색 |
-| GET | `/accommodations/reverse-geocode` | 지도에서 선택한 숙소의 주소 검색 |
+| POST | `/trips/{tripId}/itineraries` | 여행 일정 생성 및 저장 |
+| GET | `/trips/{tripId}/place-selections` | 여행 장소 선택 목록 조회 |
+| POST | `/trips/{tripId}/place-selections` | 여행 장소 선택 추가 |
+| POST | `/trips/{tripId}/place-selections/import` | 개인 찜 컬렉션에서 여행 후보 불러오기 |
+| PATCH | `/trips/{tripId}/place-selections/{placeId}` | 여행 후보 필수 방문 여부 변경 |
+| DELETE | `/trips/{tripId}/place-selections/{placeId}` | 여행 장소 선택 삭제 |
+| GET | `/trips/{tripId}/plan` | 여행 일정 상세 조회 |
+| DELETE | `/trips/{tripId}/plan` | 여행 일정 삭제 |
+| POST | `/trips/{tripId}/plan/items` | 여행 일정 장소 추가 |
+| PATCH | `/trips/{tripId}/plan/items/order` | 여행 일정 장소 순서 변경 |
+| DELETE | `/trips/{tripId}/plan/items/{itemId}` | 여행 일정 장소 삭제 |
+| PATCH | `/trips/{tripId}/plan/items/{itemId}/fixed` | 여행 일정 장소 고정 여부 변경 |
+| PATCH | `/trips/{tripId}/plan/items/{itemId}/time` | 여행 일정 장소 시작시간 변경 |
+| GET | `/trips/{tripId}/recommendation-candidates` | 일정 생성 전 추천 후보 조회 |
+| GET | `/users/me` | 내 사용자 정보 조회 |
+| PATCH | `/users/me` | 내 사용자 정보 수정 |
+| DELETE | `/users/me` | 회원탈퇴 |
+| POST | `/users/me/bootstrap` | 최초 사용자 프로필 생성 |
+| GET | `/users/me/favorite-collections` | 개인 찜 컬렉션 목록 조회 |
+| POST | `/users/me/favorite-collections` | 개인 찜 컬렉션 생성 |
+| GET | `/users/me/favorite-collections/{collectionId}` | 개인 찜 컬렉션 장소 목록 조회 |
+| PATCH | `/users/me/favorite-collections/{collectionId}` | 개인 찜 컬렉션 이름 변경 |
+| DELETE | `/users/me/favorite-collections/{collectionId}` | 개인 찜 컬렉션 삭제 |
+| PUT | `/users/me/favorite-collections/{collectionId}/items/{placeId}` | 찜 장소 저장 |
+| DELETE | `/users/me/favorite-collections/{collectionId}/items/{placeId}` | 찜 장소 삭제 |
+| POST | `/users/me/term-agreements` | 약관 동의 저장 |
+
+## v1.1 주요 계약 변경
+
+### 사용자 프로필 통합 수정
+
+`PATCH /api/v1/users/me`에서 사용자 프로필을 수정한다.
+닉네임(`nickname`) 수정도 이 API를 사용한다. 프론트는 별도 닉네임
+수정 API를 호출하지 않는다.
+
+### 여행 subtitle 계약
+
+여행 생성·수정 시 `subtitle`을 직접 지정할 수 있다.
+
+응답의 `subtitle`은 항상 문자열이며 직접 지정한 값이 없으면 여행 기간으로
+자동 생성한다.
+
+- 당일 여행: `2026.08.16`
+- 여러 날 여행: `2026.08.16 ~ 2026.08.17`
+- 빈 문자열은 사용자 지정 subtitle로 저장하지 않고 자동 생성 규칙을 사용한다.
+
+### 일정 PLACE 표시 계약
+
+저장 일정의 `PLACE` Item은 장소 카드 표시를 위해 다음 정보를 제공한다.
+
+- `thumbnailUrl`: 장소 썸네일
+- `shortDescription`: 한 줄 표시용 장소 소개
+- `overview`: 원본 장소 소개
+
+`shortDescription`은 `overview`의 줄바꿈과 연속 공백을 한 줄로 정규화한 값이며,
+원본 `overview`를 대체하지 않는다. 소개가 없으면 `null`일 수 있다.
+
+### 직관 로그 일정 조회
+
+`GET /api/v1/attendance-logs/{attendanceLogId}/itinerary`는 직관 로그와
+연결된 당시 일정 Plan을 읽기 전용으로 반환한다.
+
+직관 로그가 생성된 뒤 여행 일정이 다시 생성되어 기존 Plan이 `ARCHIVED` 상태가
+되어도 로그에 저장된 `planId`를 기준으로 당시 Plan을 조회한다. 이 API는 일정
+수정 또는 재생성을 수행하지 않는다.
+
+주요 오류 코드는 다음과 같다.
+
+| code | 의미 |
+| --- | --- |
+| `ATTENDANCE_LOG_NOT_FOUND` | 직관 로그 없음 |
+| `ATTENDANCE_LOG_ACCESS_DENIED` | 다른 사용자의 직관 로그 |
+| `ITINERARY_PLAN_NOT_FOUND` | 연결된 일정 Plan 없음 |
+| `ATTENDANCE_LOG_PLAN_MISMATCH` | 로그와 Plan의 사용자 또는 여행 정보 불일치 |
 
 ### TourAPI 상세 조회
 
@@ -45,7 +128,7 @@ GET /api/v1/tour/places/tour_1603175
 일정 생성 중 추천 장소 수집이 30초 제한을 넘으면 추천 0건의 성공 결과를 저장하지
 않고 HTTP 503 `RECOMMENDATION_TIMEOUT`을 반환한다.
 
-## 연결 예정
+## 일정 생성 및 편집 계약
 
 ```http
 POST /api/v1/trips/{tripId}/itineraries
@@ -152,21 +235,30 @@ trips/{tripId}/placeCandidates/{placeId}
 카테고리별 기본 체류시간은 카페 45분, 음식점 60분, 관광지·문화시설 90분,
 쇼핑 60분, 액티비티·축제 120분, 기타 60분이다. 숙박은 자동 추천에서 제외한다.
 
-### 찜 컬렉션 연결 예정
+### 찜 컬렉션 계약
 
-```text
-GET    /users/me/favorite-collections
-POST   /users/me/favorite-collections
-PATCH  /users/me/favorite-collections/{collectionId}
-DELETE /users/me/favorite-collections/{collectionId}
-PUT    /users/me/favorite-collections/{collectionId}/items/{placeId}
-DELETE /users/me/favorite-collections/{collectionId}/items/{placeId}
-```
+개인 찜 컬렉션은 다음 API로 관리한다.
 
-구단별 컬렉션은 제공하지 않고 개인 찜 컬렉션만 사용한다. 일정에 컬렉션을
-불러올 때는 선택한 경기·경기장의 지역과 일치하는 TourAPI 장소만 여행 후보로
-자동 포함한다. 컬렉션 Item은 `placeId`만 참조한다. Kakao 검색 결과는 독립
-장소로 저장하지 않고 TourAPI 장소의 부족한 기본 정보 보충에만 사용한다.
+- `GET /users/me/favorite-collections`
+- `POST /users/me/favorite-collections`
+- `GET /users/me/favorite-collections/{collectionId}`
+- `PATCH /users/me/favorite-collections/{collectionId}`
+- `DELETE /users/me/favorite-collections/{collectionId}`
+- `PUT /users/me/favorite-collections/{collectionId}/items/{placeId}`
+- `DELETE /users/me/favorite-collections/{collectionId}/items/{placeId}`
+
+`GET /users/me/favorite-collections/{collectionId}`는 컬렉션 안의 장소를
+`Place` 목록으로 반환한다.
+
+컬렉션의 `thumbnailUrl`은 현재 남아 있는 장소 중 가장 먼저 추가된 장소의
+썸네일을 사용한다. 해당 장소를 삭제하면 다음으로 오래된 장소가 대표 썸네일이
+된다.
+
+컬렉션에 장소를 저장할 때 장소 스냅샷을 함께 보관한다. 조회 시 저장된 스냅샷을
+우선 사용하며 필요한 경우 TourAPI 장소 정보를 다시 조회해 보완한다.
+
+일정으로 컬렉션을 불러올 때는 선택한 여행의 후보 장소 계약에 맞춰
+`placeId` 기반 선택 항목으로 변환한다.
 
 ### 일정 이동 구간 계약
 
@@ -183,6 +275,7 @@ DELETE /users/me/favorite-collections/{collectionId}/items/{placeId}
 - `travelMode`: `WALK`, `TRANSIT`
 - `travelTimeSource`: `KAKAO`, `ODSAY`, `ESTIMATED`, `FAKE`
 - 신규 일정은 카카오 실제 도보·대중교통 시간 중 더 짧은 값을 사용한다.
-- `ODSAY`는 기존 저장 일정과의 하위 호환을 위해 유지한다.
+- 신규 이동시간 조회는 Kakao Routing만 사용한다.
+- `ODSAY`는 기존 Firestore 저장 일정의 역직렬화 하위 호환을 위한 enum 값으로만 유지하며 ODsay API를 호출하지 않는다.
 - `FAKE`는 테스트와 Mock 전용이다.
 - 이동이 없는 첫 Item은 `travelMode`, `travelTimeSource`가 `null`일 수 있다.
