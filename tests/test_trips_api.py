@@ -153,6 +153,7 @@ def test_create_trip_returns_created_summary(
         "tripId": TRIP_ID,
         "gameId": GAME_ID,
         "title": "두산 부산 원정",
+        "subtitle": "2026.08.14 ~ 2026.08.16",
         "status": "PLANNING",
         "tripStartAt": "2026-08-14T10:30:00+09:00",
         "tripEndAt": "2026-08-16T19:00:00+09:00",
@@ -374,4 +375,79 @@ def test_create_trip_requires_idempotency_key(
     assert (
         response.json()["error"]["code"]
         == "VALIDATION_ERROR"
+    )
+
+def test_create_trip_normalizes_custom_subtitle(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.create_trip.return_value = make_trip_record().model_copy(
+        update={
+            "subtitle": "부산 먹방 원정",
+        }
+    )
+
+    body = make_create_body()
+    body["subtitle"] = "  부산 먹방 원정  "
+
+    with patch(
+        "app.api.v1.endpoints.trips.TripService",
+        return_value=service,
+    ):
+        response = authenticated_client.post(
+            "/api/v1/trips",
+            json=body,
+            headers={
+                "Idempotency-Key": "trip-subtitle-custom-001",
+            },
+        )
+
+    assert response.status_code == 201
+    assert (
+        response.json()["data"]["subtitle"]
+        == "부산 먹방 원정"
+    )
+
+    request = service.create_trip.call_args.kwargs["request"]
+
+    assert request.subtitle == "부산 먹방 원정"
+
+
+def test_get_trip_uses_same_day_automatic_subtitle(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_trip.return_value = make_trip_record().model_copy(
+        update={
+            "trip_start_at": datetime(
+                2026,
+                8,
+                15,
+                0,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            "trip_end_at": datetime(
+                2026,
+                8,
+                15,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    with patch(
+        "app.api.v1.endpoints.trips.TripService",
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            f"/api/v1/trips/{TRIP_ID}"
+        )
+
+    assert response.status_code == 200
+    assert (
+        response.json()["data"]["subtitle"]
+        == "2026.08.15"
     )

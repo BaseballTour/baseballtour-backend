@@ -11,6 +11,7 @@ from fastapi import (
 
 from app.api.dependencies.auth import get_current_active_user_id
 from app.api.openapi_responses import TRIP_ERROR_RESPONSES
+from app.core.time import to_korea_datetime
 from app.models.place import Place
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
@@ -57,6 +58,31 @@ router = APIRouter(
 )
 
 
+def resolve_trip_subtitle(
+    trip: TripRecord,
+) -> str:
+    """사용자 부제목이 없으면 여행 날짜를 반환합니다."""
+
+    if trip.subtitle:
+        return trip.subtitle
+
+    start_date = to_korea_datetime(
+        trip.trip_start_at
+    ).date()
+    end_date = to_korea_datetime(
+        trip.trip_end_at
+    ).date()
+
+    start_text = start_date.strftime("%Y.%m.%d")
+
+    if start_date == end_date:
+        return start_text
+
+    end_text = end_date.strftime("%Y.%m.%d")
+
+    return f"{start_text} ~ {end_text}"
+
+
 def to_summary_response(
     trip: TripRecord,
 ) -> TripSummaryResponse:
@@ -66,6 +92,7 @@ def to_summary_response(
         trip_id=trip.trip_id,
         game_id=trip.game_id,
         title=trip.title,
+        subtitle=resolve_trip_subtitle(trip),
         status=trip.status,
         trip_start_at=trip.trip_start_at,
         trip_end_at=trip.trip_end_at,
@@ -114,6 +141,7 @@ def to_detail_response(
         trip_id=trip.trip_id,
         game_id=trip.game_id,
         title=trip.title,
+        subtitle=resolve_trip_subtitle(trip),
         status=trip.status,
         trip_start_at=trip.trip_start_at,
         trip_end_at=trip.trip_end_at,
