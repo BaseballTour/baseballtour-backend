@@ -169,6 +169,7 @@ class ItineraryItem(AlgorithmModel):
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     travel_minutes_from_previous: int = Field(default=0, ge=0)
+    travel_distance_meters_from_previous: int = Field(default=0, ge=0)
     transfer_buffer_minutes: int = Field(
         default=0,
         ge=0,
@@ -217,6 +218,7 @@ class ItineraryResult(AlgorithmModel):
     trip_id: str
     algorithm_version: str = "draft-v0.1"
     total_travel_minutes: int = Field(default=0, ge=0)
+    total_travel_distance_meters: int = Field(default=0, ge=0)
     days: list[ItineraryDay] = Field(default_factory=list)
     excluded_places: list[ExcludedPlace] = Field(default_factory=list)
     auto_fill_applied: bool = False
@@ -239,5 +241,15 @@ class ItineraryResult(AlgorithmModel):
             raise ValueError(
                 "totalTravelMinutes는 모든 일정 항목의 "
                 "travelMinutesFromPrevious 합계여야 합니다."
+            )
+        calculated_distance = sum(
+            item.travel_distance_meters_from_previous
+            for day in self.days
+            for item in day.items
+        )
+        if self.total_travel_distance_meters != calculated_distance:
+            raise ValueError(
+                "totalTravelDistanceMeters는 모든 일정 항목의 "
+                "travelDistanceMetersFromPrevious 합계여야 합니다."
             )
         return self

@@ -23,6 +23,22 @@ class TripStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
+class TravelStyle(str, Enum):
+    """사용자가 선호하는 여행 진행 방식."""
+
+    RELAXED = "RELAXED"
+    BALANCED = "BALANCED"
+    EXPLORER = "EXPLORER"
+
+
+class ScheduleDensity(str, Enum):
+    """하루 일정에 장소를 채우는 밀도."""
+
+    LIGHT = "LIGHT"
+    MODERATE = "MODERATE"
+    DENSE = "DENSE"
+
+
 class TripPoint(ApiModel):
     """여행의 도착 또는 출발 장소."""
 
@@ -88,6 +104,8 @@ class TripCreateRequest(ApiModel):
                     "title": "잠실 원정 직관 여행",
                     "tripStartAt": "2026-08-15T12:00:00+09:00",
                     "tripEndAt": "2026-08-15T23:00:00+09:00",
+                    "travelStyle": "BALANCED",
+                    "scheduleDensity": "MODERATE",
                     "arrivalPoint": {
                         "name": "서울역",
                         "latitude": 37.5547,
@@ -124,6 +142,8 @@ class TripCreateRequest(ApiModel):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
+    travel_style: TravelStyle = TravelStyle.BALANCED
+    schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
 
     @model_validator(mode="after")
     def validate_trip_period(
@@ -146,6 +166,8 @@ class TripUpdateRequest(ApiModel):
                 {
                     "title": "잠실 1박 2일 직관 여행",
                     "tripEndAt": "2026-08-16T11:00:00+09:00",
+                    "travelStyle": "RELAXED",
+                    "scheduleDensity": "LIGHT",
                     "accommodation": {
                         "name": "잠실 호텔",
                         "address": "서울특별시 송파구",
@@ -171,6 +193,8 @@ class TripUpdateRequest(ApiModel):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
+    travel_style: TravelStyle | None = None
+    schedule_density: ScheduleDensity | None = None
 
     @model_validator(mode="after")
     def validate_provided_trip_period(
@@ -209,6 +233,8 @@ class TripDocument(ApiModel):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
+    travel_style: TravelStyle = TravelStyle.BALANCED
+    schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
 
     status: TripStatus = TripStatus.PLANNING
     active_plan_id: str | None = None
@@ -260,5 +286,7 @@ class TripDetailResponse(TripSummaryResponse):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
+    travel_style: TravelStyle
+    schedule_density: ScheduleDensity
     active_plan_id: str | None = None
     updated_at: AwareDatetime

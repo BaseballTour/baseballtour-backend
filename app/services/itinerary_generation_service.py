@@ -107,6 +107,43 @@ class ItineraryGenerationService:
         self._travel_time_provider = travel_time_provider
         self._generator = generator
 
+    async def get_recommendation_candidates(
+        self,
+        *,
+        user_id: str,
+        trip_id: str,
+    ) -> list[Place]:
+        """일정 생성 전에 프론트가 선택할 주변 추천 후보를 반환합니다."""
+
+        trip = self._get_owned_trip_or_raise(
+            user_id=user_id,
+            trip_id=trip_id,
+        )
+        self._validate_required_points(trip)
+        game = self._get_game_or_raise(trip.game_id)
+        stadium = self._get_stadium_or_raise(game.stadium_id)
+        selections = self._place_selection_repository.get_all(
+            trip_id=trip_id,
+        )
+        return await self._recommendation_service.get_candidates(
+            centers=self._recommendation_centers(
+                trip=trip,
+                stadium=stadium,
+            ),
+            selected_place_ids={
+                selection.place_id for selection in selections
+            },
+            excluded_places=[
+                ExcludedRecommendationPlace(
+                    name=stadium.name,
+                    latitude=stadium.latitude,
+                    longitude=stadium.longitude,
+                )
+            ],
+            travel_start_date=trip.trip_start_at.date(),
+            travel_end_date=trip.trip_end_at.date(),
+        )
+
     async def generate(
         self,
         *,
@@ -834,6 +871,9 @@ class ItineraryGenerationService:
             algorithm_version=result.algorithm_version,
             total_travel_minutes=(
                 result.total_travel_minutes
+            ),
+            total_travel_distance_meters=(
+                result.total_travel_distance_meters
             ),
             days=stored_days,
             excluded_places=result.excluded_places,

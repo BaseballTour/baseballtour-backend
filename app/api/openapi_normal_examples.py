@@ -52,12 +52,14 @@ TRIP_DETAIL = {
         "address": "서울특별시 구로구 경인로 00",
         "latitude": 37.4985, "longitude": 126.868,
     },
+    "travelStyle": "BALANCED", "scheduleDensity": "MODERATE",
     "activePlanId": "plan_001",
     "updatedAt": "2026-08-15T11:00:00+09:00",
 }
 PLAN = {
     "planId": "plan_001", "tripId": "trip_001", "status": "ACTIVE",
     "algorithmVersion": "auto-fill-v0.4", "totalTravelMinutes": 25,
+    "totalTravelDistanceMeters": 8400,
     "days": [{"date": "2026-08-16", "dayType": "GAME_DAY", "items": [{
         "itemId": "item_1_1", "type": "PLACE", "sequence": 1,
         "placeId": PLACE["placeId"], "category": "TOURIST_SPOT",
@@ -67,6 +69,7 @@ PLAN = {
         "scheduledStartAt": "2026-08-16T13:00:00+09:00",
         "scheduledEndAt": "2026-08-16T14:00:00+09:00",
         "travelMinutesFromPrevious": 25, "transferBufferMinutes": 15,
+        "travelDistanceMetersFromPrevious": 8400,
         "travelMode": "TRANSIT", "travelTimeSource": "KAKAO",
         "isRequired": False, "addedBy": "ALGORITHM", "isFixed": False,
     }]}],
@@ -113,7 +116,8 @@ REQUEST_EXAMPLES = {
         "tripEndAt": "2026-08-17T23:00:00+09:00",
         "arrivalPoint": TRIP_DETAIL["arrivalPoint"],
         "departurePoint": TRIP_DETAIL["departurePoint"],
-        "accommodation": TRIP_DETAIL["accommodation"]},
+        "accommodation": TRIP_DETAIL["accommodation"],
+        "travelStyle": "BALANCED", "scheduleDensity": "MODERATE"},
     ("patch", "/api/v1/trips/{tripId}"): {"title": "수정한 고척 원정 여행"},
     ("post", "/api/v1/trips/{tripId}/place-selections"): {"placeId": PLACE["placeId"], "isRequired": True},
     ("post", "/api/v1/trips/{tripId}/place-selections/import"): {"collectionId": "collection_001"},
@@ -163,6 +167,7 @@ SUCCESS_EXAMPLES = {
     ("patch", "/api/v1/trips/{tripId}", "200"): _success(TRIP_DETAIL),
     ("post", "/api/v1/trips/{tripId}/place-selections", "201"): _success(SELECTION),
     ("get", "/api/v1/trips/{tripId}/place-selections", "200"): _list([SELECTION]),
+    ("get", "/api/v1/trips/{tripId}/recommendation-candidates", "200"): _list([PLACE]),
     ("post", "/api/v1/trips/{tripId}/place-selections/import", "200"): _list([SELECTION]),
     ("patch", "/api/v1/trips/{tripId}/place-selections/{placeId}", "200"): _success(SELECTION),
     ("post", "/api/v1/trips/{tripId}/itineraries", "201"): _success(PLAN),
@@ -183,6 +188,10 @@ SUCCESS_EXAMPLES = {
         "lclsSystem1": "FD", "lclsSystem1Name": "음식",
         "lclsSystem2": "FD02", "lclsSystem2Name": "외국식",
         "lclsSystem3": "FD020200", "lclsSystem3Name": "일식",
+    }]),
+    ("get", "/api/v1/tour/player-picks", "200"): _list([{
+        "playerPickId": "player_pick_001", "stadiumId": "gocheok",
+        "playerName": "홍길동", "place": PLACE,
     }]),
 }
 
@@ -209,6 +218,7 @@ PARAMETER_DOCS = {
     "lclsSystem1": ("TourAPI 신분류 대분류 코드", "FD"),
     "lclsSystem2": ("TourAPI 신분류 중분류 코드", "FD02"),
     "lclsSystem3": ("TourAPI 신분류 소분류 코드", "FD020200"),
+    "playerName": ("선수 이름 선택 필터. 생략하면 구장의 전체 선수 추천", "홍길동"),
 }
 
 OPERATION_PARAMETER_DOCS = {

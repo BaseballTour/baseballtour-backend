@@ -46,24 +46,35 @@ def parse_route_minutes(data: Any, *, mode: TravelMode) -> ProviderTravelTime:
     if not route_items:
         raise ValueError("Kakao Routing 응답에 경로가 없습니다.")
 
-    seconds = [
-        route.get("properties", {}).get("totalTime")
-        for route in route_items
-        if isinstance(route, dict)
-        and isinstance(route.get("properties"), dict)
-    ]
-    valid = [
-        value
-        for value in seconds
-        if isinstance(value, (int, float)) and value > 0
-    ]
-    if not valid:
+    valid_routes = []
+    for route_item in route_items:
+        if not isinstance(route_item, dict):
+            continue
+        properties = route_item.get("properties")
+        if not isinstance(properties, dict):
+            continue
+        seconds = properties.get("totalTime")
+        if not isinstance(seconds, (int, float)) or seconds <= 0:
+            continue
+        distance = properties.get("totalDistance")
+        valid_routes.append(
+            (
+                seconds,
+                round(distance)
+                if isinstance(distance, (int, float)) and distance >= 0
+                else None,
+            )
+        )
+    if not valid_routes:
         raise ValueError("Kakao Routing 응답에 경로 시간이 없습니다.")
 
+    seconds, distance_meters = min(valid_routes, key=lambda route: route[0])
+
     return ProviderTravelTime(
-        minutes=max(1, ceil(min(valid) / 60)),
+        minutes=max(1, ceil(seconds / 60)),
         mode=mode,
         source=TravelTimeSource.KAKAO,
+        distance_meters=distance_meters,
     )
 
 

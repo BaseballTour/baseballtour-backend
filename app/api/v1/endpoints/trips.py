@@ -11,6 +11,7 @@ from fastapi import (
 
 from app.api.dependencies.auth import get_current_active_user_id
 from app.api.openapi_responses import TRIP_ERROR_RESPONSES
+from app.models.place import Place
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
     ItineraryPlanFixedRequest,
@@ -83,6 +84,9 @@ def to_itinerary_plan_response(
         status=plan.status,
         algorithm_version=plan.algorithm_version,
         total_travel_minutes=plan.total_travel_minutes,
+        total_travel_distance_meters=(
+            plan.total_travel_distance_meters
+        ),
         days=plan.days,
         excluded_places=plan.excluded_places,
         recommendation_summary=plan.recommendation_summary,
@@ -117,6 +121,8 @@ def to_detail_response(
         arrival_point=trip.arrival_point,
         departure_point=trip.departure_point,
         accommodation=trip.accommodation,
+        travel_style=trip.travel_style,
+        schedule_density=trip.schedule_density,
         active_plan_id=trip.active_plan_id,
         updated_at=trip.updated_at,
     )
@@ -509,6 +515,37 @@ def delete_place_selection(
         status_code=status.HTTP_204_NO_CONTENT
     )
 
+
+
+@router.get(
+    "/{tripId}/recommendation-candidates",
+    response_model=ListSuccessResponse[Place],
+    summary="일정 생성 전 추천 후보 조회",
+    description=(
+        "경기장·도착지·출발지·숙소 주변의 TourAPI 장소를 "
+        "중복 제거와 카테고리 다양성 필터 후 반환합니다."
+    ),
+)
+async def get_recommendation_candidates(
+    trip_id: Annotated[str, Path(alias="tripId")],
+    user_id: Annotated[
+        str,
+        Depends(get_current_active_user_id),
+    ],
+) -> ListSuccessResponse[Place]:
+    candidates = await (
+        ItineraryGenerationService().get_recommendation_candidates(
+            user_id=user_id,
+            trip_id=trip_id,
+        )
+    )
+    return ListSuccessResponse(
+        data=candidates,
+        meta=ListMeta(
+            count=len(candidates),
+            next_page_token=None,
+        ),
+    )
 
 
 @router.post(
