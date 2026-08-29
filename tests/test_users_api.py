@@ -156,11 +156,11 @@ def test_get_my_profile_returns_authenticated_user(
     assert arguments.kwargs["user"].email == "fan@example.com"
 
 
-def test_update_my_support_team_returns_updated_profile(
+def test_update_my_profile_changes_support_team(
     authenticated_client: TestClient,
 ) -> None:
     service = Mock()
-    service.update_support_team.return_value = make_user_response(
+    service.update_user.return_value = make_user_response(
         team_id="lotte",
         team_name="롯데 자이언츠",
     )
@@ -170,7 +170,7 @@ def test_update_my_support_team_returns_updated_profile(
         return_value=service,
     ):
         response = authenticated_client.patch(
-            "/api/v1/users/me/support-team",
+            "/api/v1/users/me",
             json={
                 "supportTeamId": "lotte",
             },
@@ -184,13 +184,61 @@ def test_update_my_support_team_returns_updated_profile(
     assert body["data"]["supportTeam"]["teamId"] == "lotte"
     assert body["data"]["supportTeam"]["name"] == "롯데 자이언츠"
 
-    service.update_support_team.assert_called_once()
+    service.update_user.assert_called_once()
 
-    arguments = service.update_support_team.call_args.kwargs
+    arguments = service.update_user.call_args.kwargs
 
     assert arguments["user_id"] == "firebase-user-123"
-    assert arguments["support_team_id"] == "lotte"
+    assert arguments["request"].support_team_id == "lotte"
     assert arguments["user"].email == "fan@example.com"
+
+
+def test_update_my_profile_changes_nickname(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    updated = make_user_response().model_copy(
+        update={
+            "nickname": "새닉네임",
+        }
+    )
+    service.update_user.return_value = updated
+
+    with patch(
+        "app.api.v1.endpoints.users.UserService",
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            "/api/v1/users/me",
+            json={
+                "nickname": "새닉네임",
+            },
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["nickname"] == "새닉네임"
+
+    arguments = service.update_user.call_args.kwargs
+
+    assert arguments["request"].nickname == "새닉네임"
+    assert arguments["request"].support_team_id is None
+
+
+def test_update_my_profile_rejects_empty_request(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.patch(
+        "/api/v1/users/me",
+        json={},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_bootstrap_user_requires_birth_year(

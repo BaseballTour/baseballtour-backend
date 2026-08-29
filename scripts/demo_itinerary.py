@@ -9,7 +9,7 @@ from app.algorithms.travel_time import (
     TravelTimeMatrix,
     build_itinerary_travel_time_matrix,
 )
-from app.external.odsay.client import get_cached_transit_minutes
+from app.external.kakao.routing import get_cached_fastest_route
 from app.models.itinerary import TripInput
 from app.models.place import Place
 
@@ -22,7 +22,7 @@ async def main() -> None:
     parser.add_argument(
         "--live",
         action="store_true",
-        help="ODsay 실제 대중교통 시간 사용",
+        help="Kakao 실제 이동시간 사용",
     )
     parser.add_argument(
         "--auto-fill",
@@ -57,7 +57,7 @@ async def main() -> None:
         matrix = await build_itinerary_travel_time_matrix(
             trip,
             [*places, *recommended_places],
-            get_cached_transit_minutes,
+            get_cached_fastest_route,
         )
     else:
         node_ids = [

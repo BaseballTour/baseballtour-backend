@@ -11,6 +11,7 @@ from app.schemas.user import (
     UserBootstrapRequest,
     UserDocument,
     UserResponse,
+    UserUpdateRequest,
 )
 
 
@@ -105,14 +106,14 @@ class UserService:
             team=team,
         )
 
-    def update_support_team(
+    def update_user(
         self,
-        user_id: str,
-        support_team_id: str,
         *,
+        user_id: str,
+        request: UserUpdateRequest,
         user: UserDocument | None = None,
     ) -> UserResponse:
-        """사용자의 응원팀을 설정하거나 변경합니다."""
+        """사용자의 수정 가능한 프로필 정보를 변경합니다."""
 
         if user is None:
             user = self._user_repository.get_by_id(user_id)
@@ -124,15 +125,27 @@ class UserService:
                 message="사용자 정보를 찾을 수 없습니다.",
             )
 
+        nickname = user.nickname
+        support_team_id = user.support_team_id
+
+        updates: dict[str, object] = {}
+
+        if request.nickname is not None:
+            nickname = request.nickname
+            updates["nickname"] = request.nickname
+
+        if request.support_team_id is not None:
+            support_team_id = request.support_team_id
+            updates["supportTeamId"] = request.support_team_id
+
         team = self._get_team_or_raise(support_team_id)
+
         updated_at = datetime.now(timezone.utc)
+        updates["updatedAt"] = updated_at
 
         updated = self._user_repository.update_fields(
             user_id,
-            {
-                "supportTeamId": support_team_id,
-                "updatedAt": updated_at,
-            },
+            updates,
         )
 
         if not updated:
@@ -144,6 +157,7 @@ class UserService:
 
         updated_user = user.model_copy(
             update={
+                "nickname": nickname,
                 "support_team_id": support_team_id,
                 "updated_at": updated_at,
             }

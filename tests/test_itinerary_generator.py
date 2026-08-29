@@ -4,7 +4,11 @@ from pathlib import Path
 
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import TravelTimeMatrix
-from app.models.itinerary import ItineraryItemType, TripInput
+from app.models.itinerary import (
+    ItineraryItemType,
+    TripInput,
+    normalize_short_description,
+)
 from app.models.place import Place
 
 
@@ -21,6 +25,21 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
             (SAMPLE_ROOT / "places.json").read_text(encoding="utf-8")
         )
     ]
+    places = [
+        place.model_copy(
+            update={
+                "thumbnail_url": (
+                    "https:"
+                    + "//example.com/generated-place.jpg"
+                ),
+                "overview": (
+                    "자동 생성 장소를\n  소개합니다."
+                ),
+            }
+        )
+        for place in places
+    ]
+
     node_ids = [
         "arrival",
         "departure",
@@ -44,6 +63,24 @@ def test_generates_anchor_based_itinerary_with_fake_matrix() -> None:
     assert ItineraryItemType.STADIUM in item_types
     assert ItineraryItemType.DEPARTURE_POINT in item_types
     assert ItineraryItemType.PLACE in item_types
+
+    generated_place = next(
+        item
+        for day in result.days
+        for item in day.items
+        if item.item_type == ItineraryItemType.PLACE
+    )
+
+    assert generated_place.thumbnail_url == (
+        "https:"
+        + "//example.com/generated-place.jpg"
+    )
+    assert generated_place.overview == (
+        "자동 생성 장소를\n  소개합니다."
+    )
+    assert generated_place.short_description == (
+        "자동 생성 장소를 소개합니다."
+    )
 
     stadium = next(
         item
@@ -112,3 +149,7 @@ def test_required_missing_place_returns_conflict_metadata() -> None:
 
     assert result.has_required_place_conflict is True
     assert excluded.is_required is True
+
+def test_normalize_short_description_returns_none_for_missing_text() -> None:
+    assert normalize_short_description(None) is None
+    assert normalize_short_description("   \n  ") is None

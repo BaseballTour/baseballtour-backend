@@ -8,6 +8,7 @@ def test_api_model_normalizes_and_serializes_utc_as_korea_time() -> None:
         trip_id="trip_1",
         game_id="game_1",
         title="한국시간 테스트",
+        subtitle="2026.08.18",
         status=TripStatus.PLANNING,
         trip_start_at=datetime(2026, 8, 18, 3, tzinfo=timezone.utc),
         trip_end_at=datetime(2026, 8, 18, 14, tzinfo=timezone.utc),

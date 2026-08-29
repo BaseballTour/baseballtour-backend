@@ -9,7 +9,11 @@ from app.core.exceptions import AppException
 from app.repositories.team_repository import TeamRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.team import TeamResponse
-from app.schemas.user import UserBootstrapRequest, UserDocument
+from app.schemas.user import (
+    UserBootstrapRequest,
+    UserDocument,
+    UserUpdateRequest,
+)
 from app.services.user_service import UserService
 
 
@@ -207,7 +211,7 @@ def test_get_user_rejects_missing_user(
     team_repository.get_by_id.assert_not_called()
 
 
-def test_update_support_team_changes_team(
+def test_update_user_changes_nickname_and_support_team(
     repositories: tuple[Mock, Mock],
 ) -> None:
     user_repository, team_repository = repositories
@@ -224,19 +228,25 @@ def test_update_support_team_changes_team(
         team_repository=team_repository,
     )
 
-    result = service.update_support_team(
+    result = service.update_user(
         user_id="firebase-user-123",
-        support_team_id="lotte",
+        request=UserUpdateRequest(
+            nickname="새닉네임",
+            support_team_id="lotte",
+        ),
     )
 
-    assert result.user_id == "firebase-user-123"
+    assert result.nickname == "새닉네임"
     assert result.support_team.team_id == "lotte"
-    assert result.support_team.name == "롯데 자이언츠"
 
     user_repository.update_fields.assert_called_once()
-    update_arguments = user_repository.update_fields.call_args.args
+
+    update_arguments = (
+        user_repository.update_fields.call_args.args
+    )
 
     assert update_arguments[0] == "firebase-user-123"
+    assert update_arguments[1]["nickname"] == "새닉네임"
     assert update_arguments[1]["supportTeamId"] == "lotte"
     assert "updatedAt" in update_arguments[1]
 
@@ -266,31 +276,35 @@ def test_get_user_reuses_supplied_user_without_repository_read(
     user_repository.get_by_id.assert_not_called()
 
 
-def test_update_support_team_reuses_supplied_user_without_repository_read(
+def test_update_user_reuses_supplied_user_without_repository_read(
     repositories: tuple[Mock, Mock],
 ) -> None:
     user_repository, team_repository = repositories
 
     user = make_user()
-
     user_repository.update_fields.return_value = True
-    team_repository.get_by_id.return_value = make_team(
-        team_id="lotte",
-        name="롯데 자이언츠",
-    )
+    team_repository.get_by_id.return_value = make_team()
 
     service = UserService(
         user_repository=user_repository,
         team_repository=team_repository,
     )
 
-    result = service.update_support_team(
+    result = service.update_user(
         user_id="firebase-user-123",
-        support_team_id="lotte",
+        request=UserUpdateRequest(
+            nickname="새닉네임",
+        ),
         user=user,
     )
 
-    assert result.support_team.team_id == "lotte"
+    assert result.nickname == "새닉네임"
+    assert result.support_team.team_id == "doosan"
 
     user_repository.get_by_id.assert_not_called()
     user_repository.update_fields.assert_called_once()
+
+    fields = user_repository.update_fields.call_args.args[1]
+
+    assert fields["nickname"] == "새닉네임"
+    assert "supportTeamId" not in fields

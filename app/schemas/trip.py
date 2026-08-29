@@ -136,6 +136,14 @@ class TripCreateRequest(ApiModel):
         min_length=1,
         description="여행 제목",
     )
+    subtitle: str | None = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "원정 여행 부제목. "
+            "비어 있으면 여행 날짜를 사용합니다."
+        ),
+    )
     trip_start_at: AwareDatetime
     trip_end_at: AwareDatetime
 
@@ -144,6 +152,19 @@ class TripCreateRequest(ApiModel):
     accommodation: AccommodationInfo | None = None
     travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
+
+    @field_validator("subtitle", mode="before")
+    @classmethod
+    def normalize_subtitle(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+
+        return normalized or None
 
     @model_validator(mode="after")
     def validate_trip_period(
@@ -187,6 +208,14 @@ class TripUpdateRequest(ApiModel):
         default=None,
         min_length=1,
     )
+    subtitle: str | None = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "원정 여행 부제목. "
+            "비우면 여행 날짜를 사용합니다."
+        ),
+    )
     trip_start_at: AwareDatetime | None = None
     trip_end_at: AwareDatetime | None = None
 
@@ -195,6 +224,19 @@ class TripUpdateRequest(ApiModel):
     accommodation: AccommodationInfo | None = None
     travel_style: TravelStyle | None = None
     schedule_density: ScheduleDensity | None = None
+
+    @field_validator("subtitle", mode="before")
+    @classmethod
+    def normalize_subtitle(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+
+        return normalized or None
 
     @model_validator(mode="after")
     def validate_provided_trip_period(
@@ -226,6 +268,10 @@ class TripDocument(ApiModel):
     title: str = Field(
         min_length=1,
         description="여행 제목",
+    )
+    subtitle: str | None = Field(
+        default=None,
+        description="사용자가 지정한 원정 여행 부제목",
     )
     trip_start_at: AwareDatetime
     trip_end_at: AwareDatetime
@@ -274,6 +320,7 @@ class TripSummaryResponse(ApiModel):
     trip_id: str
     game_id: str
     title: str
+    subtitle: str
     status: TripStatus
     trip_start_at: AwareDatetime
     trip_end_at: AwareDatetime

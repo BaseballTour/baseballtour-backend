@@ -22,6 +22,16 @@ def to_camel(value: str) -> str:
     return parts[0] + "".join(part.capitalize() for part in parts[1:])
 
 
+def normalize_short_description(
+    value: str | None,
+) -> str | None:
+    """장소 소개를 한 줄 표시용 문자열로 정규화합니다."""
+
+    normalized = " ".join((value or "").split())
+
+    return normalized or None
+
+
 class AlgorithmModel(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
@@ -157,6 +167,10 @@ class ItineraryItem(AlgorithmModel):
     thumbnail_url: str | None = Field(
         default=None,
         description="장소 카드에 표시할 대표 이미지",
+    )
+    short_description: str | None = Field(
+        default=None,
+        description="PLACE 항목의 한 줄 표시용 장소 소개",
     )
     overview: str | None = Field(
         default=None,

@@ -15,9 +15,9 @@ from app.schemas.term import (
     TermAgreementsResponse,
 )
 from app.schemas.user import (
-    SupportTeamUpdateRequest,
     UserBootstrapRequest,
     UserResponse,
+    UserUpdateRequest,
 )
 from app.services.account_service import AccountService
 from app.services.term_service import TermService
@@ -74,22 +74,23 @@ def get_my_profile(
 
 
 @router.patch(
-    "/me/support-team",
+    "/me",
     response_model=SuccessResponse[UserResponse],
-    summary="응원팀 설정 및 변경",
-    description="인증된 사용자의 응원팀을 설정하거나 변경합니다.",
+    summary="내 사용자 정보 수정",
+    description="인증된 사용자의 닉네임 및 응원팀을 수정합니다.",
 )
-def update_my_support_team(
-    request: SupportTeamUpdateRequest,
+def update_my_profile(
+    request: UserUpdateRequest,
     active_user: Annotated[
         ActiveUserContext,
         Depends(get_current_active_user_context),
     ],
 ) -> SuccessResponse[UserResponse]:
     service = UserService()
-    user = service.update_support_team(
+
+    user = service.update_user(
         user_id=active_user.user_id,
-        support_team_id=request.support_team_id,
+        request=request,
         user=active_user.user,
     )
 

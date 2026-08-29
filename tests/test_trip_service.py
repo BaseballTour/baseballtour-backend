@@ -599,3 +599,90 @@ def test_delete_trip_keeps_trip_when_child_cleanup_fails() -> None:
         )
 
     assert repository.get_by_id(trip.trip_id) is not None
+
+def test_create_trip_saves_custom_subtitle() -> None:
+    service, _ = create_service()
+
+    base_request = create_request()
+    request = TripCreateRequest.model_validate(
+        {
+            **base_request.model_dump(),
+            "subtitle": "  부산 먹방 원정  ",
+        }
+    )
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=request,
+        idempotency_key="subtitle-custom-request-key",
+    )
+
+    assert trip.subtitle == "부산 먹방 원정"
+
+
+def test_create_trip_normalizes_blank_subtitle() -> None:
+    service, _ = create_service()
+
+    base_request = create_request()
+    request = TripCreateRequest.model_validate(
+        {
+            **base_request.model_dump(),
+            "subtitle": "   ",
+        }
+    )
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=request,
+        idempotency_key="subtitle-blank-request-key",
+    )
+
+    assert trip.subtitle is None
+
+
+def test_update_trip_changes_subtitle() -> None:
+    service, _ = create_service()
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=create_request(),
+        idempotency_key="subtitle-update-create-key",
+    )
+
+    updated = service.update_trip(
+        user_id="user-001",
+        trip_id=trip.trip_id,
+        request=TripUpdateRequest(
+            subtitle="  사직구장 첫 원정  ",
+        ),
+    )
+
+    assert updated.subtitle == "사직구장 첫 원정"
+
+
+def test_update_trip_clears_subtitle_for_automatic_date() -> None:
+    service, _ = create_service()
+
+    base_request = create_request()
+    request = TripCreateRequest.model_validate(
+        {
+            **base_request.model_dump(),
+            "subtitle": "부산 먹방 원정",
+        }
+    )
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=request,
+        idempotency_key="subtitle-clear-create-key",
+    )
+
+    updated = service.update_trip(
+        user_id="user-001",
+        trip_id=trip.trip_id,
+        request=TripUpdateRequest(
+            subtitle="   ",
+        ),
+    )
+
+    assert updated.subtitle is None

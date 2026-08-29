@@ -101,6 +101,7 @@ class TripService:
             user_id=user_id,
             game_id=request.game_id,
             title=request.title,
+            subtitle=request.subtitle,
             trip_start_at=request.trip_start_at,
             trip_end_at=request.trip_end_at,
             arrival_point=request.arrival_point,

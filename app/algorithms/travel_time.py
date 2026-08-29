@@ -229,10 +229,10 @@ async def build_travel_time_matrix(
                 if provider_result.distance_meters is not None:
                     distances_meters[key] = provider_result.distance_meters
             elif provider_result < minutes[key]:
-                # 기존 int Provider(ODsay 및 테스트 double)와의 호환성.
+                # 테스트용 legacy int Provider와의 호환성을 유지합니다.
                 minutes[key] = provider_result
                 modes[key] = TravelMode.TRANSIT
-                sources[key] = TravelTimeSource.ODSAY
+                sources[key] = TravelTimeSource.ESTIMATED
 
         tasks = [
             resolve_route(*route)

@@ -37,7 +37,9 @@ GAME = {
 }
 TRIP_SUMMARY = {
     "tripId": "trip_001", "gameId": GAME["gameId"],
-    "title": "고척 원정 1박 2일", "status": "GENERATED",
+    "title": "고척 원정 1박 2일",
+    "subtitle": "2026.08.16 ~ 2026.08.17",
+    "status": "GENERATED",
     "tripStartAt": "2026-08-16T12:00:00+09:00",
     "tripEndAt": "2026-08-17T23:00:00+09:00",
     "createdAt": "2026-08-15T10:00:00+09:00",
@@ -63,7 +65,9 @@ PLAN = {
     "days": [{"date": "2026-08-16", "dayType": "GAME_DAY", "items": [{
         "itemId": "item_1_1", "type": "PLACE", "sequence": 1,
         "placeId": PLACE["placeId"], "category": "TOURIST_SPOT",
-        "thumbnailUrl": PLACE["thumbnailUrl"], "overview": PLACE["overview"],
+        "thumbnailUrl": PLACE["thumbnailUrl"],
+        "shortDescription": "잠실종합운동장 인근 산책 장소",
+        "overview": PLACE["overview"],
         "name": PLACE["name"], "address": PLACE["address"],
         "latitude": PLACE["latitude"], "longitude": PLACE["longitude"],
         "scheduledStartAt": "2026-08-16T13:00:00+09:00",
@@ -128,6 +132,7 @@ REQUEST_EXAMPLES = {
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/fixed"): {"isFixed": True},
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/time"): {"scheduledStartAt": "2026-08-17T14:00:00+09:00"},
     ("post", "/api/v1/users/me/bootstrap"): {"nickname": "민준", "birthYear": 2002, "supportTeamId": "lg"},
+    ("patch", "/api/v1/users/me"): {"nickname": "민준"},
     ("patch", "/api/v1/users/me/support-team"): {"supportTeamId": "lg"},
     ("post", "/api/v1/users/me/term-agreements"): {"agreements": [
         {"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True},
@@ -157,6 +162,14 @@ SUCCESS_EXAMPLES = {
     ("get", "/api/v1/users/me/favorite-collections/{collectionId}", "200"): _list([PLACE]),
     ("patch", "/api/v1/users/me/favorite-collections/{collectionId}", "200"): _success(COLLECTION),
     ("put", "/api/v1/users/me/favorite-collections/{collectionId}/items/{placeId}", "200"): _success({"placeId": PLACE["placeId"], "createdAt": "2026-08-15T10:10:00+09:00"}),
+    (
+        "get",
+        "/api/v1/attendance-logs/{attendanceLogId}/itinerary",
+        "200",
+    ): _success({
+        **PLAN,
+        "status": "ARCHIVED",
+    }),
     ("get", "/api/v1/games", "200"): _list([GAME]),
     ("get", "/api/v1/games/{gameId}", "200"): _success(GAME),
     ("get", "/api/v1/teams", "200"): _list([{"teamId": "lg", "name": "LG 트윈스", "shortName": "LG", "logoUrl": "https://example.com/lg.png", "homeRegion": "서울", "stadiumId": "jamsil"}]),
@@ -179,6 +192,7 @@ SUCCESS_EXAMPLES = {
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/time", "200"): _success(PLAN),
     ("post", "/api/v1/users/me/bootstrap", "201"): _success(USER),
     ("get", "/api/v1/users/me", "200"): _success(USER),
+    ("patch", "/api/v1/users/me", "200"): _success(USER),
     ("patch", "/api/v1/users/me/support-team", "200"): _success(USER),
     ("post", "/api/v1/users/me/term-agreements", "200"): _success({"agreements": [{"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True, "agreedAt": "2026-08-15T10:00:00+09:00"}]}),
     ("get", "/api/v1/tour/nearby", "200"): _list([PLACE]),
@@ -196,6 +210,7 @@ SUCCESS_EXAMPLES = {
 }
 
 PARAMETER_DOCS = {
+    "attendanceLogId": ("직관 로그 문서 ID", "log_001"),
     "tripId": ("여행 문서 ID", "trip_001"), "gameId": ("경기 문서 ID", GAME["gameId"]),
     "collectionId": ("개인 찜 컬렉션 ID", "collection_001"),
     "placeId": ("내부 장소 ID. TourAPI 장소는 tour_{contentId} 형식", PLACE["placeId"]),

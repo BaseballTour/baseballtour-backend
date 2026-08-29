@@ -123,6 +123,76 @@ class AttendanceLogService:
 
         return attendance_log
 
+    def get_itinerary(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+    ) -> ItineraryPlanRecord:
+        """직관 로그 생성 시점의 일정 Plan을 읽기 전용으로 조회합니다."""
+
+        attendance_log = (
+            self._attendance_log_repository.get_by_id(
+                attendance_log_id
+            )
+        )
+
+        if attendance_log is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ATTENDANCE_LOG_NOT_FOUND",
+                message="직관 로그를 찾을 수 없습니다.",
+            )
+
+        if attendance_log.user_id != user_id:
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="ATTENDANCE_LOG_ACCESS_DENIED",
+                message=(
+                    "해당 직관 로그에 접근할 "
+                    "권한이 없습니다."
+                ),
+            )
+
+        if attendance_log.plan_id is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ITINERARY_PLAN_NOT_FOUND",
+                message=(
+                    "직관 로그에 연결된 일정 정보를 "
+                    "찾을 수 없습니다."
+                ),
+            )
+
+        plan = self._itinerary_plan_repository.get_by_id(
+            attendance_log.plan_id
+        )
+
+        if plan is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ITINERARY_PLAN_NOT_FOUND",
+                message=(
+                    "직관 로그에 연결된 일정 정보를 "
+                    "찾을 수 없습니다."
+                ),
+            )
+
+        if (
+            plan.user_id != user_id
+            or plan.trip_id != attendance_log.trip_id
+        ):
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="ATTENDANCE_LOG_PLAN_MISMATCH",
+                message=(
+                    "직관 로그와 일정 정보의 연결이 "
+                    "일치하지 않습니다."
+                ),
+            )
+
+        return plan
+
     def _get_owned_trip_or_raise(
         self,
         *,

@@ -6,13 +6,162 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/attendance-logs/{attendanceLogId}/itinerary": {
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 일정 조회",
+        "description": "직관 로그 생성 시점에 연결된 일정 Plan을 읽기 전용으로 조회합니다. 일정이 이후 재생성되어도 당시 Plan을 반환합니다.",
+        "operationId": "get_attendance_log_itinerary_api_v1_attendance_logs__attendanceLogId__itinerary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ItineraryPlanResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "planId": "plan_001",
+                        "tripId": "trip_001",
+                        "status": "ARCHIVED",
+                        "algorithmVersion": "auto-fill-v0.4",
+                        "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
+                        "days": [
+                          {
+                            "date": "2026-08-16",
+                            "dayType": "GAME_DAY",
+                            "items": [
+                              {
+                                "itemId": "item_1_1",
+                                "type": "PLACE",
+                                "sequence": 1,
+                                "placeId": "tour_1603175",
+                                "category": "TOURIST_SPOT",
+                                "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
+                                "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
+                                "name": "아시아공원",
+                                "address": "서울특별시 송파구 올림픽로 44",
+                                "latitude": 37.510082,
+                                "longitude": 127.076703,
+                                "scheduledStartAt": "2026-08-16T13:00:00+09:00",
+                                "scheduledEndAt": "2026-08-16T14:00:00+09:00",
+                                "travelMinutesFromPrevious": 25,
+                                "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
+                                "travelMode": "TRANSIT",
+                                "travelTimeSource": "KAKAO",
+                                "isRequired": false,
+                                "addedBy": "ALGORITHM",
+                                "isFixed": false
+                              }
+                            ]
+                          }
+                        ],
+                        "excludedPlaces": [],
+                        "recommendationSummary": {
+                          "fetchedCount": 20,
+                          "candidateCount": 12,
+                          "scheduledCount": 1,
+                          "categoryDistribution": {
+                            "TOURIST_SPOT": 1
+                          },
+                          "filteredCounts": {},
+                          "placementRejectedAttempts": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/accommodations/search": {
       "get": {
         "tags": [
           "Accommodations"
         ],
         "summary": "Kakao 숙소 검색",
-        "description": "Kakao Local에서 숙박(AD5) 장소만 검색합니다. 선택한 후보의 이름·주소·좌표와 kakaoPlaceId를 여행 accommodation에 복사해 저장합니다.",
+        "description": "Kakao Local에서 숙박(AD5) 장소만 검색합니다. 선택한 후보의 이름·주소·좌표와 accommodationId를 여행 accommodation에 복사해 저장합니다.",
         "operationId": "search_accommodations_api_v1_accommodations_search_get",
         "parameters": [
           {
@@ -133,6 +282,7 @@
                       "success": true,
                       "data": [
                         {
+                          "accommodationId": "accommodation_kakao_123456789",
                           "kakaoPlaceId": "123456789",
                           "name": "잠실 예시 호텔",
                           "address": "서울특별시 송파구 올림픽로 00",
@@ -257,6 +407,7 @@
                     "value": {
                       "success": true,
                       "data": {
+                        "accommodationId": "accommodation_map_0123456789abcdef",
                         "kakaoPlaceId": null,
                         "name": "잠실 예시 호텔",
                         "address": "서울특별시 송파구 올림픽로 00",
@@ -2927,12 +3078,14 @@
                       "longitude": 126.9706
                     },
                     "accommodation": {
-                      "kakaoPlaceId": "123456789",
+                      "accommodationId": "accommodation_kakao_123456789",
                       "name": "고척 예시 호텔",
                       "address": "서울특별시 구로구 경인로 00",
                       "latitude": 37.4985,
                       "longitude": 126.868
-                    }
+                    },
+                    "travelStyle": "BALANCED",
+                    "scheduleDensity": "MODERATE"
                   }
                 }
               }
@@ -2956,6 +3109,7 @@
                         "tripId": "trip_001",
                         "gameId": "game_20260816_kiwoom_lg",
                         "title": "고척 원정 1박 2일",
+                        "subtitle": "2026.08.16 ~ 2026.08.17",
                         "status": "GENERATED",
                         "tripStartAt": "2026-08-16T12:00:00+09:00",
                         "tripEndAt": "2026-08-17T23:00:00+09:00",
@@ -2968,7 +3122,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -2978,10 +3132,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -3371,7 +3535,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -3391,6 +3555,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -3434,6 +3608,7 @@
                           "tripId": "trip_001",
                           "gameId": "game_20260816_kiwoom_lg",
                           "title": "고척 원정 1박 2일",
+                          "subtitle": "2026.08.16 ~ 2026.08.17",
                           "status": "GENERATED",
                           "tripStartAt": "2026-08-16T12:00:00+09:00",
                           "tripEndAt": "2026-08-17T23:00:00+09:00",
@@ -3451,7 +3626,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -3461,10 +3636,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -3854,7 +4039,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -3874,6 +4059,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -3932,6 +4127,7 @@
                         "tripId": "trip_001",
                         "gameId": "game_20260816_kiwoom_lg",
                         "title": "고척 원정 1박 2일",
+                        "subtitle": "2026.08.16 ~ 2026.08.17",
                         "status": "GENERATED",
                         "tripStartAt": "2026-08-16T12:00:00+09:00",
                         "tripEndAt": "2026-08-17T23:00:00+09:00",
@@ -3947,12 +4143,14 @@
                           "longitude": 126.9706
                         },
                         "accommodation": {
-                          "kakaoPlaceId": "123456789",
+                          "accommodationId": "accommodation_kakao_123456789",
                           "name": "고척 예시 호텔",
                           "address": "서울특별시 구로구 경인로 00",
                           "latitude": 37.4985,
                           "longitude": 126.868
                         },
+                        "travelStyle": "BALANCED",
+                        "scheduleDensity": "MODERATE",
                         "activePlanId": "plan_001",
                         "updatedAt": "2026-08-15T11:00:00+09:00"
                       }
@@ -3963,7 +4161,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -3973,10 +4171,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -4366,7 +4574,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -4386,6 +4594,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -4460,6 +4678,7 @@
                         "tripId": "trip_001",
                         "gameId": "game_20260816_kiwoom_lg",
                         "title": "고척 원정 1박 2일",
+                        "subtitle": "2026.08.16 ~ 2026.08.17",
                         "status": "GENERATED",
                         "tripStartAt": "2026-08-16T12:00:00+09:00",
                         "tripEndAt": "2026-08-17T23:00:00+09:00",
@@ -4475,12 +4694,14 @@
                           "longitude": 126.9706
                         },
                         "accommodation": {
-                          "kakaoPlaceId": "123456789",
+                          "accommodationId": "accommodation_kakao_123456789",
                           "name": "고척 예시 호텔",
                           "address": "서울특별시 구로구 경인로 00",
                           "latitude": 37.4985,
                           "longitude": 126.868
                         },
+                        "travelStyle": "BALANCED",
+                        "scheduleDensity": "MODERATE",
                         "activePlanId": "plan_001",
                         "updatedAt": "2026-08-15T11:00:00+09:00"
                       }
@@ -4491,7 +4712,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -4501,10 +4722,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -4894,7 +5125,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -4914,6 +5145,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -4958,7 +5199,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -4968,10 +5209,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -5361,7 +5612,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -5381,6 +5632,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -5466,7 +5727,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -5476,10 +5737,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -5869,7 +6140,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -5889,6 +6160,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -5959,7 +6240,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -5969,10 +6250,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -6362,7 +6653,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -6382,6 +6673,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -6472,7 +6773,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -6482,10 +6783,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -6875,7 +7186,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -6895,6 +7206,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -6991,7 +7312,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -7001,10 +7322,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -7394,7 +7725,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -7414,6 +7745,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -7470,7 +7811,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -7480,10 +7821,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -7873,7 +8224,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -7893,6 +8244,560 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{tripId}/recommendation-candidates": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "일정 생성 전 추천 후보 조회",
+        "description": "경기장·도착지·출발지·숙소 주변의 TourAPI 장소를 중복 제거와 카테고리 다양성 필터 후 반환합니다.",
+        "operationId": "get_recommendation_candidates_api_v1_trips__tripId__recommendation_candidates_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tripid"
+            },
+            "description": "여행 문서 ID",
+            "example": "trip_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_Place_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "placeId": "tour_1603175",
+                          "name": "아시아공원",
+                          "category": "TOURIST_SPOT",
+                          "latitude": 37.510082,
+                          "longitude": 127.076703,
+                          "address": "서울특별시 송파구 올림픽로 44",
+                          "postalCode": "05572",
+                          "telephone": null,
+                          "thumbnailUrl": "https://example.com/asia-park.jpg",
+                          "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
+                          "openTime": null,
+                          "closeTime": null,
+                          "businessHoursStatus": "MISSING",
+                          "businessHoursText": null,
+                          "businessHoursRules": [],
+                          "admissionDeadlineTime": null,
+                          "admissionDeadlineStatus": "MISSING",
+                          "admissionDeadlineText": null,
+                          "closedDaysText": null,
+                          "closedDaysStatus": "MISSING",
+                          "closedWeekdays": [],
+                          "eventStartDate": null,
+                          "eventEndDate": null,
+                          "defaultStayMinutes": 60,
+                          "distanceMeters": 487.4,
+                          "source": "TOUR_API",
+                          "sourceContentId": "1603175",
+                          "kakaoPlaceId": null,
+                          "enrichedBy": [],
+                          "contentTypeId": "12",
+                          "lclsSystem1": "VE",
+                          "lclsSystem2": "VE01",
+                          "lclsSystem3": "VE010100"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "여행 입력값 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Firebase 인증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "token_missing": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_MISSING",
+                        "message": "인증 토큰이 필요합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_invalid": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_INVALID",
+                        "message": "인증 토큰이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_expired": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_EXPIRED",
+                        "message": "인증 토큰이 만료되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_revoked": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_REVOKED",
+                        "message": "폐기된 인증 토큰입니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한 없음",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "access_denied": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_ACCESS_DENIED",
+                        "message": "해당 여행에 접근할 권한이 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "여행·일정 요청 규칙 위반",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "trip_time_invalid": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_TIME_INVALID",
+                        "message": "여행 종료 시간은 시작 시간보다 늦어야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "game_outside_period": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "GAME_OUTSIDE_TRIP_PERIOD",
+                        "message": "경기 시간이 여행 기간에 포함되어야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "itinerary_input_invalid": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_INPUT_INVALID",
+                        "message": "일정 생성 입력값이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "itinerary_edit_invalid": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_EDIT_INVALID",
+                        "message": "일정 항목을 수정할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "anchor_not_editable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_ANCHOR_NOT_EDITABLE",
+                        "message": "Anchor 시간은 이 API에서 변경할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "item_date_mismatch": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_ITEM_DATE_MISMATCH",
+                        "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "여행·일정 리소스 없음",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "trip_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_NOT_FOUND",
+                        "message": "여행 정보를 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "game_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "GAME_NOT_FOUND",
+                        "message": "경기 정보를 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "plan_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_PLAN_NOT_FOUND",
+                        "message": "현재 활성화된 여행 일정이 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "day_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_DAY_NOT_FOUND",
+                        "message": "수정할 날짜의 일정을 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "item_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_ITEM_NOT_FOUND",
+                        "message": "수정할 일정 항목을 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "place_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_PLACE_NOT_FOUND",
+                        "message": "추가할 장소 정보를 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "selection_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "PLACE_SELECTION_NOT_FOUND",
+                        "message": "선택한 장소를 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "현재 상태 또는 기존 데이터와 충돌",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "generation_in_progress": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_GENERATION_IN_PROGRESS",
+                        "message": "일정 생성이 이미 진행 중입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "place_exists": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ITINERARY_PLACE_ALREADY_EXISTS",
+                        "message": "해당 장소가 이미 일정에 포함되어 있습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "fixed_item_conflict": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "FIXED_ITEM_TIME_CONFLICT",
+                        "message": "고정한 장소가 필수 일정 또는 사용자 장소와 충돌합니다.",
+                        "details": {
+                          "date": "2026-08-16",
+                          "fixedItem": {
+                            "itemId": "item_manual_abcd",
+                            "type": "PLACE"
+                          },
+                          "conflictingItem": {
+                            "itemId": "item_1_3",
+                            "type": "STADIUM"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "selection_exists": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "PLACE_SELECTION_ALREADY_EXISTS",
+                        "message": "이미 선택된 장소입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "idempotency_conflict": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_IDEMPOTENCY_CONFLICT",
+                        "message": "같은 멱등성 키가 다른 요청에 사용되었습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TourAPI 호출 한도 초과",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limited": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_RATE_LIMITED",
+                        "message": "TourAPI 호출 제한을 초과했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TourAPI 오류 응답",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_response": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_INVALID_RESPONSE",
+                        "message": "TourAPI 응답 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "tour_api_failed": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TOUR_API_FAILED",
+                        "message": "TourAPI 요청 처리에 실패했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "외부 장소·추천 서비스 연결 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_TIMEOUT",
+                        "message": "TourAPI 요청 시간이 초과되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "unavailable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_UNAVAILABLE",
+                        "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -7953,6 +8858,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -7965,6 +8871,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -7974,6 +8881,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -8002,7 +8910,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -8012,10 +8920,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -8405,7 +9323,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -8425,6 +9343,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -8485,6 +9413,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -8497,6 +9426,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -8506,6 +9436,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -8534,7 +9465,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -8544,10 +9475,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -8937,7 +9878,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -8957,6 +9898,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -9001,7 +9952,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -9011,10 +9962,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -9404,7 +10365,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -9424,6 +10385,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -9506,6 +10477,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -9518,6 +10490,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -9527,6 +10500,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -9555,7 +10529,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -9565,10 +10539,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -9958,7 +10942,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -9978,6 +10962,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -10050,6 +11044,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -10062,6 +11057,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -10071,6 +11067,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -10099,7 +11096,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -10109,10 +11106,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -10502,7 +11509,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -10522,6 +11529,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -10601,6 +11618,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -10613,6 +11631,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -10622,6 +11641,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -10650,7 +11670,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -10660,10 +11680,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -11053,7 +12083,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -11073,6 +12103,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -11160,6 +12200,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -11172,6 +12213,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -11181,6 +12223,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -11209,7 +12252,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -11219,10 +12262,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -11612,7 +12665,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -11632,6 +12685,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -11722,6 +12785,7 @@
                         "status": "ACTIVE",
                         "algorithmVersion": "auto-fill-v0.4",
                         "totalTravelMinutes": 25,
+                        "totalTravelDistanceMeters": 8400,
                         "days": [
                           {
                             "date": "2026-08-16",
@@ -11734,6 +12798,7 @@
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
+                                "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
                                 "name": "아시아공원",
                                 "address": "서울특별시 송파구 올림픽로 44",
@@ -11743,6 +12808,7 @@
                                 "scheduledEndAt": "2026-08-16T14:00:00+09:00",
                                 "travelMinutesFromPrevious": 25,
                                 "transferBufferMinutes": 15,
+                                "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
                                 "isRequired": false,
@@ -11771,7 +12837,7 @@
             }
           },
           "422": {
-            "description": "요청 필드 검증 실패",
+            "description": "여행 입력값 검증 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -11781,10 +12847,20 @@
                       "error": {
                         "code": "VALIDATION_ERROR",
                         "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_accommodation": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "ACCOMMODATION_INVALID",
+                        "message": "숙소 정보를 확인해 주세요.",
                         "details": [
                           {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
+                            "field": "accommodation.accommodationId",
+                            "reason": "숙소 검색 응답의 accommodation_ 접두사 ID를 그대로 전달해야 합니다."
                           }
                         ]
                       }
@@ -12174,7 +13250,7 @@
             }
           },
           "503": {
-            "description": "TourAPI 연결 실패",
+            "description": "외부 장소·추천 서비스 연결 실패",
             "content": {
               "application/json": {
                 "examples": {
@@ -12194,6 +13270,16 @@
                       "error": {
                         "code": "EXTERNAL_API_UNAVAILABLE",
                         "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "recommendation_timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "RECOMMENDATION_TIMEOUT",
+                        "message": "추천 장소를 불러오는 데 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
                         "details": []
                       }
                     }
@@ -12491,27 +13577,25 @@
             "HTTPBearer": []
           }
         ]
-      }
-    },
-    "/api/v1/users/me/support-team": {
+      },
       "patch": {
         "tags": [
           "Users"
         ],
-        "summary": "응원팀 설정 및 변경",
-        "description": "인증된 사용자의 응원팀을 설정하거나 변경합니다.",
-        "operationId": "update_my_support_team_api_v1_users_me_support_team_patch",
+        "summary": "내 사용자 정보 수정",
+        "description": "인증된 사용자의 닉네임 및 응원팀을 수정합니다.",
+        "operationId": "update_my_profile_api_v1_users_me_patch",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SupportTeamUpdateRequest"
+                "$ref": "#/components/schemas/UserUpdateRequest"
               },
               "examples": {
                 "normal": {
                   "summary": "정상 요청",
                   "value": {
-                    "supportTeamId": "lg"
+                    "nickname": "민준"
                   }
                 }
               }
@@ -12731,6 +13815,281 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/tour/player-picks": {
+      "get": {
+        "tags": [
+          "TourAPI"
+        ],
+        "summary": "구장·선수별 추천 장소 조회",
+        "operationId": "read_player_picks_api_v1_tour_player_picks_get",
+        "parameters": [
+          {
+            "name": "stadiumId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Stadiumid"
+            },
+            "description": "구장 ID",
+            "example": "gocheok"
+          },
+          {
+            "name": "playerName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Playername"
+            },
+            "description": "선수 이름 선택 필터. 생략하면 구장의 전체 선수 추천",
+            "example": "홍길동"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_PlayerPickResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "playerPickId": "player_pick_001",
+                          "stadiumId": "gocheok",
+                          "playerName": "홍길동",
+                          "place": {
+                            "placeId": "tour_1603175",
+                            "name": "아시아공원",
+                            "category": "TOURIST_SPOT",
+                            "latitude": 37.510082,
+                            "longitude": 127.076703,
+                            "address": "서울특별시 송파구 올림픽로 44",
+                            "postalCode": "05572",
+                            "telephone": null,
+                            "thumbnailUrl": "https://example.com/asia-park.jpg",
+                            "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
+                            "openTime": null,
+                            "closeTime": null,
+                            "businessHoursStatus": "MISSING",
+                            "businessHoursText": null,
+                            "businessHoursRules": [],
+                            "admissionDeadlineTime": null,
+                            "admissionDeadlineStatus": "MISSING",
+                            "admissionDeadlineText": null,
+                            "closedDaysText": null,
+                            "closedDaysStatus": "MISSING",
+                            "closedWeekdays": [],
+                            "eventStartDate": null,
+                            "eventEndDate": null,
+                            "defaultStayMinutes": 60,
+                            "distanceMeters": 487.4,
+                            "source": "TOUR_API",
+                            "sourceContentId": "1603175",
+                            "kakaoPlaceId": null,
+                            "enrichedBy": [],
+                            "contentTypeId": "12",
+                            "lclsSystem1": "VE",
+                            "lclsSystem2": "VE01",
+                            "lclsSystem3": "VE010100"
+                          }
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "장소 검색 요청 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_place_id": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PLACE_ID",
+                        "message": "TourAPI 장소 ID 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TourAPI 호출 한도 초과",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limited": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_RATE_LIMITED",
+                        "message": "TourAPI 호출 제한을 초과했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TourAPI 오류 응답",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_response": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_INVALID_RESPONSE",
+                        "message": "TourAPI 응답 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "tour_api_failed": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TOUR_API_FAILED",
+                        "message": "TourAPI 요청 처리에 실패했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "TourAPI 연결 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_TIMEOUT",
+                        "message": "TourAPI 요청 시간이 초과되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "unavailable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_UNAVAILABLE",
+                        "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/tour/classifications": {
@@ -13106,6 +14465,7 @@
                   "enum": [
                     "TOURIST_SPOT",
                     "RESTAURANT",
+                    "CAFE",
                     "ACCOMMODATION",
                     "CULTURAL_FACILITY",
                     "SHOPPING",
@@ -13679,6 +15039,7 @@
                   "enum": [
                     "TOURIST_SPOT",
                     "RESTAURANT",
+                    "CAFE",
                     "ACCOMMODATION",
                     "CULTURAL_FACILITY",
                     "SHOPPING",
@@ -14073,6 +15434,10 @@
     "schemas": {
       "AccommodationCandidate": {
         "properties": {
+          "accommodationId": {
+            "title": "Accommodationid",
+            "description": "앱 내부 숙소 ID"
+          },
           "kakaoPlaceId": {
             "title": "Kakaoplaceid"
           },
@@ -14105,6 +15470,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "accommodationId",
           "name",
           "address",
           "latitude",
@@ -14116,6 +15482,19 @@
       },
       "AccommodationInfo-Input": {
         "properties": {
+          "accommodationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^accommodation_(?:kakao_[0-9]+|map_[0-9a-f]{16})$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodationid",
+            "description": "앱 내부 숙소 ID. 신규 여행 입력은 accommodation_ 접두사가 포함된 값을 반드시 전달합니다."
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -14141,18 +15520,6 @@
             "minimum": -180.0,
             "title": "Longitude",
             "description": "숙소 경도"
-          },
-          "kakaoPlaceId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kakaoplaceid",
-            "description": "Kakao 장소 검색으로 선택한 경우의 장소 ID"
           }
         },
         "additionalProperties": false,
@@ -14168,6 +15535,10 @@
       },
       "AccommodationInfo-Output": {
         "properties": {
+          "accommodationId": {
+            "title": "Accommodationid",
+            "description": "앱 내부 숙소 ID. 신규 여행 입력은 accommodation_ 접두사가 포함된 값을 반드시 전달합니다."
+          },
           "name": {
             "title": "Name",
             "description": "숙소 이름"
@@ -14183,10 +15554,6 @@
           "longitude": {
             "title": "Longitude",
             "description": "숙소 경도"
-          },
-          "kakaoPlaceId": {
-            "title": "Kakaoplaceid",
-            "description": "Kakao 장소 검색으로 선택한 경우의 장소 ID"
           }
         },
         "additionalProperties": false,
@@ -14642,6 +16009,10 @@
             "title": "Thumbnailurl",
             "description": "장소 카드에 표시할 대표 이미지"
           },
+          "shortDescription": {
+            "title": "Shortdescription",
+            "description": "PLACE 항목의 한 줄 표시용 장소 소개"
+          },
           "overview": {
             "title": "Overview",
             "description": "장소 한 줄 소개 또는 원문 소개"
@@ -14666,6 +16037,9 @@
           },
           "travelMinutesFromPrevious": {
             "title": "Travelminutesfromprevious"
+          },
+          "travelDistanceMetersFromPrevious": {
+            "title": "Traveldistancemetersfromprevious"
           },
           "transferBufferMinutes": {
             "title": "Transferbufferminutes",
@@ -14740,6 +16114,9 @@
           },
           "totalTravelMinutes": {
             "title": "Totaltravelminutes"
+          },
+          "totalTravelDistanceMeters": {
+            "title": "Totaltraveldistancemeters"
           },
           "days": {
             "title": "Days"
@@ -14898,6 +16275,24 @@
           "meta"
         ],
         "title": "ListSuccessResponse[Place]"
+      },
+      "ListSuccessResponse_PlayerPickResponse_": {
+        "properties": {
+          "success": {
+            "title": "Success"
+          },
+          "data": {
+            "title": "Data"
+          },
+          "meta": {}
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[PlayerPickResponse]"
       },
       "ListSuccessResponse_TeamResponse_": {
         "properties": {
@@ -15425,6 +16820,29 @@
         ],
         "title": "PlaceSource"
       },
+      "PlayerPickResponse": {
+        "properties": {
+          "playerPickId": {
+            "title": "Playerpickid"
+          },
+          "stadiumId": {
+            "title": "Stadiumid"
+          },
+          "playerName": {
+            "title": "Playername"
+          },
+          "place": {}
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "playerPickId",
+          "stadiumId",
+          "playerName",
+          "place"
+        ],
+        "title": "PlayerPickResponse"
+      },
       "RecommendationSummary": {
         "properties": {
           "fetchedCount": {
@@ -15474,6 +16892,16 @@
           "environment"
         ],
         "title": "RootData"
+      },
+      "ScheduleDensity": {
+        "type": "string",
+        "enum": [
+          "LIGHT",
+          "MODERATE",
+          "DENSE"
+        ],
+        "title": "ScheduleDensity",
+        "description": "하루 일정에 장소를 채우는 밀도."
       },
       "StadiumSummaryResponse": {
         "properties": {
@@ -15709,26 +17137,6 @@
         "title": "SupportTeamResponse",
         "description": "사용자 프로필에 포함되는 응원팀 요약 정보."
       },
-      "SupportTeamUpdateRequest": {
-        "properties": {
-          "supportTeamId": {
-            "type": "string",
-            "title": "Supportteamid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "supportTeamId"
-        ],
-        "title": "SupportTeamUpdateRequest",
-        "description": "응원팀 설정 및 변경 요청.",
-        "examples": [
-          {
-            "supportTeamId": "LG"
-          }
-        ]
-      },
       "TeamResponse": {
         "properties": {
           "name": {
@@ -15932,6 +17340,16 @@
         ],
         "title": "TravelMode"
       },
+      "TravelStyle": {
+        "type": "string",
+        "enum": [
+          "RELAXED",
+          "BALANCED",
+          "EXPLORER"
+        ],
+        "title": "TravelStyle",
+        "description": "사용자가 선호하는 여행 진행 방식."
+      },
       "TravelTimeSource": {
         "type": "string",
         "enum": [
@@ -15955,6 +17373,19 @@
             "minLength": 1,
             "title": "Title",
             "description": "여행 제목"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle",
+            "description": "원정 여행 부제목. 비어 있으면 여행 날짜를 사용합니다."
           },
           "tripStartAt": {
             "type": "string",
@@ -15995,6 +17426,14 @@
                 "type": "null"
               }
             ]
+          },
+          "travelStyle": {
+            "$ref": "#/components/schemas/TravelStyle",
+            "default": "BALANCED"
+          },
+          "scheduleDensity": {
+            "$ref": "#/components/schemas/ScheduleDensity",
+            "default": "MODERATE"
           }
         },
         "additionalProperties": false,
@@ -16010,8 +17449,8 @@
         "examples": [
           {
             "accommodation": {
+              "accommodationId": "accommodation_kakao_123456789",
               "address": "서울특별시 송파구 올림픽로 00",
-              "kakaoPlaceId": "123456789",
               "latitude": 37.5101,
               "longitude": 127.0767,
               "name": "잠실 예시 호텔"
@@ -16027,7 +17466,9 @@
               "name": "서울역"
             },
             "gameId": "game_20260815_lg_doosan",
+            "scheduleDensity": "MODERATE",
             "title": "잠실 원정 직관 여행",
+            "travelStyle": "BALANCED",
             "tripEndAt": "2026-08-15T23:00:00+09:00",
             "tripStartAt": "2026-08-15T12:00:00+09:00"
           }
@@ -16044,6 +17485,9 @@
           "title": {
             "title": "Title"
           },
+          "subtitle": {
+            "title": "Subtitle"
+          },
           "status": {},
           "tripStartAt": {
             "title": "Tripstartat"
@@ -16057,6 +17501,8 @@
           "arrivalPoint": {},
           "departurePoint": {},
           "accommodation": {},
+          "travelStyle": {},
+          "scheduleDensity": {},
           "activePlanId": {
             "title": "Activeplanid"
           },
@@ -16070,10 +17516,13 @@
           "tripId",
           "gameId",
           "title",
+          "subtitle",
           "status",
           "tripStartAt",
           "tripEndAt",
           "createdAt",
+          "travelStyle",
+          "scheduleDensity",
           "updatedAt"
         ],
         "title": "TripDetailResponse",
@@ -16160,6 +17609,9 @@
           "title": {
             "title": "Title"
           },
+          "subtitle": {
+            "title": "Subtitle"
+          },
           "status": {},
           "tripStartAt": {
             "title": "Tripstartat"
@@ -16177,6 +17629,7 @@
           "tripId",
           "gameId",
           "title",
+          "subtitle",
           "status",
           "tripStartAt",
           "tripEndAt",
@@ -16210,6 +17663,19 @@
               }
             ],
             "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle",
+            "description": "원정 여행 부제목. 비우면 여행 날짜를 사용합니다."
           },
           "tripStartAt": {
             "anyOf": [
@@ -16264,6 +17730,26 @@
                 "type": "null"
               }
             ]
+          },
+          "travelStyle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scheduleDensity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleDensity"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -16278,7 +17764,9 @@
               "longitude": 127.102,
               "name": "잠실 호텔"
             },
+            "scheduleDensity": "LIGHT",
             "title": "잠실 1박 2일 직관 여행",
+            "travelStyle": "RELAXED",
             "tripEndAt": "2026-08-16T11:00:00+09:00"
           }
         ]
@@ -16369,6 +17857,46 @@
             },
             "updatedAt": "2026-08-12T15:00:00+09:00",
             "userId": "firebase_uid_example"
+          }
+        ]
+      },
+      "UserUpdateRequest": {
+        "properties": {
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname",
+            "description": "변경할 닉네임"
+          },
+          "supportTeamId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supportteamid",
+            "description": "변경할 응원팀 ID"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserUpdateRequest",
+        "description": "사용자 프로필 수정 요청.",
+        "examples": [
+          {
+            "nickname": "민준",
+            "supportTeamId": "LG"
           }
         ]
       },
