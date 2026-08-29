@@ -487,3 +487,147 @@ def test_create_draft_skips_non_loggable_anchors() -> None:
         }
         for entry in entries
     )
+
+def make_attendance_log(
+    *,
+    user_id: str = USER_ID,
+    trip_id: str = TRIP_ID,
+    plan_id: str | None = PLAN_ID,
+) -> AttendanceLogRecord:
+    return AttendanceLogRecord(
+        attendance_log_id="log_001",
+        user_id=user_id,
+        trip_id=trip_id,
+        game_id=GAME_ID,
+        plan_id=plan_id,
+        log_title="부산 직관 여행",
+        summary_text=None,
+        log_status=AttendanceLogStatus.PUBLISHED,
+        created_at=NOW,
+        updated_at=NOW,
+        deleted_at=None,
+    )
+
+
+def test_get_itinerary_returns_archived_plan() -> None:
+    context = make_service(
+        plan=make_plan(
+            status=ItineraryPlanStatus.ARCHIVED,
+        )
+    )
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log()
+    )
+
+    result = context.service.get_itinerary(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+    )
+
+    assert result.plan_id == PLAN_ID
+    assert result.trip_id == TRIP_ID
+    assert result.status == ItineraryPlanStatus.ARCHIVED
+
+    context.attendance_log_repository.get_by_id.assert_called_once_with(
+        "log_001"
+    )
+    context.plan_repository.get_by_id.assert_called_once_with(
+        PLAN_ID
+    )
+
+
+def test_get_itinerary_rejects_missing_log() -> None:
+    context = make_service()
+    context.attendance_log_repository.get_by_id.return_value = None
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_itinerary(
+            user_id=USER_ID,
+            attendance_log_id="log_missing",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == "ATTENDANCE_LOG_NOT_FOUND"
+    context.plan_repository.get_by_id.assert_not_called()
+
+
+def test_get_itinerary_rejects_other_user() -> None:
+    context = make_service()
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log(
+            user_id="another-user",
+        )
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_itinerary(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 403
+    assert captured.value.code == "ATTENDANCE_LOG_ACCESS_DENIED"
+    context.plan_repository.get_by_id.assert_not_called()
+
+
+def test_get_itinerary_requires_plan_id() -> None:
+    context = make_service()
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log(
+            plan_id=None,
+        )
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_itinerary(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == "ITINERARY_PLAN_NOT_FOUND"
+    context.plan_repository.get_by_id.assert_not_called()
+
+
+def test_get_itinerary_rejects_missing_plan() -> None:
+    context = make_service()
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log()
+    )
+    context.plan_repository.get_by_id.return_value = None
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_itinerary(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 404
+    assert captured.value.code == "ITINERARY_PLAN_NOT_FOUND"
+    context.plan_repository.get_by_id.assert_called_once_with(
+        PLAN_ID
+    )
+
+
+def test_get_itinerary_rejects_plan_mismatch() -> None:
+    mismatched_plan = make_plan().model_copy(
+        update={
+            "trip_id": "trip_other",
+        }
+    )
+
+    context = make_service(
+        plan=mismatched_plan,
+    )
+    context.attendance_log_repository.get_by_id.return_value = (
+        make_attendance_log()
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_itinerary(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == "ATTENDANCE_LOG_PLAN_MISMATCH"
