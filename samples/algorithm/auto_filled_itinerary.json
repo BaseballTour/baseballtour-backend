@@ -1,6 +1,6 @@
 {
   "tripId": "trip_001",
-  "algorithmVersion": "auto-fill-v0.4",
+  "algorithmVersion": "auto-fill-v0.5",
   "totalTravelMinutes": 120,
   "days": [
     {

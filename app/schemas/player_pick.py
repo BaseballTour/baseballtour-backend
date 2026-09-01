@@ -10,7 +10,12 @@ class PlayerPickDocument(ApiModel):
     stadium_id: str = Field(min_length=1)
     player_name: str = Field(min_length=1)
     place_id: str = Field(pattern=r"^tour_.+$")
+    place_snapshot: Place | None = Field(
+        default=None,
+        description="TourAPI 장애에도 표시할 수 있는 저장 시점 장소 정보",
+    )
     created_at: AwareDatetime
+    updated_at: AwareDatetime | None = None
 
 
 class PlayerPickRecord(PlayerPickDocument):

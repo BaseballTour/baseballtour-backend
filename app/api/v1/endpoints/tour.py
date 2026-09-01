@@ -7,6 +7,10 @@ from app.api.openapi_responses import TOUR_API_ERROR_RESPONSES
 from app.external.tour_api.adapter import (
     tour_api_adapter,
 )
+from app.external.tour_api.filters import (
+    FILTER_DEFINITIONS,
+    TourFilterId,
+)
 from app.models.place import Place, PlaceCategory
 from app.schemas.player_pick import PlayerPickResponse
 from app.schemas.response import (
@@ -14,7 +18,7 @@ from app.schemas.response import (
     ListSuccessResponse,
     SuccessResponse,
 )
-from app.schemas.tour import TourClassification
+from app.schemas.tour import TourClassification, TourFilterOption
 from app.services.place_enrichment import (
     enrich_place_with_kakao,
 )
@@ -90,6 +94,61 @@ def _validate_lcls_filters(
             code="INVALID_CLASSIFICATION_FILTER",
             message="신분류 소분류 검색에는 대분류와 중분류 코드가 필요합니다.",
         )
+
+
+def _validate_filter_contract(
+    filter_id: TourFilterId | None,
+    *,
+    category: str | None = None,
+    lcls_system1: str | None = None,
+    lcls_system2: str | None = None,
+    lcls_system3: str | None = None,
+) -> None:
+    if filter_id is None:
+        return
+    if any(
+        value is not None
+        for value in (
+            category,
+            lcls_system1,
+            lcls_system2,
+            lcls_system3,
+        )
+    ):
+        raise AppException(
+            status_code=400,
+            code="FILTER_CONFLICT",
+            message=(
+                "filterId는 category 또는 TourAPI 신분류 코드와 "
+                "함께 사용할 수 없습니다."
+            ),
+        )
+
+
+@router.get(
+    "/filter-options",
+    response_model=ListSuccessResponse[TourFilterOption],
+    summary="프론트 검색 필터 목록 조회",
+)
+async def read_filter_options() -> ListSuccessResponse[TourFilterOption]:
+    options = [
+        TourFilterOption(
+            filter_id=filter_id.value,
+            label=definition.label,
+            group=definition.group,
+            classification_codes=[
+                clause.lcls_system3
+                or clause.lcls_system2
+                or clause.lcls_system1
+                for clause in definition.clauses
+            ],
+        )
+        for filter_id, definition in FILTER_DEFINITIONS.items()
+    ]
+    return ListSuccessResponse(
+        data=options,
+        meta=ListMeta(count=len(options), next_page_token=None),
+    )
 
 
 @router.get(
@@ -201,6 +260,12 @@ async def read_nearby_places(
         description="내부 장소 카테고리 필터",
         examples=["RESTAURANT"],
     ),
+    filter_id: TourFilterId | None = Query(
+        default=None,
+        alias="filterId",
+        description="프론트 통합 필터 ID",
+        examples=["CAFE"],
+    ),
     page_size: int = Query(
         default=20,
         alias="pageSize",
@@ -217,13 +282,22 @@ async def read_nearby_places(
         examples=["2"],
     ),
 ) -> ListSuccessResponse[Place]:
+    _validate_filter_contract(filter_id, category=category)
     page_no = _parse_page_token(
         page_token
     )
 
-    place_page = (
-        await tour_api_adapter
-        .get_nearby_place_page(
+    if filter_id is not None:
+        place_page = await tour_api_adapter.get_nearby_place_page_by_filter(
+            filter_id=filter_id,
+            longitude=longitude,
+            latitude=latitude,
+            radius=radius,
+            page_no=page_no,
+            num_of_rows=page_size,
+        )
+    else:
+        place_page = await tour_api_adapter.get_nearby_place_page(
             longitude=longitude,
             latitude=latitude,
             radius=radius,
@@ -235,7 +309,6 @@ async def read_nearby_places(
                 else None
             ),
         )
-    )
 
     return ListSuccessResponse(
         data=place_page.places,
@@ -309,6 +382,12 @@ async def read_place_detail(
 async def search_places(
     keyword: str = Query(min_length=1, max_length=100, examples=["잠실 맛집"]),
     category: TourNearbyCategory | None = Query(default=None),
+    filter_id: TourFilterId | None = Query(
+        default=None,
+        alias="filterId",
+        description="프론트 통합 필터 ID",
+        examples=["JAPANESE"],
+    ),
     lcls_system1: str | None = Query(
         default=None,
         alias="lclsSystem1",
@@ -339,20 +418,35 @@ async def search_places(
     page_size: int = Query(default=20, alias="pageSize", ge=1, le=100),
     page_token: str | None = Query(default=None, alias="pageToken"),
 ) -> ListSuccessResponse[Place]:
+    _validate_filter_contract(
+        filter_id,
+        category=category,
+        lcls_system1=lcls_system1,
+        lcls_system2=lcls_system2,
+        lcls_system3=lcls_system3,
+    )
     _validate_lcls_filters(
         lcls_system1,
         lcls_system2,
         lcls_system3,
     )
-    page = await tour_api_adapter.search_place_page(
-        keyword=keyword,
-        category=PlaceCategory(category) if category is not None else None,
-        lcls_system1=lcls_system1,
-        lcls_system2=lcls_system2,
-        lcls_system3=lcls_system3,
-        page_no=_parse_page_token(page_token),
-        num_of_rows=page_size,
-    )
+    if filter_id is not None:
+        page = await tour_api_adapter.search_place_page_by_filter(
+            filter_id=filter_id,
+            keyword=keyword,
+            page_no=_parse_page_token(page_token),
+            num_of_rows=page_size,
+        )
+    else:
+        page = await tour_api_adapter.search_place_page(
+            keyword=keyword,
+            category=PlaceCategory(category) if category is not None else None,
+            lcls_system1=lcls_system1,
+            lcls_system2=lcls_system2,
+            lcls_system3=lcls_system3,
+            page_no=_parse_page_token(page_token),
+            num_of_rows=page_size,
+        )
     return ListSuccessResponse(
         data=page.places,
         meta=ListMeta(

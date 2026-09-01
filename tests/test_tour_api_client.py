@@ -205,12 +205,16 @@ async def test_nearby_forwards_category_and_pagination(
         page_no=2,
         num_of_rows=10,
         content_type_id="39",
+        lcls_system1="FD",
+        lcls_system2="FD05",
     )
 
     assert received["operation"] == "locationBasedList2"
     assert received["params"]["pageNo"] == 2
     assert received["params"]["numOfRows"] == 10
     assert received["params"]["contentTypeId"] == "39"
+    assert received["params"]["lclsSystm1"] == "FD"
+    assert received["params"]["lclsSystm2"] == "FD05"
 
 
 @pytest.mark.anyio

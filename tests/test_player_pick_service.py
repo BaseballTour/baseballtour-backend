@@ -41,6 +41,11 @@ class FakeTourApiAdapter:
         return make_place()
 
 
+class FailingTourApiAdapter:
+    async def get_place_detail(self, content_id: str):
+        raise RuntimeError("TourAPI unavailable")
+
+
 def test_player_pick_service_combines_db_mapping_and_place_detail() -> None:
     service = PlayerPickService(
         repository=FakePlayerPickRepository(),
@@ -56,3 +61,39 @@ def test_player_pick_service_combines_db_mapping_and_place_detail() -> None:
 
     assert result.player_pick_id == "player_pick_001"
     assert result.place.place_id == "tour_123456"
+
+
+def test_player_pick_service_uses_saved_snapshot_without_external_call() -> None:
+    class SnapshotRepository(FakePlayerPickRepository):
+        def get_all(self, *, stadium_id: str, player_name: str | None = None):
+            [record] = super().get_all(
+                stadium_id=stadium_id,
+                player_name=player_name,
+            )
+            return [record.model_copy(update={"place_snapshot": make_place()})]
+
+    service = PlayerPickService(
+        repository=SnapshotRepository(),
+        place_adapter=FailingTourApiAdapter(),
+    )
+    [result] = asyncio.run(
+        service.get_player_picks(
+            stadium_id="gocheok",
+            player_name="테스트 선수",
+        )
+    )
+    assert result.place.name == "테스트 음식점"
+
+
+def test_player_pick_service_omits_only_failed_legacy_place() -> None:
+    service = PlayerPickService(
+        repository=FakePlayerPickRepository(),
+        place_adapter=FailingTourApiAdapter(),
+    )
+    result = asyncio.run(
+        service.get_player_picks(
+            stadium_id="gocheok",
+            player_name="테스트 선수",
+        )
+    )
+    assert result == []

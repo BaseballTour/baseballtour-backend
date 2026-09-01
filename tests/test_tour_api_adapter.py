@@ -2,6 +2,7 @@ import pytest
 
 from app.external.tour_api import adapter as adapter_module
 from app.external.tour_api.adapter import TourApiAdapter
+from app.external.tour_api.filters import TourFilterId
 
 
 def response_with(item):
@@ -239,3 +240,70 @@ async def test_nearby_page_uses_category_pagination_and_cache(
     assert calls[0]["page_no"] == 2
     assert calls[0]["num_of_rows"] == 20
     assert calls[0]["content_type_id"] == "39"
+
+
+@pytest.mark.anyio
+async def test_compound_filter_merges_and_deduplicates_classification_pages(
+    monkeypatch,
+) -> None:
+    calls: list[str] = []
+
+    async def nearby(**kwargs):
+        code = kwargs["lcls_system3"]
+        calls.append(code)
+        content_id = "fresh" if code == "LS020500" else "sea"
+        return {
+            "response": {
+                "body": {
+                    "totalCount": 1,
+                    "items": {
+                        "item": [
+                            {
+                                "contentid": content_id,
+                                "contenttypeid": "28",
+                                "title": f"{code} 낚시",
+                                "mapx": "127.0",
+                                "mapy": "37.5",
+                                "lclsSystm1": "LS",
+                                "lclsSystm2": "LS02",
+                                "lclsSystm3": code,
+                            }
+                        ]
+                    },
+                }
+            }
+        }
+
+    monkeypatch.setattr(adapter_module, "get_nearby_places", nearby)
+    page = await TourApiAdapter().get_nearby_place_page_by_filter(
+        filter_id=TourFilterId.FISHING,
+        longitude=127.0,
+        latitude=37.5,
+        num_of_rows=20,
+    )
+    assert calls == ["LS020500", "LS020600"]
+    assert {place.place_id for place in page.places} == {
+        "tour_fresh",
+        "tour_sea",
+    }
+
+
+@pytest.mark.anyio
+async def test_legacy_cafe_category_uses_fd05_filter(monkeypatch) -> None:
+    from app.models.place import PlaceCategory
+
+    calls: list[dict] = []
+
+    async def nearby(**kwargs):
+        calls.append(kwargs)
+        return {"response": {"body": {"totalCount": 0, "items": ""}}}
+
+    monkeypatch.setattr(adapter_module, "get_nearby_places", nearby)
+    page = await TourApiAdapter().get_nearby_place_page(
+        longitude=127.0,
+        latitude=37.5,
+        category=PlaceCategory.CAFE,
+    )
+    assert page.places == []
+    assert calls[0]["lcls_system1"] == "FD"
+    assert calls[0]["lcls_system2"] == "FD05"
