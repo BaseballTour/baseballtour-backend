@@ -56,7 +56,7 @@ from app.services.recommendation import (
 
 
 ItineraryGenerator = Callable[..., ItineraryResult]
-RECOMMENDATION_TIMEOUT_SECONDS = 30.0
+RECOMMENDATION_TIMEOUT_SECONDS = 45.0
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
 

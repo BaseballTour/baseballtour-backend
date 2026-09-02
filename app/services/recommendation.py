@@ -25,8 +25,11 @@ DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
 DEFAULT_MAX_PAGES_PER_CENTER = 3
 DEFAULT_MAX_CANDIDATES = 20
 DETAIL_CONCURRENCY = 5
-NEARBY_PAGE_TIMEOUT_SECONDS = 6.0
-DETAIL_TIMEOUT_SECONDS = 5.0
+# HTTP client의 read timeout보다 짧게 취소하지 않는다. 두 번의 시도와
+# backoff를 포함해 요청 자체가 원인을 분류하고 로그를 남길 시간을 준다.
+NEARBY_PAGE_TIMEOUT_SECONDS = 22.0
+# 상세 조회 실패는 주변 조회 데이터로 대체하므로 전체 생성을 오래 막지 않는다.
+DETAIL_TIMEOUT_SECONDS = 12.0
 DINING_CATEGORY_MINIMUMS = {
     PlaceCategory.RESTAURANT: 6,
     PlaceCategory.CAFE: 2,
@@ -209,8 +212,13 @@ class RecommendationService:
             except Exception as exc:
                 # 추천 실패는 사용자가 선택한 장소의 일정 생성을 막지 않습니다.
                 logger.warning(
-                    "TourAPI 추천 후보 조회를 건너뜁니다: page=%s reason=%s",
+                    "TourAPI 추천 후보 조회를 건너뜁니다: page=%s "
+                    "center_latitude=%s center_longitude=%s "
+                    "error_type=%s reason=%s",
                     page_no,
+                    center.latitude,
+                    center.longitude,
+                    type(exc).__name__,
                     exc,
                 )
                 first_page_failed = page_no == 1

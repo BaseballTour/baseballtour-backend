@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from time import monotonic
 from typing import Any
 
 import httpx
@@ -169,41 +171,152 @@ async def _request_tour_api(
     *,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
+    settings = get_settings()
+    connect_timeout = getattr(
+        settings, "tour_api_connect_timeout_seconds", 5.0
+    )
+    read_timeout = getattr(
+        settings, "tour_api_read_timeout_seconds", 10.0
+    )
+    write_timeout = getattr(
+        settings, "tour_api_write_timeout_seconds", 5.0
+    )
+    pool_timeout = getattr(
+        settings, "tour_api_pool_timeout_seconds", 5.0
+    )
+    max_attempts = max(
+        1, getattr(settings, "tour_api_max_attempts", 2)
+    )
+    retry_backoff = getattr(
+        settings, "tour_api_retry_backoff_seconds", 0.25
+    )
     request_params = _common_params()
     request_params.update(params)
     owns_client = client is None
-    active_client = client or httpx.AsyncClient(timeout=15.0)
+    active_client = client or httpx.AsyncClient(
+        timeout=httpx.Timeout(
+            connect=connect_timeout,
+            read=read_timeout,
+            write=write_timeout,
+            pool=pool_timeout,
+        ),
+        limits=httpx.Limits(
+            max_connections=20,
+            max_keepalive_connections=10,
+        ),
+    )
+    started_at = monotonic()
+    response: httpx.Response | None = None
 
     try:
-        response = await active_client.get(
-            f"{TOUR_API_BASE_URL}/{endpoint}",
-            params=request_params,
-        )
-        response.raise_for_status()
+        for attempt in range(1, max_attempts + 1):
+            attempt_started_at = monotonic()
+            try:
+                response = await active_client.get(
+                    f"{TOUR_API_BASE_URL}/{endpoint}",
+                    params=request_params,
+                )
+                response.raise_for_status()
+                logger.info(
+                    "TourAPI request completed: endpoint=%s attempt=%s "
+                    "status=%s elapsed_ms=%s",
+                    endpoint,
+                    attempt,
+                    response.status_code,
+                    round((monotonic() - attempt_started_at) * 1000),
+                )
+                break
+            except (httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+                elapsed_ms = round(
+                    (monotonic() - attempt_started_at) * 1000
+                )
+                logger.warning(
+                    "TourAPI retryable timeout: timeout_type=%s "
+                    "endpoint=%s attempt=%s max_attempts=%s elapsed_ms=%s",
+                    type(exc).__name__,
+                    endpoint,
+                    attempt,
+                    max_attempts,
+                    elapsed_ms,
+                )
+                if attempt >= max_attempts:
+                    raise
+                await asyncio.sleep(
+                    retry_backoff * attempt
+                )
+        if response is None:
+            raise RuntimeError("TourAPI 응답을 받지 못했습니다.")
     except httpx.TimeoutException as exc:
+        elapsed_ms = round((monotonic() - started_at) * 1000)
         logger.error(
-            "TourAPI timeout: type=%s endpoint=%s",
+            "TourAPI timeout: timeout_type=%s endpoint=%s "
+            "max_attempts=%s elapsed_ms=%s",
             type(exc).__name__,
             endpoint,
+            max_attempts,
+            elapsed_ms,
         )
         raise AppException(
             status_code=503,
             code="EXTERNAL_API_TIMEOUT",
             message="TourAPI 요청 시간이 초과되었습니다.",
+            details={
+                "endpoint": endpoint,
+                "timeoutType": type(exc).__name__,
+                "attempts": max_attempts,
+                "elapsedMs": elapsed_ms,
+            },
         ) from exc
     except httpx.HTTPStatusError as exc:
         status_code = exc.response.status_code
+        provider_code = ""
+        provider_message = ""
+        try:
+            error_data = exc.response.json()
+        except ValueError:
+            error_data = None
+        if isinstance(error_data, dict):
+            root_error = _extract_root_error(error_data)
+            if root_error is not None:
+                provider_code, provider_message = root_error
         error_code = (
             "EXTERNAL_API_RATE_LIMITED"
             if status_code == 429
             else "EXTERNAL_API_UNAVAILABLE"
         )
+        logger.warning(
+            "TourAPI HTTP error: endpoint=%s status=%s "
+            "provider_code=%s provider_message=%s retry_after=%s",
+            endpoint,
+            status_code,
+            provider_code,
+            provider_message,
+            exc.response.headers.get("retry-after"),
+        )
         raise AppException(
             status_code=503 if status_code != 429 else 429,
             code=error_code,
-            message="TourAPI를 일시적으로 사용할 수 없습니다.",
+            message=(
+                "TourAPI 호출 제한을 초과했습니다."
+                if status_code == 429
+                else "TourAPI를 일시적으로 사용할 수 없습니다."
+            ),
+            details={
+                "endpoint": endpoint,
+                "httpStatus": status_code,
+                "providerCode": provider_code or None,
+                "providerMessage": provider_message or None,
+                "retryAfter": exc.response.headers.get("retry-after"),
+            },
         ) from exc
     except httpx.RequestError as exc:
+        logger.error(
+            "TourAPI connection failed: error_type=%s endpoint=%s "
+            "elapsed_ms=%s",
+            type(exc).__name__,
+            endpoint,
+            round((monotonic() - started_at) * 1000),
+        )
         raise AppException(
             status_code=503,
             code="EXTERNAL_API_UNAVAILABLE",
