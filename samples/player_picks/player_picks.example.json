@@ -1,0 +1,13 @@
+[
+  {
+    "stadiumId": "gocheok",
+    "playerName": "선수 이름",
+    "placeName": "손수 정리한 장소 이름",
+    "address": "서울특별시 구로구 예시 주소"
+  },
+  {
+    "stadiumId": "jamsil",
+    "playerName": "선수 이름",
+    "placeId": "tour_123456"
+  }
+]

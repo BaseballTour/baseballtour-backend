@@ -40,7 +40,6 @@ CATEGORY_MAXIMUMS = {
     PlaceCategory.TOURIST_SPOT: 4,
     PlaceCategory.CULTURAL_FACILITY: 4,
     PlaceCategory.ACTIVITY: 3,
-    PlaceCategory.OTHER: 1,
 }
 
 
@@ -313,6 +312,10 @@ def _filter_and_deduplicate(
             if rejected is not None:
                 rejected["ACCOMMODATION"] += 1
             continue
+        if place.category == PlaceCategory.OTHER:
+            if rejected is not None:
+                rejected["UNCLASSIFIED"] += 1
+            continue
         if (place.lcls_system2 or "").startswith("VE10"):
             if rejected is not None:
                 rejected["SPORTS_FACILITY"] += 1
@@ -500,7 +503,6 @@ CATEGORY_PRIORITY = {
     PlaceCategory.SHOPPING: 4,
     PlaceCategory.ACTIVITY: 5,
     PlaceCategory.FESTIVAL: 6,
-    PlaceCategory.OTHER: 7,
 }
 
 

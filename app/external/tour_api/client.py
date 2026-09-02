@@ -251,6 +251,9 @@ async def get_nearby_places(
     num_of_rows: int = 20,
     *,
     content_type_id: str | None = None,
+    lcls_system1: str | None = None,
+    lcls_system2: str | None = None,
+    lcls_system3: str | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {
@@ -264,6 +267,12 @@ async def get_nearby_places(
 
     if content_type_id is not None:
         params["contentTypeId"] = content_type_id
+    if lcls_system1 is not None:
+        params["lclsSystm1"] = lcls_system1
+    if lcls_system2 is not None:
+        params["lclsSystm2"] = lcls_system2
+    if lcls_system3 is not None:
+        params["lclsSystm3"] = lcls_system3
 
     return await _request_tour_api(
         "locationBasedList2",

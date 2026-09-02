@@ -703,6 +703,8 @@ class ItineraryGenerationService:
                     )
                     for selection in selections
                 ],
+                travel_style=trip.travel_style,
+                schedule_density=trip.schedule_density,
             )
 
         except ValidationError as error:

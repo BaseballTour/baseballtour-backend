@@ -50,6 +50,25 @@ def make_place(
 
 
 @pytest.mark.anyio
+async def test_excludes_unclassified_places_from_auto_recommendations() -> None:
+    other = make_place("tour_other", category=PlaceCategory.OTHER)
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage([other], None)
+    )
+    adapter.get_place_detail = AsyncMock(return_value=other)
+    diagnostics: dict[str, object] = {}
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=37.5, longitude=127.0)],
+        diagnostics=diagnostics,
+    )
+
+    assert result == []
+    assert diagnostics["filteredCounts"]["UNCLASSIFIED"] == 1
+
+
+@pytest.mark.anyio
 async def test_loads_multiple_recommendation_centers_in_parallel() -> None:
     started = 0
     both_started = asyncio.Event()

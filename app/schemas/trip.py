@@ -9,6 +9,7 @@ from pydantic import (
 )
 
 from app.core.accommodation_ids import ACCOMMODATION_ID_PATTERN
+from app.models.travel_preferences import ScheduleDensity, TravelStyle
 
 from app.schemas.base import ApiModel
 
@@ -21,22 +22,6 @@ class TripStatus(str, Enum):
     GENERATED = "GENERATED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
-
-
-class TravelStyle(str, Enum):
-    """사용자가 선호하는 여행 진행 방식."""
-
-    RELAXED = "RELAXED"
-    BALANCED = "BALANCED"
-    EXPLORER = "EXPLORER"
-
-
-class ScheduleDensity(str, Enum):
-    """하루 일정에 장소를 채우는 밀도."""
-
-    LIGHT = "LIGHT"
-    MODERATE = "MODERATE"
-    DENSE = "DENSE"
 
 
 class TripPoint(ApiModel):

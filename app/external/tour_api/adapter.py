@@ -24,6 +24,10 @@ from app.external.tour_api.mapper import (
     tour_api_item_to_place,
     tour_api_items_to_places,
 )
+from app.external.tour_api.filters import (
+    TourFilterId,
+    get_filter_definition,
+)
 from app.models.place import Place, PlaceCategory
 from app.schemas.tour import TourClassification
 from app.external.tour_api.business_hours import (
@@ -89,8 +93,21 @@ class TourApiAdapter:
         num_of_rows: int = 20,
         category: PlaceCategory | None = None,
         *,
+        lcls_system1: str | None = None,
+        lcls_system2: str | None = None,
+        lcls_system3: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> NearbyPlacePage:
+        if category == PlaceCategory.CAFE:
+            return await self.get_nearby_place_page_by_filter(
+                filter_id=TourFilterId.CAFE,
+                longitude=longitude,
+                latitude=latitude,
+                radius=radius,
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                client=client,
+            )
         content_type_id = get_tour_api_content_type_id(
             category
         )
@@ -112,6 +129,9 @@ class TourApiAdapter:
             category.value
             if category is not None
             else None,
+            lcls_system1,
+            lcls_system2,
+            lcls_system3,
             page_no,
             num_of_rows,
         )
@@ -124,6 +144,9 @@ class TourApiAdapter:
                 page_no=page_no,
                 num_of_rows=num_of_rows,
                 content_type_id=content_type_id,
+                lcls_system1=lcls_system1,
+                lcls_system2=lcls_system2,
+                lcls_system3=lcls_system3,
                 client=client,
             )
 
@@ -175,6 +198,43 @@ class TourApiAdapter:
             load,
         )
 
+    async def get_nearby_place_page_by_filter(
+        self,
+        *,
+        filter_id: TourFilterId,
+        longitude: float,
+        latitude: float,
+        radius: int = 2000,
+        page_no: int = 1,
+        num_of_rows: int = 20,
+        client: httpx.AsyncClient | None = None,
+    ) -> NearbyPlacePage:
+        definition = get_filter_definition(filter_id)
+        fetch_size = page_no * num_of_rows
+        pages = await asyncio.gather(
+            *(
+                self.get_nearby_place_page(
+                    longitude=longitude,
+                    latitude=latitude,
+                    radius=radius,
+                    page_no=1,
+                    num_of_rows=fetch_size,
+                    lcls_system1=clause.lcls_system1,
+                    lcls_system2=clause.lcls_system2,
+                    lcls_system3=clause.lcls_system3,
+                    client=client,
+                )
+                for clause in definition.clauses
+            )
+        )
+        return _merge_filtered_pages(
+            pages,
+            num_of_rows=num_of_rows,
+            page_no=page_no,
+            next_page_no=page_no + 1,
+            allowed_categories=definition.allowed_categories,
+        )
+
     async def get_nearby_place_list(
         self,
         longitude: float,
@@ -204,6 +264,14 @@ class TourApiAdapter:
         lcls_system3: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> NearbyPlacePage:
+        if category == PlaceCategory.CAFE:
+            return await self.search_place_page_by_filter(
+                filter_id=TourFilterId.CAFE,
+                keyword=keyword,
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                client=client,
+            )
         normalized_keyword = keyword.strip()
         content_type_id = get_tour_api_content_type_id(category)
         if category is not None and content_type_id is None:
@@ -248,6 +316,39 @@ class TourApiAdapter:
             )
 
         return await self._cached(key, load)
+
+    async def search_place_page_by_filter(
+        self,
+        *,
+        filter_id: TourFilterId,
+        keyword: str,
+        page_no: int = 1,
+        num_of_rows: int = 20,
+        client: httpx.AsyncClient | None = None,
+    ) -> NearbyPlacePage:
+        definition = get_filter_definition(filter_id)
+        fetch_size = page_no * num_of_rows
+        pages = await asyncio.gather(
+            *(
+                self.search_place_page(
+                    keyword=keyword,
+                    page_no=1,
+                    num_of_rows=fetch_size,
+                    lcls_system1=clause.lcls_system1,
+                    lcls_system2=clause.lcls_system2,
+                    lcls_system3=clause.lcls_system3,
+                    client=client,
+                )
+                for clause in definition.clauses
+            )
+        )
+        return _merge_filtered_pages(
+            pages,
+            num_of_rows=num_of_rows,
+            page_no=page_no,
+            next_page_no=page_no + 1,
+            allowed_categories=definition.allowed_categories,
+        )
 
     async def get_classification_page(
         self,
@@ -447,3 +548,43 @@ def _first_image_url(items: list[dict[str, Any]]) -> str | None:
 
 
 tour_api_adapter = TourApiAdapter()
+
+
+def _merge_filtered_pages(
+    pages: list[NearbyPlacePage],
+    *,
+    num_of_rows: int,
+    page_no: int,
+    next_page_no: int,
+    allowed_categories: frozenset[PlaceCategory] | None,
+) -> NearbyPlacePage:
+    places = deduplicate_places(
+        [
+            place
+            for page in pages
+            for place in page.places
+            if (
+                allowed_categories is None
+                or place.category in allowed_categories
+            )
+        ]
+    )
+    places.sort(
+        key=lambda place: (
+            place.distance_meters
+            if place.distance_meters is not None
+            else float("inf"),
+            place.name,
+            place.place_id,
+        )
+    )
+    page_start = (page_no - 1) * num_of_rows
+    page_end = page_start + num_of_rows
+    has_next = (
+        len(places) > page_end
+        or any(page.next_page_token is not None for page in pages)
+    )
+    return NearbyPlacePage(
+        places=places[page_start:page_end],
+        next_page_token=str(next_page_no) if has_next else None,
+    )

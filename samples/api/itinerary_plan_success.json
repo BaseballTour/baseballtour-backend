@@ -4,7 +4,7 @@
     "planId": "plan_001",
     "tripId": "trip_001",
     "status": "ACTIVE",
-    "algorithmVersion": "auto-fill-v0.4",
+    "algorithmVersion": "auto-fill-v0.5",
     "totalTravelMinutes": 25,
     "totalTravelDistanceMeters": 8400,
     "days": [

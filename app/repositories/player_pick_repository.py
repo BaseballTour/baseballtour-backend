@@ -1,8 +1,10 @@
+from hashlib import sha256
+
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
-from app.schemas.player_pick import PlayerPickRecord
+from app.schemas.player_pick import PlayerPickDocument, PlayerPickRecord
 
 
 class PlayerPickRepository:
@@ -39,4 +41,32 @@ class PlayerPickRepository:
         return sorted(
             records,
             key=lambda record: (record.player_name, record.created_at),
+        )
+
+    def upsert(self, document: PlayerPickDocument) -> PlayerPickRecord:
+        """구장·선수·장소 조합을 중복 없이 저장합니다."""
+
+        identity = ":".join(
+            (
+                document.stadium_id,
+                document.player_name,
+                document.curation_key or document.place_id,
+            )
+        )
+        digest = sha256(identity.encode("utf-8")).hexdigest()[:24]
+        player_pick_id = f"player_pick_{digest}"
+        reference = self._collection.document(player_pick_id)
+        existing = reference.get()
+        created_at = document.created_at
+        if existing.exists:
+            existing_data = existing.to_dict() or {}
+            created_at = existing_data.get("createdAt", created_at)
+        stored = document.model_copy(update={"created_at": created_at})
+        reference.set(
+            stored.model_dump(by_alias=True, exclude_none=False),
+            merge=True,
+        )
+        return PlayerPickRecord(
+            player_pick_id=player_pick_id,
+            **stored.model_dump(),
         )

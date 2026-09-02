@@ -194,3 +194,25 @@ async def reverse_geocode(
             message="Kakao Local API 응답 형식이 올바르지 않습니다.",
         )
     return [item for item in documents if isinstance(item, dict)]
+
+
+async def geocode_address(
+    address: str,
+    *,
+    client: httpx.AsyncClient | None = None,
+) -> list[dict[str, Any]]:
+    """도로명·지번 주소를 좌표 후보로 변환합니다."""
+
+    data = await _request_kakao_local(
+        "search/address.json",
+        params={"query": address},
+        client=client,
+    )
+    documents = data.get("documents")
+    if not isinstance(documents, list):
+        raise AppException(
+            status_code=502,
+            code="EXTERNAL_API_INVALID_RESPONSE",
+            message="Kakao Local 주소 검색 응답 형식이 올바르지 않습니다.",
+        )
+    return [item for item in documents if isinstance(item, dict)]

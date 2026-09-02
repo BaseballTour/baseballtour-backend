@@ -25,6 +25,7 @@ from app.models.place import (
     PlaceSource,
     Weekday,
 )
+from app.models.travel_preferences import ScheduleDensity, TravelStyle
 
 
 UTC = ZoneInfo("Asia/Seoul")
@@ -96,6 +97,30 @@ def same_day_arrival_game_trip() -> TripInput:
     )
 
 
+def one_day_trip(
+    *,
+    travel_style: TravelStyle = TravelStyle.BALANCED,
+    schedule_density: ScheduleDensity = ScheduleDensity.MODERATE,
+) -> TripInput:
+    return TripInput(
+        trip_id="trip_one_day",
+        trip_start_at=datetime(2026, 9, 22, 9, tzinfo=UTC),
+        trip_end_at=datetime(2026, 9, 22, 23, tzinfo=UTC),
+        arrival_point=GeoPoint(name="arrival", latitude=37.5, longitude=127),
+        departure_point=GeoPoint(name="departure", latitude=37.5, longitude=127),
+        game_anchor=GameAnchor(
+            name="stadium",
+            latitude=37.5,
+            longitude=127,
+            game_id="game",
+            stadium_id="stadium",
+            game_start_at=datetime(2026, 9, 22, 20, tzinfo=UTC),
+        ),
+        travel_style=travel_style,
+        schedule_density=schedule_density,
+    )
+
+
 def matrix(*place_ids: str, default: int = 10) -> TravelTimeMatrix:
     ids = ["arrival", "departure", "stadium", *place_ids]
     return TravelTimeMatrix(
@@ -125,6 +150,31 @@ def test_fills_empty_itinerary_without_recommendation_count_limit() -> None:
     assert result.auto_recommended_place_count == 5
     assert diagnostics["scheduledCount"] == 5
     assert "placementRejectedAttempts" in diagnostics
+
+
+def test_light_density_limits_automatic_places_per_day() -> None:
+    recommendations = [place(f"recommendation_{index}") for index in range(5)]
+    result = generate_itinerary(
+        one_day_trip(schedule_density=ScheduleDensity.LIGHT),
+        [],
+        matrix(*(item.place_id for item in recommendations), default=1),
+        recommended_places=recommendations,
+    )
+    assert result.auto_recommended_place_count == 2
+
+
+def test_explorer_dense_allows_more_automatic_places_than_light() -> None:
+    recommendations = [place(f"recommendation_{index}") for index in range(5)]
+    result = generate_itinerary(
+        one_day_trip(
+            travel_style=TravelStyle.EXPLORER,
+            schedule_density=ScheduleDensity.DENSE,
+        ),
+        [],
+        matrix(*(item.place_id for item in recommendations), default=1),
+        recommended_places=recommendations,
+    )
+    assert result.auto_recommended_place_count == 5
 
 
 def test_arrival_anchor_is_first_when_arrival_day_is_game_day() -> None:
@@ -482,7 +532,7 @@ def test_meeting_auto_fill_result_sample_is_valid() -> None:
         )
     )
 
-    assert result.algorithm_version == "auto-fill-v0.4"
+    assert result.algorithm_version == "auto-fill-v0.5"
     assert result.auto_fill_applied is True
     assert result.auto_recommended_place_count == 3
     assert sum(
