@@ -163,13 +163,15 @@ GET /api/v1/tour/nearby?longitude=127.0&latitude=37.5&filterId=FISHING
 | 문서 ID | 자동 생성 | 응답의 `playerPickId` |
 | `stadiumId` | string | 구장 필터 |
 | `playerName` | string | 화면에 표시할 선수명 |
-| `placeId` | `tour_{contentId}` | 추천 장소 내부 ID |
+| `placeId` | `tour_`, `kakao_`, `player_place_` 접두사 | 검증 방식에 따른 추천 장소 내부 ID |
 | `placeSnapshot` | Place | 외부 API 장애 시 사용할 저장 시점 장소 정보 |
 | `createdAt` | timestamp | 등록 시각 |
 | `updatedAt` | timestamp | 마지막 갱신 시각 |
 
-선수추천은 `Place.source`를 변경하지 않는다. 장소 원천은 계속
-`TOUR_API`이며, 선수 추천 여부만 별도 DB 문서로 관리한다.
+선수추천 여부는 별도 DB 문서로 관리한다. 장소 스냅샷의 원천은 검증
+방식에 따라 `TOUR_API`, `KAKAO`, `LOCAL_DATA` 중 하나다. Kakao와 주소
+검색은 수작업 큐레이션의 위치 검증에만 사용하며 일반 자동 추천 후보에
+추가하지 않는다.
 
 장소명·주소로 정리한 데이터를 입력할 때는 먼저 dry-run으로 매칭을
 확인한다.
@@ -184,9 +186,18 @@ uv run python -m scripts.seed_player_picks --input samples/player_picks/player_p
 uv run python -m scripts.seed_player_picks --input samples/player_picks/player_picks.json --write
 ```
 
-동점 후보나 이름·주소가 충분히 일치하지 않는 항목은 자동 저장하지
-않는다. 입력 JSON에 확정한 `placeId`를 직접 적으면 재검색 없이 해당
-TourAPI 상세를 저장한다.
+동점 후보나 이름·주소가 충분히 일치하지 않는 항목은 주소 좌표를
+추가로 검증하고, 주소도 확인할 수 없으면 저장하지 않는다. 입력 JSON에
+확정한 `placeId`를 직접 적으면 재검색 없이 해당 TourAPI 상세를 저장한다.
+
+구단별 Markdown 자료는 `STADIUM_ID=PATH` 형식으로 여러 번 전달한다.
+
+```powershell
+uv run python -m scripts.import_player_pick_markdown --input "jamsil=C:\data\LG.md" --input "sajik=C:\data\롯데.md"
+uv run python -m scripts.import_player_pick_markdown --write --input "jamsil=C:\data\LG.md" --input "sajik=C:\data\롯데.md"
+```
+
+기본 실행은 dry-run이고 `--write`를 붙인 경우에만 Firestore에 저장한다.
 
 ### 여행 설문 계약
 
