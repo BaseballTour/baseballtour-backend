@@ -121,6 +121,47 @@ async def test_http_timeout_is_mapped(monkeypatch) -> None:
 
     assert exc_info.value.status_code == 503
     assert exc_info.value.code == "EXTERNAL_API_TIMEOUT"
+    assert exc_info.value.details["timeoutType"] == "ReadTimeout"
+    assert exc_info.value.details["attempts"] == 2
+
+
+@pytest.mark.anyio
+async def test_read_timeout_is_retried_once(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="test-key",
+            tour_api_max_attempts=2,
+            tour_api_retry_backoff_seconds=0,
+        ),
+    )
+    calls = 0
+
+    def timeout_then_success(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise httpx.ReadTimeout("slow", request=request)
+        return httpx.Response(
+            200,
+            request=request,
+            json=_success_response(),
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(timeout_then_success)
+    ) as client:
+        result = await client_module._request_tour_api(
+            "locationBasedList2",
+            {},
+            client=client,
+        )
+
+    assert calls == 2
+    assert result["response"]["header"]["resultCode"] == "0000"
 
 
 @pytest.mark.anyio
@@ -148,6 +189,9 @@ async def test_http_rate_limit_is_mapped(monkeypatch) -> None:
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
+    assert exc_info.value.message == "TourAPI 호출 제한을 초과했습니다."
+    assert exc_info.value.details["endpoint"] == "locationBasedList2"
+    assert exc_info.value.details["httpStatus"] == 429
 
 
 @pytest.mark.anyio
