@@ -14120,7 +14120,8 @@
                             "lclsSystem1": "VE",
                             "lclsSystem2": "VE01",
                             "lclsSystem3": "VE010100"
-                          }
+                          },
+                          "recommendationNote": "선수 부모님이 운영하는 가게"
                         }
                       ],
                       "meta": {
@@ -17104,7 +17105,10 @@
           "playerName": {
             "title": "Playername"
           },
-          "place": {}
+          "place": {},
+          "recommendationNote": {
+            "title": "Recommendationnote"
+          }
         },
         "additionalProperties": false,
         "type": "object",

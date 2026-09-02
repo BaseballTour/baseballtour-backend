@@ -9,11 +9,21 @@ from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.external.tour_api.mapper import tour_api_items_to_places
 from app.models.place import Place
+from app.repositories.tour_api_cache_repository import TourApiCacheRepository
 
 logger = logging.getLogger(__name__)
 
 TOUR_API_BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 TOUR_API_SUCCESS_CODE = "0000"
+TOUR_API_CACHE_TTLS = {
+    "locationBasedList2": 1800,
+    "searchKeyword2": 1800,
+    "lclsSystmCode2": 86400,
+    "detailCommon2": 43200,
+    "detailIntro2": 43200,
+    "detailImage2": 43200,
+}
+_response_cache = TourApiCacheRepository()
 
 TOUR_API_RATE_LIMIT_CODES = {
     "22",
@@ -192,6 +202,36 @@ async def _request_tour_api(
     )
     request_params = _common_params()
     request_params.update(params)
+    cache_params = dict(params)
+    persistent_cache_enabled = getattr(
+        settings, "tour_api_persistent_cache_enabled", False
+    )
+    cache_ttl_seconds = TOUR_API_CACHE_TTLS.get(endpoint)
+    if persistent_cache_enabled and cache_ttl_seconds is not None:
+        try:
+            cached = await asyncio.to_thread(
+                _response_cache.get,
+                endpoint,
+                cache_params,
+            )
+        except Exception as exc:
+            logger.warning(
+                "TourAPI persistent cache read failed: endpoint=%s "
+                "error_type=%s",
+                endpoint,
+                type(exc).__name__,
+            )
+        else:
+            if cached is not None:
+                logger.info(
+                    "TourAPI persistent cache hit: endpoint=%s",
+                    endpoint,
+                )
+                return cached
+            logger.info(
+                "TourAPI persistent cache miss: endpoint=%s",
+                endpoint,
+            )
     owns_client = client is None
     active_client = client or httpx.AsyncClient(
         timeout=httpx.Timeout(
@@ -335,7 +375,30 @@ async def _request_tour_api(
             message="TourAPI가 JSON이 아닌 응답을 반환했습니다.",
         ) from exc
 
-    return _validate_tour_api_response(data)
+    validated = _validate_tour_api_response(data)
+    if persistent_cache_enabled and cache_ttl_seconds is not None:
+        try:
+            await asyncio.to_thread(
+                _response_cache.set,
+                endpoint,
+                cache_params,
+                validated,
+                ttl_seconds=cache_ttl_seconds,
+            )
+        except Exception as exc:
+            logger.warning(
+                "TourAPI persistent cache write failed: endpoint=%s "
+                "error_type=%s",
+                endpoint,
+                type(exc).__name__,
+            )
+        else:
+            logger.info(
+                "TourAPI persistent cache stored: endpoint=%s ttl_seconds=%s",
+                endpoint,
+                cache_ttl_seconds,
+            )
+    return validated
 
 
 def extract_items(data: dict[str, Any]) -> list[dict[str, Any]]:

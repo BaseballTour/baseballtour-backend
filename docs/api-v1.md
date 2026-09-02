@@ -109,6 +109,25 @@ GET /api/v1/tour/places/tour_1603175
 
 `placeId`는 주변 장소 조회 응답의 값을 그대로 사용한다. 백엔드가 `tour_` 접두사를 제거해 TourAPI 원본 `contentId`를 얻고, 공통정보에서 `contentTypeId`를 확인한다. 성공 응답의 `data`는 내부 `Place` 모델이며 이미지·영업시간이 없으면 `null`이다.
 
+### TourAPI 검색 호출 보호
+
+`GET /api/v1/tour/search`의 동일 검색어·필터·페이지 성공 결과는 서버 인스턴스
+안에서 30분 동안 캐시한다. 같은 요청이 동시에 들어오면 한 번의 외부 호출로
+합친다. TourAPI 일일 호출 한도 초과가 발생한 동일 조건은 60초 동안 외부에
+다시 요청하지 않고 `EXTERNAL_API_RATE_LIMITED`를 반환한다.
+
+### 선수 추천 장소
+
+```http
+GET /api/v1/tour/player-picks?stadiumId=sajik&playerName=정보근
+```
+
+`stadiumId`는 필수이고 `playerName`은 선택 필터다. 각 결과는
+`playerPickId`, `stadiumId`, `playerName`, `place`, `recommendationNote`를
+포함한다. `recommendationNote`는 부모님 운영 또는 선수단 공통 추천 같은
+관리자 설명이며 없으면 `null`이다. 저장된 `place` 스냅샷을 우선 사용하므로
+TourAPI가 일시적으로 실패해도 큐레이션 목록을 반환할 수 있다.
+
 ### 숙소를 포함한 여행 생성
 
 `POST /api/v1/trips`는 `gameId`, `tripStartAt`, `tripEndAt`, `arrivalPoint`,
@@ -256,6 +275,10 @@ trips/{tripId}/placeCandidates/{placeId}
 
 컬렉션에 장소를 저장할 때 장소 스냅샷을 함께 보관한다. 조회 시 저장된 스냅샷을
 우선 사용하며 필요한 경우 TourAPI 장소 정보를 다시 조회해 보완한다.
+
+TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
+`tourApiResponseCache` Firestore 공유 캐시를 함께 사용한다. 검색 응답은 30분,
+상세 응답은 12시간 동안 재사용하며 외부 API 키는 캐시 문서에 저장하지 않는다.
 
 일정으로 컬렉션을 불러올 때는 선택한 여행의 후보 장소 계약에 맞춰
 `placeId` 기반 선택 항목으로 변환한다.

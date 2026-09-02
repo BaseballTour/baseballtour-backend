@@ -1,5 +1,8 @@
+import asyncio
+
 import pytest
 
+from app.core.exceptions import AppException
 from app.external.tour_api import adapter as adapter_module
 from app.external.tour_api.adapter import TourApiAdapter
 from app.external.tour_api.filters import TourFilterId
@@ -286,6 +289,53 @@ async def test_compound_filter_merges_and_deduplicates_classification_pages(
         "tour_fresh",
         "tour_sea",
     }
+
+
+@pytest.mark.anyio
+async def test_cache_coalesces_concurrent_identical_loads() -> None:
+    adapter = TourApiAdapter()
+    calls = 0
+    both_started = asyncio.Event()
+
+    async def loader():
+        nonlocal calls
+        calls += 1
+        both_started.set()
+        await asyncio.sleep(0)
+        return "result"
+
+    first = asyncio.create_task(adapter._cached(("same",), loader))
+    await both_started.wait()
+    second = asyncio.create_task(adapter._cached(("same",), loader))
+
+    assert await asyncio.gather(first, second) == ["result", "result"]
+    assert calls == 1
+
+
+@pytest.mark.anyio
+async def test_cache_temporarily_reuses_rate_limit_failure() -> None:
+    adapter = TourApiAdapter()
+    calls = 0
+
+    async def loader():
+        nonlocal calls
+        calls += 1
+        raise AppException(
+            status_code=429,
+            code="EXTERNAL_API_RATE_LIMITED",
+            message="한도 초과",
+        )
+
+    for _ in range(2):
+        with pytest.raises(AppException) as exc_info:
+            await adapter._cached(
+                ("limited",),
+                loader,
+                failure_ttl_seconds=60,
+            )
+        assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
+
+    assert calls == 1
 
 
 @pytest.mark.anyio
