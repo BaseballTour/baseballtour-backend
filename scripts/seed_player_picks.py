@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.core.exceptions import AppException
 from app.external.kakao.client import (
     geocode_address,
     search_place_page as search_kakao_places,
@@ -248,11 +249,21 @@ async def _resolve_place(row: dict[str, Any]) -> Place | None:
     address = str(row.get("address") or "").strip()
     if not place_name or not address:
         raise ValueError("placeId가 없으면 placeName과 address가 필요합니다.")
-    page = await tour_api_adapter.search_place_page(
-        keyword=place_name,
-        page_no=1,
-        num_of_rows=20,
-    )
+    try:
+        page = await tour_api_adapter.search_place_page(
+            keyword=place_name,
+            page_no=1,
+            num_of_rows=20,
+        )
+    except AppException:
+        kakao_place = await _resolve_kakao_place(
+            place_name=place_name,
+            address=address,
+        )
+        return kakao_place or await _resolve_manual_place(
+            place_name=place_name,
+            address=address,
+        )
     ranked = sorted(
         (
             (_score_candidate(place, place_name=place_name, address=address), place)
@@ -319,6 +330,15 @@ async def seed_rows(rows: list[Any], *, write: bool = False) -> None:
                 player_name=str(row.get("playerName") or "").strip(),
                 place_id=place.place_id,
                 place_snapshot=place,
+                recommendation_note=(
+                    str(row.get("recommendationNote") or "").strip() or None
+                ),
+                curation_key=sha256(
+                    (
+                        f"{_normalize(str(row.get('placeName') or place.name))}:"
+                        f"{_normalize(str(row.get('address') or place.address))}"
+                    ).encode("utf-8")
+                ).hexdigest()[:24],
                 created_at=now,
                 updated_at=now,
             )

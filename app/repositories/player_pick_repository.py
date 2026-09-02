@@ -47,7 +47,11 @@ class PlayerPickRepository:
         """구장·선수·장소 조합을 중복 없이 저장합니다."""
 
         identity = ":".join(
-            (document.stadium_id, document.player_name, document.place_id)
+            (
+                document.stadium_id,
+                document.player_name,
+                document.curation_key or document.place_id,
+            )
         )
         digest = sha256(identity.encode("utf-8")).hexdigest()[:24]
         player_pick_id = f"player_pick_{digest}"

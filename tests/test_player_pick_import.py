@@ -60,3 +60,21 @@ def test_address_matching_rejects_same_name_in_other_region() -> None:
         "인천 강화군 전등사로 66-3",
         "인천 부평구 대정로 50",
     )
+
+
+def test_parse_markdown_keeps_heading_inline_and_followup_notes(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "team.md"
+    source.write_text(
+        "**선수A (통역)** (선수단 공통)\n"
+        "- 식당명 (서울 송파구 테스트로 1) ⭐부모님 운영\n"
+        "※ 야구장 내부 식당\n",
+        encoding="utf-8",
+    )
+
+    rows, _ = parse_markdown(source, "jamsil")
+
+    assert rows[0]["recommendationNote"] == (
+        "통역 · 선수단 공통 · 부모님 운영 · 야구장 내부 식당"
+    )

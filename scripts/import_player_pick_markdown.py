@@ -6,9 +6,9 @@ from pathlib import Path
 from scripts.seed_player_picks import seed_rows
 
 
-PLAYER_HEADING = re.compile(r"^\*\*(.+?)\*\*")
+PLAYER_HEADING = re.compile(r"^\*\*(.+?)\*\*(.*)$")
 KIA_PLAYER = re.compile(r"^-\s+([^(*]+?)\s*$")
-PLACE_WITH_ADDRESS = re.compile(r"^-?\s*(.+?)\s*\(([^()]+)\)")
+PLACE_WITH_ADDRESS = re.compile(r"^-?\s*(.+?)\s*\(([^()]+)\)(.*)$")
 LG_COMMON_PICK = re.compile(
     r"^LG 전체 선수 맛집\s*-\s*(.+?)\s*\(([^()]+)\)"
 )
@@ -42,6 +42,8 @@ def parse_markdown(path: Path, stadium_id: str) -> tuple[list[dict], list[str]]:
     rows: list[dict] = []
     skipped: list[str] = []
     players: list[str] = []
+    heading_note: str | None = None
+    last_row_indexes: list[int] = []
     is_kia_format = path.name.startswith("기아 ")
 
     for raw_line in path.read_text(encoding="utf-8").splitlines():
@@ -59,31 +61,57 @@ def parse_markdown(path: Path, stadium_id: str) -> tuple[list[dict], list[str]]:
                     "address": common_match.group(2).strip(),
                 }
             )
+            last_row_indexes = [len(rows) - 1]
             continue
 
         heading_match = PLAYER_HEADING.match(line)
         if heading_match:
-            players = _split_players(heading_match.group(1))
+            heading_value = heading_match.group(1)
+            players = _split_players(heading_value)
+            inner_notes = re.findall(r"\(([^)]*)\)", heading_value)
+            outer_note = heading_match.group(2).strip(" —-()")
+            heading_note = " · ".join(
+                part.strip() for part in (*inner_notes, outer_note) if part.strip()
+            ) or None
+            last_row_indexes = []
             continue
 
         if is_kia_format:
             player_match = KIA_PLAYER.match(line)
             if player_match and "(" not in line:
                 players = _split_players(player_match.group(1))
+                heading_note = None
+                last_row_indexes = []
                 continue
 
         place_match = PLACE_WITH_ADDRESS.match(line)
         if place_match and players:
             place_name = place_match.group(1).strip().lstrip("- ").strip()
             address = place_match.group(2).strip()
+            inline_note = place_match.group(3).strip(" —-⭐") or None
+            note = " · ".join(
+                part for part in (heading_note, inline_note) if part
+            ) or None
+            last_row_indexes = []
             for player in players:
-                rows.append(
-                    {
-                        "stadiumId": stadium_id,
-                        "playerName": player,
-                        "placeName": place_name,
-                        "address": address,
-                    }
+                row = {
+                    "stadiumId": stadium_id,
+                    "playerName": player,
+                    "placeName": place_name,
+                    "address": address,
+                }
+                if note:
+                    row["recommendationNote"] = note
+                rows.append(row)
+                last_row_indexes.append(len(rows) - 1)
+            continue
+
+        if last_row_indexes and line.startswith(("※", "특히")):
+            extra_note = line.lstrip("※ ").strip()
+            for row_index in last_row_indexes:
+                previous = rows[row_index].get("recommendationNote")
+                rows[row_index]["recommendationNote"] = (
+                    f"{previous} · {extra_note}" if previous else extra_note
                 )
             continue
 
