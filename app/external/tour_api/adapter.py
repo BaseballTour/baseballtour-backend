@@ -8,6 +8,7 @@ from typing import Any, Awaitable, Callable
 
 import httpx
 
+from app.core.exceptions import AppException
 from app.external.tour_api.client import (
     extract_items,
     get_nearby_places,
@@ -38,12 +39,22 @@ from app.external.tour_api.business_hours import (
 
 
 DEFAULT_CACHE_TTL_SECONDS = 300
+SEARCH_CACHE_TTL_SECONDS = 1800
+DETAIL_CACHE_TTL_SECONDS = 3600
+CLASSIFICATION_CACHE_TTL_SECONDS = 86400
+RATE_LIMIT_FAILURE_TTL_SECONDS = 60
 
 
 @dataclass
 class _CacheEntry:
     expires_at: float
     value: Any
+
+
+@dataclass
+class _FailureEntry:
+    expires_at: float
+    error: AppException
 
 
 @dataclass(frozen=True)
@@ -66,22 +77,54 @@ class TourApiAdapter:
     _cache: dict[tuple[Any, ...], _CacheEntry] = field(
         default_factory=dict
     )
+    _failures: dict[tuple[Any, ...], _FailureEntry] = field(
+        default_factory=dict
+    )
+    _inflight: dict[tuple[Any, ...], asyncio.Task[Any]] = field(
+        default_factory=dict
+    )
 
     async def _cached(
         self,
         key: tuple[Any, ...],
         loader: Callable[[], Awaitable[Any]],
+        *,
+        ttl_seconds: int | None = None,
+        failure_ttl_seconds: int = 0,
     ) -> Any:
         entry = self._cache.get(key)
         now = monotonic()
         if entry is not None and entry.expires_at > now:
             return entry.value
+        failure = self._failures.get(key)
+        if failure is not None and failure.expires_at > now:
+            raise failure.error
 
-        value = await loader()
+        task = self._inflight.get(key)
+        if task is None:
+            task = asyncio.create_task(loader())
+            self._inflight[key] = task
+        try:
+            value = await task
+        except AppException as exc:
+            if (
+                failure_ttl_seconds > 0
+                and exc.code == "EXTERNAL_API_RATE_LIMITED"
+            ):
+                self._failures[key] = _FailureEntry(
+                    expires_at=monotonic() + failure_ttl_seconds,
+                    error=exc,
+                )
+            raise
+        finally:
+            if self._inflight.get(key) is task:
+                self._inflight.pop(key, None)
         self._cache[key] = _CacheEntry(
-            expires_at=now + self.cache_ttl_seconds,
+            expires_at=monotonic()
+            + (ttl_seconds or self.cache_ttl_seconds),
             value=value,
         )
+        self._failures.pop(key, None)
         return value
 
     async def get_nearby_place_page(
@@ -315,7 +358,12 @@ class TourApiAdapter:
                 str(page_no + 1) if has_next else None,
             )
 
-        return await self._cached(key, load)
+        return await self._cached(
+            key,
+            load,
+            ttl_seconds=SEARCH_CACHE_TTL_SECONDS,
+            failure_ttl_seconds=RATE_LIMIT_FAILURE_TTL_SECONDS,
+        )
 
     async def search_place_page_by_filter(
         self,
@@ -419,7 +467,11 @@ class TourApiAdapter:
                 next_page_token=str(page_no + 1) if has_next else None,
             )
 
-        return await self._cached(key, load)
+        return await self._cached(
+            key,
+            load,
+            ttl_seconds=CLASSIFICATION_CACHE_TTL_SECONDS,
+        )
 
     async def get_place_detail(
         self,
@@ -476,7 +528,11 @@ class TourApiAdapter:
 
             return tour_api_item_to_place(merged)
 
-        return await self._cached(key, load)
+        return await self._cached(
+            key,
+            load,
+            ttl_seconds=DETAIL_CACHE_TTL_SECONDS,
+        )
 
 
 def _first_non_empty(

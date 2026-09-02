@@ -206,6 +206,7 @@ SUCCESS_EXAMPLES = {
     ("get", "/api/v1/tour/player-picks", "200"): _list([{
         "playerPickId": "player_pick_001", "stadiumId": "gocheok",
         "playerName": "홍길동", "place": PLACE,
+        "recommendationNote": "선수 부모님이 운영하는 가게",
     }]),
     ("get", "/api/v1/tour/filter-options", "200"): _list([{
         "filterId": "FISHING", "label": "낚시", "group": "액티비티",
