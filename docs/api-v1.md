@@ -276,6 +276,10 @@ trips/{tripId}/placeCandidates/{placeId}
 컬렉션에 장소를 저장할 때 장소 스냅샷을 함께 보관한다. 조회 시 저장된 스냅샷을
 우선 사용하며 필요한 경우 TourAPI 장소 정보를 다시 조회해 보완한다.
 
+TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
+`tourApiResponseCache` Firestore 공유 캐시를 함께 사용한다. 검색 응답은 30분,
+상세 응답은 12시간 동안 재사용하며 외부 API 키는 캐시 문서에 저장하지 않는다.
+
 일정으로 컬렉션을 불러올 때는 선택한 여행의 후보 장소 계약에 맞춰
 `placeId` 기반 선택 항목으로 변환한다.
 

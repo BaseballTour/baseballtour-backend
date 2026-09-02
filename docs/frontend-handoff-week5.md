@@ -8,6 +8,8 @@ GET /api/v1/tour/search?keyword=잠실&filterId=KOREAN&pageSize=20
 
 - 사용자가 입력할 때마다 호출하지 않고 마지막 입력 후 300~500ms 뒤 호출한다.
 - 같은 검색어·필터·페이지 결과는 백엔드가 30분 동안 캐시한다.
+- 메모리 캐시와 Firestore 공유 캐시를 함께 사용하므로 새 Cloud Run 인스턴스나
+  재배포 이후에도 유효한 응답을 재사용할 수 있다.
 - 동시에 들어온 동일 검색은 백엔드가 한 번의 TourAPI 호출로 합친다.
 - HTTP 429와 `EXTERNAL_API_RATE_LIMITED`가 오면 자동 연속 재시도하지 않는다.
 

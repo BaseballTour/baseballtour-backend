@@ -12,6 +12,7 @@ from typing import Awaitable, Callable
 
 import httpx
 
+from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.external.tour_api.client import (
     extract_items,
@@ -182,11 +183,19 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--content-type-id", default="12")
     parser.add_argument("--connect-timeout", type=float, default=5.0)
     parser.add_argument("--read-timeout", type=float, default=10.0)
+    parser.add_argument(
+        "--bypass-cache",
+        action="store_true",
+        help="Firestore 공유 캐시를 사용하지 않고 실제 TourAPI 상태를 확인합니다.",
+    )
     return parser.parse_args()
 
 
 async def main() -> None:
-    results = await run_diagnostics(_parse_args())
+    args = _parse_args()
+    if args.bypass_cache:
+        get_settings().tour_api_persistent_cache_enabled = False
+    results = await run_diagnostics(args)
     print(json.dumps(
         {
             "results": [asdict(item) for item in results],

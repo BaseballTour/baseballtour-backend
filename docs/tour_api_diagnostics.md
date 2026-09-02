@@ -11,6 +11,13 @@ uv run python -m scripts.diagnose_tour_api --repeat 3
 주변 조회, 키워드 검색, 공통 상세, 소개, 이미지 API를 같은 HTTP 연결로
 각각 세 번 호출한다. 키 값과 전체 원본 응답은 출력하지 않는다.
 
+기본 실행은 Firestore 공유 캐시를 사용할 수 있다. 제공기관의 **현재 상태**를
+직접 점검할 때는 캐시를 우회한다.
+
+```powershell
+uv run python -m scripts.diagnose_tour_api --repeat 3 --bypass-cache
+```
+
 특정 장소를 확인하려면 다음 값을 바꾼다.
 
 ```powershell
@@ -57,6 +64,11 @@ Cloud Run 로그에서는 다음 필드를 확인한다.
 ```text
 endpoint, timeout_type, attempt, max_attempts, elapsed_ms
 ```
+
+캐시 로그는 `persistent cache hit`, `miss`, `stored`, `read failed`,
+`write failed`로 구분된다. 캐시 적중은 서비스 기능이 정상이라는 뜻이지만
+TourAPI 제공기관이 현재 정상이라는 증거는 아니므로 장애 점검에는
+`--bypass-cache`를 사용한다.
 
 상세 조회가 지연되면 주변 조회 장소를 사용해 일정 생성을 계속한다.
 주변 조회가 반복 실패하면 추천만 생략하며, 사용자가 선택한 장소로 만들 수
