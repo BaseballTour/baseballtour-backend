@@ -8,6 +8,7 @@ from time import perf_counter
 
 from app.external.tour_api import adapter as adapter_module
 from app.external.tour_api.adapter import TourApiAdapter
+from app.external.kakao.routing import get_cached_fastest_route
 from app.algorithms.itinerary_generator import generate_itinerary
 from app.algorithms.travel_time import build_itinerary_travel_time_matrix
 from app.models.itinerary import GameAnchor, GeoPoint, TripInput
@@ -51,7 +52,13 @@ def _install_call_counters() -> Counter[str]:
     return calls
 
 
-async def _inspect_region(label: str, stadium, calls: Counter[str]) -> dict:
+async def _inspect_region(
+    label: str,
+    stadium,
+    calls: Counter[str],
+    *,
+    live_routes: bool = False,
+) -> dict:
     name, latitude, longitude = stadium
     adapter = TourApiAdapter(cache_ttl_seconds=300)
     service = RecommendationService(adapter)
@@ -123,7 +130,7 @@ async def _inspect_region(label: str, stadium, calls: Counter[str]) -> dict:
     matrix = await build_itinerary_travel_time_matrix(
         trip,
         candidates,
-        provider=None,
+        provider=get_cached_fastest_route if live_routes else None,
     )
     itinerary = generate_itinerary(
         trip,
@@ -136,12 +143,29 @@ async def _inspect_region(label: str, stadium, calls: Counter[str]) -> dict:
 
     return {
         "region": label,
+        "routeProvider": "KAKAO" if live_routes else "ESTIMATED",
         "stadium": name,
         "coldElapsedSeconds": round(cold_seconds, 3),
         "warmElapsedSeconds": round(warm_seconds, 3),
         "coldExternalCalls": dict(cold_calls),
         "warmExternalCalls": dict(warm_calls),
         "scheduleElapsedSeconds": round(schedule_seconds, 3),
+        "routeSourceDistribution": dict(
+            sorted(
+                Counter(
+                    source.value
+                    for source in (matrix.sources or {}).values()
+                ).items()
+            )
+        ),
+        "routeModeDistribution": dict(
+            sorted(
+                Counter(
+                    mode.value
+                    for mode in (matrix.modes or {}).values()
+                ).items()
+            )
+        ),
         "candidateCount": len(candidates),
         "warmCandidateCount": len(warm_candidates),
         "categoryDistribution": _distribution(candidates),
@@ -165,6 +189,30 @@ async def _inspect_region(label: str, stadium, calls: Counter[str]) -> dict:
                 item.place_id
                 for item in day.items
                 if item.added_by == "ALGORITHM"
+            ]
+            for day in itinerary.days
+        },
+        "scheduledItemsByDay": {
+            day.date.isoformat(): [
+                {
+                    "placeId": item.place_id,
+                    "name": item.name,
+                    "category": item.category.value if item.category else None,
+                    "scheduledStartAt": item.scheduled_start_at.isoformat(),
+                    "scheduledEndAt": item.scheduled_end_at.isoformat(),
+                    "travelMinutesFromPrevious": (
+                        item.travel_minutes_from_previous
+                    ),
+                    "travelMode": (
+                        item.travel_mode.value if item.travel_mode else None
+                    ),
+                    "travelTimeSource": (
+                        item.travel_time_source.value
+                        if item.travel_time_source
+                        else None
+                    ),
+                }
+                for item in day.items
             ]
             for day in itinerary.days
         },
@@ -195,13 +243,25 @@ async def _inspect_region(label: str, stadium, calls: Counter[str]) -> dict:
     }
 
 
-async def main(output: Path) -> None:
+async def main(
+    output: Path,
+    *,
+    regions: list[str] | None = None,
+    live_routes: bool = False,
+) -> None:
     calls = _install_call_counters()
     results = []
-    for label, stadium in STADIUMS.items():
+    selected = regions or list(STADIUMS)
+    for label in selected:
+        stadium = STADIUMS[label]
         try:
             result = await asyncio.wait_for(
-                _inspect_region(label, stadium, calls),
+                _inspect_region(
+                    label,
+                    stadium,
+                    calls,
+                    live_routes=live_routes,
+                ),
                 timeout=90,
             )
         except Exception as exc:
@@ -225,5 +285,23 @@ if __name__ == "__main__":
         type=Path,
         default=Path("artifacts/recommendation-quality.json"),
     )
+    parser.add_argument(
+        "--region",
+        action="append",
+        choices=tuple(STADIUMS),
+        dest="regions",
+        help="검증할 지역입니다. 여러 번 지정할 수 있으며 생략하면 전체입니다.",
+    )
+    parser.add_argument(
+        "--live-routes",
+        action="store_true",
+        help="직선거리 추정 대신 Kakao 실제 경로를 사용합니다.",
+    )
     arguments = parser.parse_args()
-    asyncio.run(main(arguments.output))
+    asyncio.run(
+        main(
+            arguments.output,
+            regions=arguments.regions,
+            live_routes=arguments.live_routes,
+        )
+    )
