@@ -177,7 +177,7 @@ def generate_itinerary(
     )
     return ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="auto-fill-v0.5",
+        algorithm_version="auto-fill-v0.6",
         total_travel_minutes=total,
         total_travel_distance_meters=total_distance,
         days=days,
@@ -501,6 +501,7 @@ def _fill_routes_with_recommendations(
                 trip.trip_end_at.date(),
                 trip.game_anchor.game_start_at.date(),
             )
+            day_fill_priority = _auto_fill_day_priority(day_type)
             args = _optimizer_args_for_date(
                 target_date, day_type, trip, matrix
             )
@@ -599,6 +600,7 @@ def _fill_routes_with_recommendations(
                         )
                     )
                     score = (
+                        day_fill_priority,
                         -meal_gain,
                         scheduled_per_day[target_date],
                         style_priority,
@@ -643,6 +645,18 @@ def _fill_routes_with_recommendations(
         )
 
     return routes, added
+
+
+def _auto_fill_day_priority(day_type: DayType) -> int:
+    """사용자에게 중요한 고정 Anchor 앞의 공백부터 자동 추천으로 채운다."""
+
+    priorities = {
+        DayType.GAME_DAY: 0,
+        DayType.DEPARTURE_DAY: 1,
+        DayType.NON_GAME_DAY: 2,
+        DayType.ARRIVAL_DAY: 3,
+    }
+    return priorities[day_type]
 
 
 def _has_consecutive_restaurants(route: list[Place]) -> bool:

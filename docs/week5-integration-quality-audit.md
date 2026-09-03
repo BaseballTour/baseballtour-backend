@@ -138,11 +138,39 @@ Kakao 경로 조회 실패로 예상시간 사용
 전역 임계값은 변경하지 않았다. PR 배포 후 실제 Kakao 경로를 사용하는 사직
 시나리오를 확인하고 지역 후보 반경 또는 시간대 후보 구성을 조정한다.
 
+2026-09-03 실제 Kakao 경로를 사용해 사직만 다시 검사한 결과는 다음과 같다.
+
+- TourAPI 후보 18개 중 자동 추천 4개 배정
+- 날짜별 자동 추천: 도착일 3개, 경기일 1개, 출발일 0개
+- 전체 Matrix 420개 방향 중 Kakao 41개, 직선거리 추정 379개
+- 외부 조회 대상으로 선별한 96개 경로 중 55개는 Kakao 경로 없음으로 fallback
+- 주요 거절 시도: `ROUTE_INEFFICIENT` 230회,
+  `OUTSIDE_BUSINESS_HOURS` 65회, `NO_AVAILABLE_MEAL_PERIOD` 6회
+- 경기일은 12시 식사 종료 후 17시 50분 경기장까지 큰 공백이 남음
+
+따라서 단순 추천 개수 상한 문제가 아니다. Kakao가 반환하지 못하는 경로가 많고,
+30분 우회 허용치와 영업시간 조건을 함께 통과하는 사직 후보가 부족하다. 다음
+개선에서는 전역 우회 허용치를 완화하지 않고, 사직 후보의 거리·영업시간을
+시간대별로 먼저 선별한 뒤 경기 전 공백과 출발일을 우선 채우는 방식을 검토한다.
+
+### 공백 우선 배치 개선
+
+`auto-fill-v0.6`부터 자동 추천 날짜 비교 순서를 `GAME_DAY →
+DEPARTURE_DAY → NON_GAME_DAY → ARRIVAL_DAY`로 적용한다. 각 날짜 안에서는 기존과
+같이 식사 시간대 충족 여부, 영업시간, 이동 증가분, 마감 여유를 평가한다.
+따라서 사직만 우회 허용치를 느슨하게 만드는 지역별 예외는 없다.
+
+같은 사직 실데이터 재검사에서는 자동 추천이 4개에서 5개로 증가했고 경기일은
+1개에서 2개로 증가했다. 출발일은 월요일 영업시간과 30분 이동 증가 조건을
+통과하는 남은 후보가 없어 0개를 유지했다. 이는 날짜 우선순위가 아니라 후보
+적합성 문제이며, 영업시간이나 이동 제약을 무시해 억지로 채우지는 않는다.
+
 ## 재현 명령
 
 ```powershell
 uv run pytest -q
 uv run python -m scripts.audit_recommendation_quality --output artifacts/recommendation-quality.json
+uv run python -m scripts.audit_recommendation_quality --region 사직 --live-routes --output artifacts/sajik-live-quality.json
 uv run python -m scripts.audit_route_performance --quality-report artifacts/recommendation-quality.json --output artifacts/route-performance.json
 ```
 
