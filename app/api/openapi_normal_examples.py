@@ -60,7 +60,7 @@ TRIP_DETAIL = {
 }
 PLAN = {
     "planId": "plan_001", "tripId": "trip_001", "status": "ACTIVE",
-    "algorithmVersion": "auto-fill-v0.5", "totalTravelMinutes": 25,
+    "algorithmVersion": "auto-fill-v0.6", "totalTravelMinutes": 25,
     "totalTravelDistanceMeters": 8400,
     "days": [{"date": "2026-08-16", "dayType": "GAME_DAY", "items": [{
         "itemId": "item_1_1", "type": "PLACE", "sequence": 1,

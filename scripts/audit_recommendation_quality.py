@@ -58,10 +58,11 @@ async def _inspect_region(
     calls: Counter[str],
     *,
     live_routes: bool = False,
+    max_candidates: int = 20,
 ) -> dict:
     name, latitude, longitude = stadium
     adapter = TourApiAdapter(cache_ttl_seconds=300)
-    service = RecommendationService(adapter)
+    service = RecommendationService(adapter, max_candidates=max_candidates)
     diagnostics: dict[str, object] = {}
     before = calls.copy()
     started = perf_counter()
@@ -248,6 +249,7 @@ async def main(
     *,
     regions: list[str] | None = None,
     live_routes: bool = False,
+    max_candidates: int = 20,
 ) -> None:
     calls = _install_call_counters()
     results = []
@@ -261,6 +263,7 @@ async def main(
                     stadium,
                     calls,
                     live_routes=live_routes,
+                    max_candidates=max_candidates,
                 ),
                 timeout=90,
             )
@@ -297,11 +300,18 @@ if __name__ == "__main__":
         action="store_true",
         help="직선거리 추정 대신 Kakao 실제 경로를 사용합니다.",
     )
+    parser.add_argument(
+        "--max-candidates",
+        type=int,
+        default=20,
+        help="일정 배치에 전달할 최대 후보 수입니다.",
+    )
     arguments = parser.parse_args()
     asyncio.run(
         main(
             arguments.output,
             regions=arguments.regions,
             live_routes=arguments.live_routes,
+            max_candidates=arguments.max_candidates,
         )
     )

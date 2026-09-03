@@ -416,9 +416,9 @@ def test_game_day_auto_fill_places_visit_before_stadium() -> None:
     assert place_item.scheduled_end_at < stadium_item.scheduled_start_at
 
 
-def test_auto_fill_balances_recommendations_across_game_day() -> None:
+def test_auto_fill_prioritizes_game_gap_then_departure_gap() -> None:
     recommendations = [
-        place(f"balanced_{index}") for index in range(1, 4)
+        place(f"priority_{index}") for index in range(1, 5)
     ]
     diagnostics = {}
 
@@ -437,12 +437,12 @@ def test_auto_fill_balances_recommendations_across_game_day() -> None:
         )
         for day in result.days
     }
-    assert scheduled_by_type["ARRIVAL_DAY"] == 1
-    assert scheduled_by_type["GAME_DAY"] == 1
+    assert scheduled_by_type["ARRIVAL_DAY"] == 0
+    assert scheduled_by_type["GAME_DAY"] == 3
     assert scheduled_by_type["DEPARTURE_DAY"] == 1
     assert diagnostics["scheduledByDay"] == {
-        "2026-08-14": 1,
-        "2026-08-15": 1,
+        "2026-08-14": 0,
+        "2026-08-15": 3,
         "2026-08-16": 1,
     }
 
@@ -532,7 +532,7 @@ def test_meeting_auto_fill_result_sample_is_valid() -> None:
         )
     )
 
-    assert result.algorithm_version == "auto-fill-v0.5"
+    assert result.algorithm_version == "auto-fill-v0.6"
     assert result.auto_fill_applied is True
     assert result.auto_recommended_place_count == 3
     assert sum(
