@@ -214,6 +214,26 @@ placeholder seed는 production 환경에서 실행하지 않는다.
 `shortDescription`은 `overview`의 줄바꿈과 연속 공백을 한 줄로 정규화한 값이며,
 원본 `overview`를 대체하지 않는다. 소개가 없으면 `null`일 수 있다.
 
+## 여행 상태
+
+`Trip.status`는 다음 상태만 사용한다. `ACTIVE`는 여행 상태가 아니며 더 이상
+저장하지 않는다.
+
+| 상태 | 의미 | 다음 정상 상태 |
+| --- | --- | --- |
+| `PLANNING` | 여행 생성 후 일정 입력·후보 선택 중 | `GENERATING` |
+| `GENERATING` | 일정 생성 작업이 실행 중인 임시 상태 | `GENERATED` 또는 실패 전 상태 |
+| `GENERATED` | 현재 일정 Plan이 생성된 상태 | 재생성 시 `GENERATING` |
+| `COMPLETED` | 여행이 종료되어 확정된 상태 | 없음 |
+| `CANCELLED` | 여행이 취소된 상태 | 없음 |
+
+Cloud Run 강제 종료 등으로 `GENERATING`이 10분 이상 유지되면 다음 일정 생성
+요청에서 오래된 작업으로 판단한다. `activePlanId`가 있으면 `GENERATED`, 없으면
+`PLANNING`으로 원자적으로 복구한 뒤 새 생성을 시작한다.
+
+`ItineraryPlan.status=ACTIVE`와 Trip의 `activePlanId`는 별도 개념이다. 전자는
+여러 Plan 중 현재 사용 중인 Plan을 표시하고, 후자는 그 Plan ID를 가리킨다.
+
 ### 직관 로그 일정 조회
 
 `GET /api/v1/attendance-logs/{attendanceLogId}/itinerary`는 직관 로그와
@@ -433,3 +453,128 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 - `ODSAY`는 기존 Firestore 저장 일정의 역직렬화 하위 호환을 위한 enum 값으로만 유지하며 ODsay API를 호출하지 않는다.
 - `FAKE`는 테스트와 Mock 전용이다.
 - 이동이 없는 첫 Item은 `travelMode`, `travelTimeSource`가 `null`일 수 있다.
+
+<!-- attendance-archive:start -->
+
+## 직관 로그 아카이브 API
+
+### GET `/api/v1/attendance-logs`
+
+로그인한 사용자의 직관 로그를 아카이브 휠 화면용으로 조회한다.
+
+#### Query Parameters
+
+| 이름 | 타입 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- | --- |
+| `pageSize` | integer | X | `12` | 페이지 크기. 1~50 |
+| `pageToken` | string | X | - | 이전 응답의 `nextPageToken` |
+
+#### 주요 응답 필드
+
+| 필드 | 설명 |
+| --- | --- |
+| `attendanceLogId` | 직관 로그 ID |
+| `tripId` | 연결된 여행 ID |
+| `gameId` | 경기 ID |
+| `planId` | 로그 생성 시점 일정 ID |
+| `logTitle` | 직관 로그 제목 |
+| `summaryText` | 한 줄 직관 메모 |
+| `seat` | 좌석 정보 |
+| `gameStartAt` | 경기 시작 시각 |
+| `stadiumName` | 경기장 이름 |
+| `homeTeamName` | 홈 팀 이름 |
+| `awayTeamName` | 원정 팀 이름 |
+| `homeScore` | 홈 팀 점수 |
+| `awayScore` | 원정 팀 점수 |
+| `homeSide` | `HOME`, `AWAY`, `OTHER` |
+| `result` | `WIN`, `LOSS`, `DRAW` 또는 `null` |
+| `coverImageUrl` | 대표 이미지 URL 또는 `null` |
+| `logStatus` | 로그 상태 |
+| `visibility` | 공개 범위 |
+
+`homeSide`와 `result`는 직관 로그 생성 시점에 저장된 `supportTeamId`를 기준으로 계산한다.
+응원팀이 경기에 참가하지 않으면 `homeSide=OTHER`, `result=null`이다.
+경기 점수가 없는 경우에도 `result`는 `null`이다.
+
+대표 이미지는 Entry 순서와 Media 순서를 기준으로
+가장 먼저 발견되는 `IMAGE`를 사용한다.
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "count": 0,
+    "nextPageToken": null
+  }
+}
+```
+
+### PATCH `/api/v1/attendance-logs/{attendanceLogId}`
+
+`seat`를 함께 수정할 수 있으며 `null`을 전달하면 좌석 정보를 삭제한다.
+
+```json
+{
+  "summaryText": "역전승 직관",
+  "seat": "1루 내야 101구역 10열"
+}
+```
+
+```json
+{
+  "seat": null
+}
+```
+
+기존 로그처럼 `supportTeamId` snapshot이 없는 경우에는 현재 사용자의 응원팀을 fallback으로 사용한다.
+
+<!-- attendance-archive:end -->
+
+<!-- attendance-stats:start -->
+
+## 마이페이지 직관 통계 API
+
+### GET `/api/v1/users/me/attendance-stats`
+
+로그인한 사용자의 직관 로그와 실제 경기 결과를 기반으로 마이페이지용 직관 통계를 반환한다.
+
+#### 집계 기준
+
+- 직관 로그에 저장된 생성 시점 `supportTeamId` snapshot을 기준으로 집계한다.
+- 기존 로그에 snapshot이 없으면 현재 사용자의 응원팀을 fallback으로 사용한다.
+- 응원팀이 해당 경기에 참가하지 않은 `OTHER` 경기는 팀 승률 통계에서 제외한다.
+- 점수가 없는 경기는 직관 횟수에는 포함하지만 승률 계산에서는 제외한다.
+- 무승부는 승률 분모에 포함하며 승수에는 포함하지 않는다.
+- 최근 10경기는 `gameStartAt` 기준 최신 순으로 최대 10건을 사용한다.
+- 요일은 경기 시작 시각의 요일을 기준으로 집계한다.
+
+#### 주요 응답 필드
+
+| 필드 | 설명 |
+| --- | --- |
+| `awayTripCount` | 응원팀이 원정팀이었던 직관 횟수 |
+| `awayWinCount` | 원정 직관 중 승리 횟수 |
+| `homeAttendanceCount` | 응원팀이 홈팀이었던 직관 횟수 |
+| `homeWinRate` | 홈 직관 승률. 집계 가능한 결과가 없으면 `null` |
+| `awayWinRate` | 원정 직관 승률. 집계 가능한 결과가 없으면 `null` |
+| `recent10AttendanceCount` | 최근 통계에 포함된 직관 수. 최대 10 |
+| `recent10WinRate` | 최근 최대 10번 직관 승률 |
+| `weekdayStats` | 월요일~일요일 요일별 직관 통계 |
+
+#### `weekdayStats`
+
+| 필드 | 설명 |
+| --- | --- |
+| `weekday` | `MONDAY` ~ `SUNDAY` |
+| `attendanceCount` | 해당 요일 직관 횟수 |
+| `winCount` | 승리 횟수 |
+| `lossCount` | 패배 횟수 |
+| `drawCount` | 무승부 횟수 |
+| `winRate` | 해당 요일 승률. 집계 가능한 결과가 없으면 `null` |
+
+승률 계산식:
+
+`wins / (wins + losses + draws) * 100`
+
+<!-- attendance-stats:end -->

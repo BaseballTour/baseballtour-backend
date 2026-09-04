@@ -6,6 +6,8 @@ import pytest
 
 from app.core.exceptions import AppException
 from app.schemas.attendance_log import (
+    AttendanceLogGameResult,
+    AttendanceLogHomeSide,
     AttendanceLogRecord,
     AttendanceLogStatus,
     LogEntryType,
@@ -214,6 +216,13 @@ def make_service(
 
     log_entry_repository = Mock()
 
+    user_repository = Mock()
+    user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id="doosan",
+        )
+    )
+
     service = AttendanceLogService(
         trip_repository=trip_repository,
         game_repository=game_repository,
@@ -222,6 +231,7 @@ def make_service(
             attendance_log_repository
         ),
         log_entry_repository=log_entry_repository,
+        user_repository=user_repository,
     )
 
     return SimpleNamespace(
@@ -233,6 +243,7 @@ def make_service(
             attendance_log_repository
         ),
         log_entry_repository=log_entry_repository,
+        user_repository=user_repository,
     )
 
 
@@ -1057,3 +1068,573 @@ def test_public_log_itinerary_still_rejects_other_user() -> None:
     )
 
     context.plan_repository.get_by_id.assert_not_called()
+
+
+def make_archive_service(
+    *,
+    records=None,
+    support_team_id="doosan",
+    game=None,
+    entries=None,
+    media_by_entry=None,
+):
+    from app.schemas.attendance_log import LogMediaType
+
+    attendance_repository = Mock()
+    attendance_repository.get_by_user_id.return_value = (
+        records or []
+    )
+
+    user_repository = Mock()
+    user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id=support_team_id,
+        )
+    )
+
+    game_service = Mock()
+    game_service.get_game.return_value = (
+        game
+        or SimpleNamespace(
+            game_start_at=NOW,
+            stadium=SimpleNamespace(
+                name="사직야구장",
+            ),
+            home_team=SimpleNamespace(
+                team_id="lotte",
+                name="롯데 자이언츠",
+            ),
+            away_team=SimpleNamespace(
+                team_id="doosan",
+                name="두산 베어스",
+            ),
+            home_score=3,
+            away_score=5,
+        )
+    )
+
+    log_entry_repository = Mock()
+    log_entry_repository.get_all.return_value = (
+        entries or []
+    )
+
+    log_media_repository = Mock()
+
+    media_by_entry = media_by_entry or {}
+
+    def get_media(
+        attendance_log_id,
+        log_entry_id,
+    ):
+        return media_by_entry.get(
+            log_entry_id,
+            [],
+        )
+
+    log_media_repository.get_all.side_effect = get_media
+
+    storage_service = Mock()
+    storage_service.create_download_url.side_effect = (
+        lambda path: f"https://signed.example/{path}"
+    )
+
+    service = AttendanceLogService(
+        attendance_log_repository=(
+            attendance_repository
+        ),
+        log_entry_repository=(
+            log_entry_repository
+        ),
+        log_media_repository=(
+            log_media_repository
+        ),
+        storage_service=storage_service,
+        user_repository=user_repository,
+        game_service=game_service,
+    )
+
+    return SimpleNamespace(
+        service=service,
+        attendance_repository=(
+            attendance_repository
+        ),
+        user_repository=user_repository,
+        game_service=game_service,
+        log_entry_repository=(
+            log_entry_repository
+        ),
+        log_media_repository=(
+            log_media_repository
+        ),
+        storage_service=storage_service,
+        LogMediaType=LogMediaType,
+    )
+
+
+def make_archive_record(
+    *,
+    attendance_log_id="log_001",
+    created_at=NOW,
+):
+    from app.schemas.attendance_log import (
+        AttendanceLogVisibility,
+    )
+
+    return AttendanceLogRecord(
+        attendance_log_id=attendance_log_id,
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        game_id=GAME_ID,
+        plan_id=PLAN_ID,
+        log_title="부산 직관 여행",
+        summary_text="역전승 직관",
+        log_status=AttendanceLogStatus.PUBLISHED,
+        visibility=AttendanceLogVisibility.PRIVATE,
+        created_at=created_at,
+        updated_at=created_at,
+        deleted_at=None,
+    )
+
+
+def test_archive_log_resolves_away_win() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogGameResult,
+        AttendanceLogHomeSide,
+    )
+
+    context = make_archive_service(
+        records=[make_archive_record()],
+        support_team_id="doosan",
+    )
+
+    data, next_page_token = (
+        context.service.list_archive_logs(
+            user_id=USER_ID,
+            page_size=12,
+        )
+    )
+
+    assert len(data) == 1
+    assert next_page_token is None
+
+    item = data[0]
+
+    assert item.stadium_name == "사직야구장"
+    assert item.home_team_name == "롯데 자이언츠"
+    assert item.away_team_name == "두산 베어스"
+    assert item.home_score == 3
+    assert item.away_score == 5
+
+    assert (
+        item.home_side
+        == AttendanceLogHomeSide.AWAY
+    )
+    assert (
+        item.result
+        == AttendanceLogGameResult.WIN
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "support_team_id",
+        "home_score",
+        "away_score",
+        "expected_side",
+        "expected_result",
+    ),
+    [
+        ("lotte", 5, 3, "HOME", "WIN"),
+        ("lotte", 3, 5, "HOME", "LOSS"),
+        ("doosan", 3, 5, "AWAY", "WIN"),
+        ("doosan", 5, 3, "AWAY", "LOSS"),
+        ("doosan", 4, 4, "AWAY", "DRAW"),
+        ("lg", 5, 3, "OTHER", None),
+        ("lotte", None, None, "HOME", None),
+    ],
+)
+def test_archive_log_result_matrix(
+    support_team_id,
+    home_score,
+    away_score,
+    expected_side,
+    expected_result,
+) -> None:
+    game = SimpleNamespace(
+        game_start_at=NOW,
+        stadium=SimpleNamespace(
+            name="사직야구장",
+        ),
+        home_team=SimpleNamespace(
+            team_id="lotte",
+            name="롯데 자이언츠",
+        ),
+        away_team=SimpleNamespace(
+            team_id="doosan",
+            name="두산 베어스",
+        ),
+        home_score=home_score,
+        away_score=away_score,
+    )
+
+    context = make_archive_service(
+        records=[make_archive_record()],
+        support_team_id=support_team_id,
+        game=game,
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    item = data[0]
+
+    assert item.home_side.value == expected_side
+
+    if expected_result is None:
+        assert item.result is None
+    else:
+        assert item.result.value == expected_result
+
+
+def test_archive_log_uses_first_image_as_cover() -> None:
+    context = make_archive_service(
+        records=[make_archive_record()],
+        entries=[
+            SimpleNamespace(
+                log_entry_id="entry_001",
+            ),
+            SimpleNamespace(
+                log_entry_id="entry_002",
+            ),
+        ],
+    )
+
+    context.log_media_repository.get_all.side_effect = (
+        lambda attendance_log_id, entry_id: {
+            "entry_001": [
+                SimpleNamespace(
+                    media_type=(
+                        context.LogMediaType.VIDEO
+                    ),
+                    storage_path=(
+                        "users/test/video.mp4"
+                    ),
+                    media_url=None,
+                ),
+            ],
+            "entry_002": [
+                SimpleNamespace(
+                    media_type=(
+                        context.LogMediaType.IMAGE
+                    ),
+                    storage_path=(
+                        "users/test/photo.png"
+                    ),
+                    media_url=None,
+                ),
+            ],
+        }.get(entry_id, [])
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    assert (
+        data[0].cover_image_url
+        == (
+            "https://signed.example/"
+            "users/test/photo.png"
+        )
+    )
+
+    context.storage_service.create_download_url.assert_called_once_with(
+        "users/test/photo.png"
+    )
+
+
+def test_archive_log_pagination() -> None:
+    from datetime import timedelta
+
+    records = [
+        make_archive_record(
+            attendance_log_id="log_003",
+            created_at=NOW,
+        ),
+        make_archive_record(
+            attendance_log_id="log_002",
+            created_at=NOW - timedelta(minutes=1),
+        ),
+        make_archive_record(
+            attendance_log_id="log_001",
+            created_at=NOW - timedelta(minutes=2),
+        ),
+    ]
+
+    context = make_archive_service(
+        records=records,
+    )
+
+    first, next_token = (
+        context.service.list_archive_logs(
+            user_id=USER_ID,
+            page_size=2,
+        )
+    )
+
+    assert [
+        item.attendance_log_id
+        for item in first
+    ] == [
+        "log_003",
+        "log_002",
+    ]
+
+    assert next_token is not None
+
+    second, last_token = (
+        context.service.list_archive_logs(
+            user_id=USER_ID,
+            page_size=2,
+            page_token=next_token,
+        )
+    )
+
+    assert [
+        item.attendance_log_id
+        for item in second
+    ] == [
+        "log_001",
+    ]
+
+    assert last_token is None
+
+
+def test_archive_log_rejects_invalid_page_token() -> None:
+    context = make_archive_service(
+        records=[make_archive_record()],
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.list_archive_logs(
+            user_id=USER_ID,
+            page_token="not-a-valid-token",
+        )
+
+    assert captured.value.status_code == 400
+    assert (
+        captured.value.code
+        == "INVALID_PAGE_TOKEN"
+    )
+
+
+@pytest.mark.parametrize(
+    "seat_value",
+    [
+        "3루 내야 B블록 15열",
+        None,
+    ],
+)
+def test_update_log_updates_or_clears_seat(
+    seat_value,
+) -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    repository = Mock()
+
+    current = make_archive_record()
+    repository.get_by_id.return_value = current
+
+    updated = current.model_copy(
+        update={"seat": seat_value}
+    )
+    repository.update.return_value = updated
+
+    service = AttendanceLogService(
+        trip_repository=Mock(),
+        game_repository=Mock(),
+        itinerary_plan_repository=Mock(),
+        attendance_log_repository=repository,
+        log_entry_repository=Mock(),
+    )
+
+    result = service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=AttendanceLogUpdateRequest(
+            seat=seat_value
+        ),
+    )
+
+    assert result.seat == seat_value
+
+    updates = repository.update.call_args.args[1]
+
+    assert "seat" in updates
+    assert updates["seat"] == seat_value
+    assert "updatedAt" in updates
+
+
+def test_archive_log_includes_seat() -> None:
+    record = make_archive_record().model_copy(
+        update={
+            "seat": "3루 내야 B블록 15열",
+        }
+    )
+
+    context = make_archive_service(
+        records=[record],
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    assert (
+        data[0].seat
+        == "3루 내야 B블록 15열"
+    )
+
+
+def test_create_draft_snapshots_support_team() -> None:
+    context = make_service()
+
+    result = context.service.create_draft(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    assert result.support_team_id == "doosan"
+
+    document = (
+        context.attendance_log_repository
+        .create.call_args.args[0]
+    )
+
+    assert document.support_team_id == "doosan"
+
+
+def test_archive_uses_log_support_team_snapshot() -> None:
+    record = make_archive_record().model_copy(
+        update={
+            "support_team_id": "away",
+        }
+    )
+
+    context = make_archive_service(
+        records=[record],
+    )
+
+    context.user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id="home",
+        )
+    )
+
+    context.game_service.get_game.return_value = (
+        SimpleNamespace(
+            game_start_at=NOW,
+            stadium=SimpleNamespace(name="테스트구장"),
+            home_team=SimpleNamespace(
+                team_id="home",
+                name="홈팀",
+            ),
+            away_team=SimpleNamespace(
+                team_id="away",
+                name="원정팀",
+            ),
+            home_score=1,
+            away_score=3,
+        )
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    assert (
+        data[0].home_side
+        == AttendanceLogHomeSide.AWAY
+    )
+    assert (
+        data[0].result
+        == AttendanceLogGameResult.WIN
+    )
+
+
+def test_archive_legacy_log_falls_back_to_current_support_team() -> None:
+    record = make_archive_record().model_copy(
+        update={
+            "support_team_id": None,
+        }
+    )
+
+    context = make_archive_service(
+        records=[record],
+    )
+
+    context.user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id="home",
+        )
+    )
+
+    context.game_service.get_game.return_value = (
+        SimpleNamespace(
+            game_start_at=NOW,
+            stadium=SimpleNamespace(name="테스트구장"),
+            home_team=SimpleNamespace(
+                team_id="home",
+                name="홈팀",
+            ),
+            away_team=SimpleNamespace(
+                team_id="away",
+                name="원정팀",
+            ),
+            home_score=3,
+            away_score=1,
+        )
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    assert (
+        data[0].home_side
+        == AttendanceLogHomeSide.HOME
+    )
+    assert (
+        data[0].result
+        == AttendanceLogGameResult.WIN
+    )
+
+
+@pytest.mark.parametrize(
+    "page_token",
+    [
+        "a",
+        "한글",
+    ],
+)
+def test_archive_rejects_malformed_page_token(
+    page_token: str,
+) -> None:
+    context = make_archive_service(
+        records=[],
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.list_archive_logs(
+            user_id=USER_ID,
+            page_token=page_token,
+        )
+
+    assert captured.value.status_code == 400
+    assert (
+        captured.value.code
+        == "INVALID_PAGE_TOKEN"
+    )

@@ -4,6 +4,7 @@ from fastapi import (
     APIRouter,
     Depends,
     Path,
+    Query,
     status,
 )
 
@@ -11,6 +12,7 @@ from app.api.dependencies.auth import (
     get_current_active_user_id,
 )
 from app.schemas.attendance_log import (
+    AttendanceLogArchiveItemResponse,
     AttendanceLogCreateRequest,
     AttendanceLogDetailResponse,
     AttendanceLogResponse,
@@ -92,27 +94,54 @@ def create_attendance_log(
 @router.get(
     "",
     response_model=ListSuccessResponse[
-        AttendanceLogResponse
+        AttendanceLogArchiveItemResponse
     ],
-    summary="내 직관 로그 목록 조회",
+    summary="내 직관 로그 아카이브 목록 조회",
+    description=(
+        "직관 로그 휠 화면에 필요한 경기, 구장, "
+        "승패, 대표 사진 정보를 함께 반환합니다."
+    ),
 )
 def list_attendance_logs(
     user_id: Annotated[
         str,
         Depends(get_current_active_user_id),
     ],
+    page_size: Annotated[
+        int,
+        Query(
+            alias="pageSize",
+            ge=1,
+            le=50,
+            description="한 페이지 직관 로그 개수",
+        ),
+    ] = 12,
+    page_token: Annotated[
+        str | None,
+        Query(
+            alias="pageToken",
+            description=(
+                "이전 응답의 nextPageToken. "
+                "첫 요청에서는 생략합니다."
+            ),
+        ),
+    ] = None,
 ) -> ListSuccessResponse[
-    AttendanceLogResponse
+    AttendanceLogArchiveItemResponse
 ]:
-    data = AttendanceLogService().list_logs(
-        user_id=user_id
+    data, next_page_token = (
+        AttendanceLogService().list_archive_logs(
+            user_id=user_id,
+            page_size=page_size,
+            page_token=page_token,
+        )
     )
 
     return ListSuccessResponse(
         data=data,
         meta=ListMeta(
             count=len(data),
-            next_page_token=None,
+            next_page_token=next_page_token,
         ),
     )
 

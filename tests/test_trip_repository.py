@@ -548,6 +548,85 @@ def test_claim_generation_only_updates_expected_status(
     assert duplicate_claim is None
 
 
+def test_claim_generation_accepts_legacy_active_trip_with_plan(monkeypatch) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+    trip = seed_trip(repository, client, create_trip_document())
+    client.collections["trips"][trip.trip_id].update(
+        {"status": "ACTIVE", "activePlanId": "plan_existing"}
+    )
+
+    claimed = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.GENERATED,
+        updated_at=datetime(2026, 8, 20, 3, 0, tzinfo=timezone.utc),
+    )
+
+    assert claimed is not None
+    assert claimed.status == TripStatus.GENERATING
+    assert repository.get_by_id(trip.trip_id).status == TripStatus.GENERATING
+
+
+def test_recover_stale_generation_uses_existing_plan_state(monkeypatch) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+    trip = seed_trip(repository, client, create_trip_document())
+    stale_at = datetime(2026, 8, 20, 1, 0, tzinfo=timezone.utc)
+    recovered_at = datetime(2026, 8, 20, 2, 0, tzinfo=timezone.utc)
+    client.collections["trips"][trip.trip_id].update(
+        {
+            "status": "GENERATING",
+            "activePlanId": "plan_existing",
+            "updatedAt": stale_at,
+        }
+    )
+
+    recovered = repository.recover_stale_generation(
+        trip_id=trip.trip_id,
+        stale_before=datetime(2026, 8, 20, 1, 50, tzinfo=timezone.utc),
+        updated_at=recovered_at,
+    )
+
+    assert recovered is not None
+    assert recovered.status == TripStatus.GENERATED
+    assert repository.get_by_id(trip.trip_id).status == TripStatus.GENERATED
+
+
+def test_recover_stale_generation_keeps_fresh_generation(monkeypatch) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+    trip = seed_trip(repository, client, create_trip_document())
+    started_at = datetime(2026, 8, 20, 1, 55, tzinfo=timezone.utc)
+    client.collections["trips"][trip.trip_id].update(
+        {"status": "GENERATING", "updatedAt": started_at}
+    )
+
+    current = repository.recover_stale_generation(
+        trip_id=trip.trip_id,
+        stale_before=datetime(2026, 8, 20, 1, 50, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 8, 20, 2, 0, tzinfo=timezone.utc),
+    )
+
+    assert current is not None
+    assert current.status == TripStatus.GENERATING
+    assert repository.get_by_id(trip.trip_id).status == TripStatus.GENERATING
+
+
 def test_create_idempotent_reuses_same_trip(
     monkeypatch,
 ) -> None:

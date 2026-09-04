@@ -86,6 +86,16 @@ class AttendanceLogUpdateRequest(ApiModel):
 
     summary_text: str | None = None
 
+    seat: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description=(
+            "관람 좌석 정보. 예: 3루 내야 B블록 15열. "
+            "null이면 삭제합니다."
+        ),
+    )
+
     log_status: AttendanceLogStatus | None = None
 
     visibility: AttendanceLogVisibility | None = None
@@ -154,12 +164,26 @@ class AttendanceLogDocument(ApiModel):
         description="로그 생성 시점의 확정 일정 ID",
     )
 
+    support_team_id: str | None = Field(
+        default=None,
+        description=(
+            "직관 로그 생성 당시 사용자의 응원팀 ID. "
+            "기존 로그 호환을 위해 null을 허용합니다."
+        ),
+    )
+
     log_title: str = Field(
         min_length=1,
         max_length=150,
     )
 
     summary_text: str | None = None
+
+    seat: str | None = Field(
+        default=None,
+        max_length=100,
+        description="관람 좌석 정보",
+    )
 
     log_status: AttendanceLogStatus = (
         AttendanceLogStatus.DRAFT
@@ -390,9 +414,59 @@ class AttendanceLogResponse(ApiModel):
 
     log_title: str
     summary_text: str | None = None
+    seat: str | None = None
     log_status: AttendanceLogStatus
 
     visibility: AttendanceLogVisibility
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class AttendanceLogHomeSide(str, Enum):
+    """응원팀 기준 해당 경기의 홈/원정 구분."""
+
+    HOME = "HOME"
+    AWAY = "AWAY"
+    OTHER = "OTHER"
+
+
+class AttendanceLogGameResult(str, Enum):
+    """응원팀 기준 직관 경기 결과."""
+
+    WIN = "WIN"
+    LOSS = "LOSS"
+    DRAW = "DRAW"
+
+
+class AttendanceLogArchiveItemResponse(ApiModel):
+    """직관 로그 아카이브 휠 카드 응답."""
+
+    attendance_log_id: str
+    trip_id: str
+    game_id: str
+    plan_id: str | None = None
+
+    log_title: str
+    summary_text: str | None = None
+    seat: str | None = None
+
+    game_start_at: AwareDatetime
+    stadium_name: str
+
+    home_team_name: str
+    away_team_name: str
+
+    home_score: int | None = None
+    away_score: int | None = None
+
+    home_side: AttendanceLogHomeSide
+    result: AttendanceLogGameResult | None = None
+
+    cover_image_url: str | None = None
+
+    log_status: AttendanceLogStatus
+    visibility: AttendanceLogVisibility
+
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

@@ -240,3 +240,37 @@ def test_attendance_log_update_rejects_null_visibility() -> None:
         AttendanceLogUpdateRequest(
             visibility=None
         )
+
+
+def test_attendance_log_support_team_snapshot_uses_camel_case() -> None:
+    document = AttendanceLogDocument(
+        user_id="firebase-user-123",
+        trip_id="trip_001",
+        game_id="game_001",
+        plan_id="plan_001",
+        support_team_id="doosan",
+        log_title="직관 기록",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    stored = document.model_dump(
+        by_alias=True,
+        exclude_none=False,
+    )
+
+    assert stored["supportTeamId"] == "doosan"
+
+
+def test_legacy_attendance_log_allows_missing_support_team_snapshot() -> None:
+    document = AttendanceLogDocument(
+        user_id="firebase-user-123",
+        trip_id="trip_001",
+        game_id="game_001",
+        plan_id="plan_001",
+        log_title="기존 직관 기록",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    assert document.support_team_id is None

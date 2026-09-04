@@ -224,9 +224,9 @@ class TripRepository:
 
             data = snapshot.to_dict() or {}
 
-            current = TripRecord(
+            current = self._to_record(
                 trip_id=snapshot.id,
-                **data,
+                data=data,
             )
 
             if current.status != expected_status:
@@ -243,6 +243,54 @@ class TripRepository:
             return current.model_copy(
                 update={
                     "status": TripStatus.GENERATING,
+                    "updated_at": updated_at,
+                }
+            )
+
+        return commit(transaction)
+
+
+    def recover_stale_generation(
+        self,
+        *,
+        trip_id: str,
+        stale_before: datetime,
+        updated_at: datetime,
+    ) -> TripRecord | None:
+        """오래 멈춘 GENERATING 상태를 원자적으로 이전 정상 상태로 복구합니다."""
+
+        document_reference = self._collection.document(trip_id)
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction) -> TripRecord | None:
+            snapshot = document_reference.get(transaction=transaction)
+            if not snapshot.exists:
+                return None
+
+            data = snapshot.to_dict() or {}
+            current = self._to_record(trip_id=snapshot.id, data=data)
+            if (
+                current.status != TripStatus.GENERATING
+                or current.updated_at > stale_before
+            ):
+                return current
+
+            restored_status = (
+                TripStatus.GENERATED
+                if current.active_plan_id
+                else TripStatus.PLANNING
+            )
+            transaction.update(
+                document_reference,
+                {
+                    "status": restored_status.value,
+                    "updatedAt": updated_at,
+                },
+            )
+            return current.model_copy(
+                update={
+                    "status": restored_status,
                     "updated_at": updated_at,
                 }
             )

@@ -1,3 +1,6 @@
+import base64
+import binascii
+import json
 from datetime import datetime, timezone
 
 from fastapi import status
@@ -18,9 +21,13 @@ from app.repositories.log_media_repository import (
     LogMediaRepository,
 )
 from app.repositories.trip_repository import TripRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.attendance_log import (
+    AttendanceLogArchiveItemResponse,
     AttendanceLogDetailResponse,
     AttendanceLogDocument,
+    AttendanceLogGameResult,
+    AttendanceLogHomeSide,
     AttendanceLogRecord,
     AttendanceLogResponse,
     AttendanceLogStatus,
@@ -31,12 +38,18 @@ from app.schemas.attendance_log import (
     LogEntryType,
     LogEntryUpdateRequest,
     LogMediaResponse,
+    LogMediaType,
 )
 from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
     ItineraryPlanStatus,
 )
 from app.schemas.trip import TripRecord
+from app.services.attendance_result import (
+    resolve_game_result,
+    resolve_home_side,
+)
+from app.services.game_service import GameService
 from app.services.storage_service import StorageService
 
 
@@ -61,6 +74,12 @@ class AttendanceLogService:
         ) = None,
         storage_service: (
             StorageService | None
+        ) = None,
+        user_repository: (
+            UserRepository | None
+        ) = None,
+        game_service: (
+            GameService | None
         ) = None,
     ) -> None:
         self._trip_repository = (
@@ -93,6 +112,12 @@ class AttendanceLogService:
         self._storage_service = (
             storage_service
         )
+        self._user_repository = (
+            user_repository
+        )
+        self._game_service = (
+            game_service
+        )
 
     def create_draft(
         self,
@@ -120,6 +145,17 @@ class AttendanceLogService:
             game_id=trip.game_id,
         )
 
+        user = self._get_user_repository().get_by_id(
+            user_id
+        )
+
+        if user is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="USER_NOT_FOUND",
+                message="사용자 정보를 찾을 수 없습니다.",
+            )
+
         now = datetime.now(timezone.utc)
 
         log_document = AttendanceLogDocument(
@@ -127,6 +163,7 @@ class AttendanceLogService:
             trip_id=trip.trip_id,
             game_id=trip.game_id,
             plan_id=plan.plan_id,
+            support_team_id=user.support_team_id,
             log_title=(
                 log_title
                 if log_title is not None
@@ -253,6 +290,89 @@ class AttendanceLogService:
             for record in records
         ]
 
+    def list_archive_logs(
+        self,
+        *,
+        user_id: str,
+        page_size: int = 12,
+        page_token: str | None = None,
+    ) -> tuple[
+        list[AttendanceLogArchiveItemResponse],
+        str | None,
+    ]:
+        """직관 로그 아카이브 휠용 목록을 반환합니다."""
+
+        user = self._get_user_repository().get_by_id(
+            user_id
+        )
+
+        if user is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="USER_NOT_FOUND",
+                message="사용자 정보를 찾을 수 없습니다.",
+            )
+
+        records = (
+            self._attendance_log_repository
+            .get_by_user_id(user_id)
+        )
+
+        cursor = None
+
+        if page_token is not None:
+            cursor = self._decode_archive_page_token(
+                page_token=page_token,
+                user_id=user_id,
+            )
+
+        if cursor is not None:
+            records = [
+                record
+                for record in records
+                if (
+                    record.created_at,
+                    record.attendance_log_id,
+                )
+                < cursor
+            ]
+
+        page_records = records[: page_size + 1]
+
+        has_next = len(page_records) > page_size
+
+        if has_next:
+            page_records = page_records[:page_size]
+
+        data = [
+            self._to_archive_response(
+                record=record,
+                support_team_id=(
+                    record.support_team_id
+                    if record.support_team_id is not None
+                    else user.support_team_id
+                ),
+            )
+            for record in page_records
+        ]
+
+        next_page_token = None
+
+        if has_next and page_records:
+            last = page_records[-1]
+
+            next_page_token = (
+                self._encode_archive_page_token(
+                    user_id=user_id,
+                    created_at=last.created_at,
+                    attendance_log_id=(
+                        last.attendance_log_id
+                    ),
+                )
+            )
+
+        return data, next_page_token
+
     def get_detail(
         self,
         *,
@@ -283,6 +403,7 @@ class AttendanceLogService:
             plan_id=attendance_log.plan_id,
             log_title=attendance_log.log_title,
             summary_text=attendance_log.summary_text,
+            seat=attendance_log.seat,
             log_status=attendance_log.log_status,
             visibility=attendance_log.visibility,
             created_at=attendance_log.created_at,
@@ -341,6 +462,9 @@ class AttendanceLogService:
             updates["summaryText"] = (
                 request.summary_text
             )
+
+        if "seat" in request.model_fields_set:
+            updates["seat"] = request.seat
 
         if (
             "log_status"
@@ -748,6 +872,218 @@ class AttendanceLogService:
 
         return self._storage_service
 
+    @staticmethod
+    def _encode_archive_page_token(
+        *,
+        user_id: str,
+        created_at: datetime,
+        attendance_log_id: str,
+    ) -> str:
+        payload = {
+            "userId": user_id,
+            "createdAt": created_at.isoformat(),
+            "attendanceLogId": attendance_log_id,
+        }
+
+        encoded = json.dumps(
+            payload,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+        return base64.urlsafe_b64encode(
+            encoded
+        ).decode("ascii")
+
+    @staticmethod
+    def _decode_archive_page_token(
+        *,
+        page_token: str,
+        user_id: str,
+    ) -> tuple[datetime, str]:
+        try:
+            decoded = base64.urlsafe_b64decode(
+                page_token.encode("ascii")
+            )
+
+            payload = json.loads(
+                decoded.decode("utf-8")
+            )
+
+            if payload["userId"] != user_id:
+                raise ValueError
+
+            created_at = datetime.fromisoformat(
+                payload["createdAt"]
+            )
+
+            if created_at.tzinfo is None:
+                raise ValueError
+
+            attendance_log_id = payload[
+                "attendanceLogId"
+            ]
+
+            if (
+                not isinstance(attendance_log_id, str)
+                or not attendance_log_id
+            ):
+                raise ValueError
+
+            return (
+                created_at,
+                attendance_log_id,
+            )
+
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            json.JSONDecodeError,
+            binascii.Error,
+            UnicodeError,
+        ) as exc:
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="INVALID_PAGE_TOKEN",
+                message=(
+                    "직관 로그 페이지 토큰이 "
+                    "올바르지 않습니다."
+                ),
+            ) from exc
+
+    def _get_user_repository(
+        self,
+    ) -> UserRepository:
+        if self._user_repository is None:
+            self._user_repository = UserRepository()
+
+        return self._user_repository
+
+    def _get_game_service(
+        self,
+    ) -> GameService:
+        if self._game_service is None:
+            self._game_service = GameService()
+
+        return self._game_service
+
+    def _to_archive_response(
+        self,
+        *,
+        record: AttendanceLogRecord,
+        support_team_id: str | None,
+    ) -> AttendanceLogArchiveItemResponse:
+        game = self._get_game_service().get_game(
+            record.game_id
+        )
+
+        home_side = self._resolve_home_side(
+            support_team_id=support_team_id,
+            home_team_id=game.home_team.team_id,
+            away_team_id=game.away_team.team_id,
+        )
+
+        result = self._resolve_game_result(
+            home_side=home_side,
+            home_score=game.home_score,
+            away_score=game.away_score,
+        )
+
+        cover_image_url = self._find_cover_image_url(
+            attendance_log_id=(
+                record.attendance_log_id
+            )
+        )
+
+        return AttendanceLogArchiveItemResponse(
+            attendance_log_id=(
+                record.attendance_log_id
+            ),
+            trip_id=record.trip_id,
+            game_id=record.game_id,
+            plan_id=record.plan_id,
+            log_title=record.log_title,
+            summary_text=record.summary_text,
+            seat=record.seat,
+            game_start_at=game.game_start_at,
+            stadium_name=game.stadium.name,
+            home_team_name=game.home_team.name,
+            away_team_name=game.away_team.name,
+            home_score=game.home_score,
+            away_score=game.away_score,
+            home_side=home_side,
+            result=result,
+            cover_image_url=cover_image_url,
+            log_status=record.log_status,
+            visibility=record.visibility,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+
+    @staticmethod
+    def _resolve_home_side(
+        *,
+        support_team_id: str | None,
+        home_team_id: str,
+        away_team_id: str,
+    ) -> AttendanceLogHomeSide:
+        return resolve_home_side(
+            support_team_id=support_team_id,
+            home_team_id=home_team_id,
+            away_team_id=away_team_id,
+        )
+
+    @staticmethod
+    def _resolve_game_result(
+        *,
+        home_side: AttendanceLogHomeSide,
+        home_score: int | None,
+        away_score: int | None,
+    ) -> AttendanceLogGameResult | None:
+        return resolve_game_result(
+            home_side=home_side,
+            home_score=home_score,
+            away_score=away_score,
+        )
+
+    def _find_cover_image_url(
+        self,
+        *,
+        attendance_log_id: str,
+    ) -> str | None:
+        entries = self._log_entry_repository.get_all(
+            attendance_log_id
+        )
+
+        for entry in entries:
+            media_items = (
+                self._get_log_media_repository()
+                .get_all(
+                    attendance_log_id,
+                    entry.log_entry_id,
+                )
+            )
+
+            for media in media_items:
+                if (
+                    media.media_type
+                    != LogMediaType.IMAGE
+                ):
+                    continue
+
+                if media.storage_path:
+                    return (
+                        self._get_storage_service()
+                        .create_download_url(
+                            media.storage_path
+                        )
+                    )
+
+                if media.media_url:
+                    return media.media_url
+
+        return None
+
     def _to_entry_response(
         self,
         *,
@@ -828,6 +1164,7 @@ class AttendanceLogService:
             plan_id=record.plan_id,
             log_title=record.log_title,
             summary_text=record.summary_text,
+            seat=record.seat,
             log_status=record.log_status,
             visibility=record.visibility,
             created_at=record.created_at,
