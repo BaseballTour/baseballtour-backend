@@ -600,9 +600,9 @@ def _fill_routes_with_recommendations(
                         )
                     )
                     score = (
+                        scheduled_per_day[target_date],
                         day_fill_priority,
                         -meal_gain,
-                        scheduled_per_day[target_date],
                         style_priority,
                         _meal_time_category_priority(
                             place, visit.start.time()

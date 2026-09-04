@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from app.core.exceptions import AppException
 from app.services import recommendation as recommendation_module
 from app.external.tour_api.adapter import NearbyPlacePage
 from app.models.place import (
@@ -366,19 +367,46 @@ async def test_nearby_or_detail_failure_does_not_fail_recommendation() -> None:
 
 
 @pytest.mark.anyio
-async def test_all_nearby_centers_failed_raises_timeout() -> None:
+async def test_all_nearby_centers_failed_raises_external_unavailable() -> None:
     adapter = Mock()
     adapter.get_nearby_place_page = AsyncMock(
         side_effect=RuntimeError("TourAPI unavailable")
     )
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(AppException) as exc_info:
         await RecommendationService(adapter).get_candidates(
             centers=[
                 RecommendationCenter(latitude=35.19, longitude=129.06),
                 RecommendationCenter(latitude=35.11, longitude=129.04),
             ]
         )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.code == "EXTERNAL_API_UNAVAILABLE"
+
+
+@pytest.mark.anyio
+async def test_all_nearby_centers_preserve_tour_api_timeout() -> None:
+    adapter = Mock()
+    timeout_error = AppException(
+        status_code=503,
+        code="EXTERNAL_API_TIMEOUT",
+        message="TourAPI 요청 시간이 초과되었습니다.",
+        details={"timeoutType": "ReadTimeout", "elapsedMs": 20250},
+    )
+    adapter.get_nearby_place_page = AsyncMock(side_effect=timeout_error)
+
+    with pytest.raises(AppException) as exc_info:
+        await RecommendationService(adapter).get_candidates(
+            centers=[
+                RecommendationCenter(latitude=35.19, longitude=129.06),
+                RecommendationCenter(latitude=35.11, longitude=129.04),
+            ]
+        )
+
+    assert exc_info.value is timeout_error
+    assert exc_info.value.code == "EXTERNAL_API_TIMEOUT"
+    assert exc_info.value.details["timeoutType"] == "ReadTimeout"
 
 
 @pytest.mark.anyio
@@ -429,6 +457,33 @@ async def test_default_candidate_pool_is_limited_before_detail_lookup() -> None:
     )
     assert adapter.get_nearby_place_page.await_count == 2
     assert adapter.get_place_detail.await_count == 20
+
+
+@pytest.mark.anyio
+async def test_candidate_pool_scales_for_four_day_trip() -> None:
+    candidates = [make_place(f"tour_{index}") for index in range(50)]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(places=candidates, next_page_token=None)
+    )
+    by_content_id = {
+        place.source_content_id: place for place in candidates
+    }
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: by_content_id[content_id]
+    )
+    diagnostics: dict[str, object] = {}
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=35.19, longitude=129.06)],
+        travel_start_date=date(2026, 9, 1),
+        travel_end_date=date(2026, 9, 4),
+        diagnostics=diagnostics,
+    )
+
+    assert len(result) == 32
+    assert adapter.get_place_detail.await_count == 32
+    assert diagnostics["candidatePoolTarget"] == 32
 
 
 @pytest.mark.anyio

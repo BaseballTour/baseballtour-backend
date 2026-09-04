@@ -40,6 +40,25 @@ def test_invalid_trip_document_logs_document_id_and_field_errors(
     assert "status" in caplog.text
 
 
+def test_legacy_active_trip_status_is_normalized_to_generated() -> None:
+    record = TripRepository._to_record(
+        trip_id="trip_legacy",
+        data={
+            "userId": "user_001",
+            "gameId": "game_001",
+            "title": "기존 여행",
+            "tripStartAt": datetime(2026, 8, 1, tzinfo=timezone.utc),
+            "tripEndAt": datetime(2026, 8, 2, tzinfo=timezone.utc),
+            "status": "ACTIVE",
+            "activePlanId": "plan_001",
+            "createdAt": datetime(2026, 8, 1, tzinfo=timezone.utc),
+            "updatedAt": datetime(2026, 8, 1, tzinfo=timezone.utc),
+        },
+    )
+
+    assert record.status == TripStatus.GENERATED
+
+
 class FakeDocumentSnapshot:
     def __init__(
         self,

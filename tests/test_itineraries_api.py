@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies.auth import get_current_active_user_id
+from app.core.exceptions import AppException
 from app.main import app
 from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
@@ -128,6 +129,48 @@ def test_create_itinerary_returns_created_plan(
         user_id=USER_ID,
         trip_id=TRIP_ID,
     )
+
+
+def test_recommendation_candidates_preserve_external_timeout_response(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_recommendation_candidates = AsyncMock(
+        side_effect=AppException(
+            status_code=503,
+            code="EXTERNAL_API_TIMEOUT",
+            message="TourAPI 요청 시간이 초과되었습니다.",
+            details={
+                "endpoint": "locationBasedList2",
+                "timeoutType": "ReadTimeout",
+                "attempts": 2,
+                "elapsedMs": 20250,
+            },
+        )
+    )
+
+    with patch(
+        "app.api.v1.endpoints.trips.ItineraryGenerationService",
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            f"/api/v1/trips/{TRIP_ID}/recommendation-candidates"
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "EXTERNAL_API_TIMEOUT",
+            "message": "TourAPI 요청 시간이 초과되었습니다.",
+            "details": [{
+                "endpoint": "locationBasedList2",
+                "timeoutType": "ReadTimeout",
+                "attempts": 2,
+                "elapsedMs": 20250,
+            }],
+        },
+    }
 
 
 def test_create_itinerary_has_no_request_body(

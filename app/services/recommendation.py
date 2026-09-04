@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
+from app.core.exceptions import AppException
 from app.external.tour_api.adapter import TourApiAdapter, tour_api_adapter
 from app.models.place import (
     BusinessRuleStatus,
@@ -24,6 +25,8 @@ DEFAULT_RECOMMENDATION_RADIUS_METERS = 10_000
 DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
 DEFAULT_MAX_PAGES_PER_CENTER = 3
 DEFAULT_MAX_CANDIDATES = 20
+MAX_DYNAMIC_CANDIDATES = 40
+CANDIDATES_PER_TRAVEL_DAY = 8
 DETAIL_CONCURRENCY = 5
 # HTTP client의 read timeout보다 짧게 취소하지 않는다. 두 번의 시도와
 # backoff를 포함해 요청 자체가 원인을 분류하고 로그를 남길 시간을 준다.
@@ -104,10 +107,23 @@ class RecommendationService:
                 for center in _deduplicate_centers(centers)
             )
         )
-        if center_results and all(failed for _, failed in center_results):
-            raise asyncio.TimeoutError(
-                "모든 추천 기준점의 TourAPI 조회에 실패했습니다."
+        failures = [error for _, error in center_results if error is not None]
+        if center_results and len(failures) == len(center_results):
+            # TourAPI client가 분류한 429/timeout 등의 원인을 API 응답까지
+            # 보존합니다. 원인을 버리고 일반 TimeoutError를 만들면 FastAPI가
+            # 처리하지 못해 500으로 잘못 응답합니다.
+            first_app_error = next(
+                (error for error in failures if isinstance(error, AppException)),
+                None,
             )
+            if first_app_error is not None:
+                raise first_app_error
+            raise AppException(
+                status_code=503,
+                code="EXTERNAL_API_UNAVAILABLE",
+                message="TourAPI 추천 장소를 일시적으로 조회할 수 없습니다.",
+                details={"failedCenterCount": len(failures)},
+            ) from failures[0]
 
         for places, _ in center_results:
             nearby_places.extend(places)
@@ -121,9 +137,14 @@ class RecommendationService:
         source_categories = Counter(
             _enum_value(place.category) for place in eligible
         )
+        effective_max_candidates = _candidate_pool_size(
+            configured_max=self._max_candidates,
+            travel_start_date=travel_start_date,
+            travel_end_date=travel_end_date,
+        )
         filtered = _select_diverse_candidates(
             eligible,
-            max_candidates=self._max_candidates,
+            max_candidates=effective_max_candidates,
             rejected=rejected,
         )
         detailed = await self._resolve_details(filtered)
@@ -184,6 +205,7 @@ class RecommendationService:
                         sorted(hours_statuses.items())
                     ),
                     "detailLookupCount": len(filtered),
+                    "candidatePoolTarget": effective_max_candidates,
                     "filteredCounts": dict(sorted(rejected.items())),
                 }
             )
@@ -192,10 +214,10 @@ class RecommendationService:
     async def _load_all_nearby_pages(
         self,
         center: RecommendationCenter,
-    ) -> tuple[list[Place], bool]:
+    ) -> tuple[list[Place], Exception | None]:
         places: list[Place] = []
         page_no = 1
-        first_page_failed = False
+        first_page_error: Exception | None = None
 
         while page_no <= self._max_pages_per_center:
             try:
@@ -211,17 +233,27 @@ class RecommendationService:
                 )
             except Exception as exc:
                 # 추천 실패는 사용자가 선택한 장소의 일정 생성을 막지 않습니다.
+                error_code = exc.code if isinstance(exc, AppException) else None
+                error_details = (
+                    exc.details
+                    if isinstance(exc, AppException)
+                    and isinstance(exc.details, dict)
+                    else None
+                )
                 logger.warning(
                     "TourAPI 추천 후보 조회를 건너뜁니다: page=%s "
                     "center_latitude=%s center_longitude=%s "
-                    "error_type=%s reason=%s",
+                    "error_type=%s error_code=%s error_details=%s reason=%s",
                     page_no,
                     center.latitude,
                     center.longitude,
                     type(exc).__name__,
+                    error_code,
+                    error_details,
                     exc,
                 )
-                first_page_failed = page_no == 1
+                if page_no == 1:
+                    first_page_error = exc
                 break
 
             places.extend(page.places)
@@ -238,7 +270,7 @@ class RecommendationService:
                 break
             page_no = next_page
 
-        return places, first_page_failed
+        return places, first_page_error
 
     async def _resolve_details(self, places: list[Place]) -> list[Place]:
         semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
@@ -396,6 +428,25 @@ def _select_diverse_candidates(
     ordered = sorted(places, key=_recommendation_sort_key)
     selected: list[Place] = []
     selected_ids: set[str] = set()
+    scale = max(1, math.ceil(max_candidates / DEFAULT_MAX_CANDIDATES))
+    dining_minimums = {
+        PlaceCategory.RESTAURANT: min(
+            max_candidates,
+            DINING_CATEGORY_MINIMUMS[PlaceCategory.RESTAURANT]
+            + 2 * (scale - 1),
+        ),
+        PlaceCategory.CAFE: min(
+            max_candidates,
+            DINING_CATEGORY_MINIMUMS[PlaceCategory.CAFE] + scale - 1,
+        ),
+    }
+    category_maximums = {
+        category: max(
+            maximum * scale,
+            dining_minimums.get(category, 0),
+        )
+        for category, maximum in CATEGORY_MAXIMUMS.items()
+    }
 
     breakfast_candidate = next(
         (
@@ -423,7 +474,7 @@ def _select_diverse_candidates(
             selected_ids.add(place.place_id)
             if sum(
                 item.category == category for item in selected
-            ) >= DINING_CATEGORY_MINIMUMS[category]:
+            ) >= dining_minimums[category]:
                 break
 
     category_order = sorted(
@@ -445,7 +496,7 @@ def _select_diverse_candidates(
         made_progress = False
         for category in category_order:
             queue = category_queues[category]
-            maximum = CATEGORY_MAXIMUMS.get(category, max_candidates)
+            maximum = category_maximums.get(category, max_candidates)
             if not queue or category_counts[category] >= maximum:
                 continue
             place = queue.pop(0)
@@ -464,7 +515,7 @@ def _select_diverse_candidates(
             break
         if place.place_id in selected_ids:
             continue
-        maximum = CATEGORY_MAXIMUMS.get(place.category, max_candidates)
+        maximum = category_maximums.get(place.category, max_candidates)
         if (
             (
                 place.category == PlaceCategory.RESTAURANT
@@ -484,6 +535,24 @@ def _select_diverse_candidates(
     if rejected is not None and len(selected) >= max_candidates:
         rejected["CANDIDATE_LIMIT"] += max(0, len(ordered) - len(selected))
     return sorted(selected, key=_recommendation_sort_key)
+
+
+def _candidate_pool_size(
+    *,
+    configured_max: int,
+    travel_start_date: date | None,
+    travel_end_date: date | None,
+) -> int:
+    """여행 일수에 비례해 후보 풀을 늘리되 외부 상세 호출은 제한한다."""
+
+    if travel_start_date is None or travel_end_date is None:
+        return configured_max
+    travel_days = max(1, (travel_end_date - travel_start_date).days + 1)
+    dynamic_target = min(
+        MAX_DYNAMIC_CANDIDATES,
+        travel_days * CANDIDATES_PER_TRAVEL_DAY,
+    )
+    return max(configured_max, dynamic_target)
 
 
 def _is_available_during_trip(

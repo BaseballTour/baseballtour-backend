@@ -416,7 +416,7 @@ def test_game_day_auto_fill_places_visit_before_stadium() -> None:
     assert place_item.scheduled_end_at < stadium_item.scheduled_start_at
 
 
-def test_auto_fill_prioritizes_game_gap_then_departure_gap() -> None:
+def test_auto_fill_balances_days_before_reusing_day_priority() -> None:
     recommendations = [
         place(f"priority_{index}") for index in range(1, 5)
     ]
@@ -437,13 +437,40 @@ def test_auto_fill_prioritizes_game_gap_then_departure_gap() -> None:
         )
         for day in result.days
     }
-    assert scheduled_by_type["ARRIVAL_DAY"] == 0
-    assert scheduled_by_type["GAME_DAY"] == 3
+    assert scheduled_by_type["ARRIVAL_DAY"] == 1
+    assert scheduled_by_type["GAME_DAY"] == 2
     assert scheduled_by_type["DEPARTURE_DAY"] == 1
     assert diagnostics["scheduledByDay"] == {
-        "2026-08-14": 0,
-        "2026-08-15": 3,
+        "2026-08-14": 1,
+        "2026-08-15": 2,
         "2026-08-16": 1,
+    }
+
+
+def test_four_day_trip_distributes_recommendations_across_every_day() -> None:
+    recommendations = [
+        place(f"four_day_{index}") for index in range(1, 9)
+    ]
+    four_day_trip = trip().model_copy(
+        update={
+            "trip_end_at": datetime(2026, 8, 17, 20, tzinfo=UTC),
+        }
+    )
+    diagnostics = {}
+
+    generate_itinerary(
+        four_day_trip,
+        [],
+        matrix(*(item.place_id for item in recommendations)),
+        recommended_places=recommendations,
+        recommendation_diagnostics=diagnostics,
+    )
+
+    assert diagnostics["scheduledByDay"] == {
+        "2026-08-14": 2,
+        "2026-08-15": 2,
+        "2026-08-16": 2,
+        "2026-08-17": 2,
     }
 
 
