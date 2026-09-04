@@ -7,112 +7,19 @@
   },
   "paths": {
     "/api/v1/attendance-logs": {
-      "get": {
-        "tags": [
-          "Attendance Logs"
-        ],
-        "summary": "내 직관 로그 목록 조회",
-        "operationId": "list_attendance_logs_api_v1_attendance_logs_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListSuccessResponse_AttendanceLogResponse_"
-                },
-                "examples": {
-                  "normal": {
-                    "summary": "정상 응답",
-                    "value": {
-                      "success": true,
-                      "data": [
-                        {
-                          "attendanceLogId": "log_001",
-                          "tripId": "trip_001",
-                          "gameId": "game_001",
-                          "planId": "plan_001",
-                          "logTitle": "사직 원정 직관 기록",
-                          "summaryText": "역전승을 직접 본 날",
-                          "logStatus": "PUBLISHED",
-                          "visibility": "PUBLIC",
-                          "createdAt": "2026-08-19T12:00:00+09:00",
-                          "updatedAt": "2026-08-19T13:00:00+09:00"
-                        }
-                      ],
-                      "meta": {
-                        "count": 1,
-                        "nextPageToken": null
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "요청 필드 검증 실패",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "examples": {
-                  "validation_error": {
-                    "value": {
-                      "success": false,
-                      "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "입력값을 확인해 주세요.",
-                        "details": [
-                          {
-                            "field": "scheduledStartAt",
-                            "reason": "Input should be a valid datetime"
-                          }
-                        ]
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "처리되지 않은 서버 오류",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "examples": {
-                  "internal_error": {
-                    "value": {
-                      "success": false,
-                      "error": {
-                        "code": "INTERNAL_SERVER_ERROR",
-                        "message": "서버 내부 오류가 발생했습니다.",
-                        "details": []
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      },
       "post": {
         "tags": [
           "Attendance Logs"
         ],
         "summary": "직관 로그 초안 생성",
         "operationId": "create_attendance_log_api_v1_attendance_logs_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -128,8 +35,7 @@
                 }
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -166,9 +72,6 @@
             "description": "요청 필드 검증 실패",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
                 "examples": {
                   "validation_error": {
                     "value": {
@@ -185,6 +88,9 @@
                       }
                     }
                   }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -193,9 +99,6 @@
             "description": "처리되지 않은 서버 오류",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
                 "examples": {
                   "internal_error": {
                     "value": {
@@ -207,16 +110,150 @@
                       }
                     }
                   }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           }
-        },
+        }
+      },
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "내 직관 로그 아카이브 목록 조회",
+        "description": "직관 로그 휠 화면에 필요한 경기, 구장, 승패, 대표 사진 정보를 함께 반환합니다.",
+        "operationId": "list_attendance_logs_api_v1_attendance_logs_get",
         "security": [
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "한 페이지 직관 로그 개수",
+              "default": 12,
+              "title": "Pagesize"
+            },
+            "description": "한 페이지에서 반환할 최대 장소 수",
+            "example": 20
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "이전 응답의 nextPageToken. 첫 요청에서는 생략합니다.",
+              "title": "Pagetoken"
+            },
+            "description": "이전 응답의 nextPageToken. 첫 요청에서는 생략",
+            "example": "2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_AttendanceLogArchiveItemResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "attendanceLogId": "log_001",
+                          "tripId": "trip_001",
+                          "gameId": "game_001",
+                          "planId": "plan_001",
+                          "logTitle": "사직 원정 직관 기록",
+                          "summaryText": "역전승을 직접 본 날",
+                          "logStatus": "PUBLISHED",
+                          "visibility": "PUBLIC",
+                          "createdAt": "2026-08-19T12:00:00+09:00",
+                          "updatedAt": "2026-08-19T13:00:00+09:00"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/attendance-logs/{attendanceLogId}": {
@@ -17024,6 +17061,157 @@
         ],
         "title": "AccommodationSelectionType"
       },
+      "AttendanceLogArchiveItemResponse": {
+        "properties": {
+          "attendanceLogId": {
+            "type": "string",
+            "title": "Attendancelogid"
+          },
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "planId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planid"
+          },
+          "logTitle": {
+            "type": "string",
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
+          },
+          "gameStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Gamestartat"
+          },
+          "stadiumName": {
+            "type": "string",
+            "title": "Stadiumname"
+          },
+          "homeTeamName": {
+            "type": "string",
+            "title": "Hometeamname"
+          },
+          "awayTeamName": {
+            "type": "string",
+            "title": "Awayteamname"
+          },
+          "homeScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homescore"
+          },
+          "awayScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awayscore"
+          },
+          "homeSide": {
+            "$ref": "#/components/schemas/AttendanceLogHomeSide"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendanceLogGameResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageurl"
+          },
+          "logStatus": {
+            "$ref": "#/components/schemas/AttendanceLogStatus"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/AttendanceLogVisibility"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attendanceLogId",
+          "tripId",
+          "gameId",
+          "logTitle",
+          "gameStartAt",
+          "stadiumName",
+          "homeTeamName",
+          "awayTeamName",
+          "homeSide",
+          "logStatus",
+          "visibility",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "AttendanceLogArchiveItemResponse",
+        "description": "직관 로그 아카이브 휠 카드 응답."
+      },
       "AttendanceLogCreateRequest": {
         "properties": {
           "tripId": {
@@ -17101,6 +17289,17 @@
             ],
             "title": "Summarytext"
           },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
+          },
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
           },
@@ -17139,6 +17338,26 @@
         ],
         "title": "AttendanceLogDetailResponse",
         "description": "직관 로그 상세 응답."
+      },
+      "AttendanceLogGameResult": {
+        "type": "string",
+        "enum": [
+          "WIN",
+          "LOSS",
+          "DRAW"
+        ],
+        "title": "AttendanceLogGameResult",
+        "description": "응원팀 기준 직관 경기 결과."
+      },
+      "AttendanceLogHomeSide": {
+        "type": "string",
+        "enum": [
+          "HOME",
+          "AWAY",
+          "OTHER"
+        ],
+        "title": "AttendanceLogHomeSide",
+        "description": "응원팀 기준 해당 경기의 홈/원정 구분."
       },
       "AttendanceLogResponse": {
         "properties": {
@@ -17179,6 +17398,17 @@
               }
             ],
             "title": "Summarytext"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
           },
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
@@ -17247,6 +17477,20 @@
               }
             ],
             "title": "Summarytext"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat",
+            "description": "관람 좌석 정보. 예: 3루 내야 B블록 15열. null이면 삭제합니다."
           },
           "logStatus": {
             "anyOf": [
@@ -18160,7 +18404,7 @@
         ],
         "title": "ListSuccessResponse[AccommodationCandidate]"
       },
-      "ListSuccessResponse_AttendanceLogResponse_": {
+      "ListSuccessResponse_AttendanceLogArchiveItemResponse_": {
         "properties": {
           "success": {
             "type": "boolean",
@@ -18170,7 +18414,7 @@
           },
           "data": {
             "items": {
-              "$ref": "#/components/schemas/AttendanceLogResponse"
+              "$ref": "#/components/schemas/AttendanceLogArchiveItemResponse"
             },
             "type": "array",
             "title": "Data"
@@ -18185,7 +18429,7 @@
           "data",
           "meta"
         ],
-        "title": "ListSuccessResponse[AttendanceLogResponse]"
+        "title": "ListSuccessResponse[AttendanceLogArchiveItemResponse]"
       },
       "ListSuccessResponse_FavoriteCollectionResponse_": {
         "properties": {
