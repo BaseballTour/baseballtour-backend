@@ -49,9 +49,9 @@ DEPARTURE_BUFFER_MINUTES = 60
 
 
 AUTO_FILL_DENSITY_POLICIES = {
-    ScheduleDensity.LIGHT: (2, 20, 45),
-    ScheduleDensity.MODERATE: (3, 30, 30),
-    ScheduleDensity.DENSE: (5, 45, 15),
+    ScheduleDensity.LIGHT: (20, 45),
+    ScheduleDensity.MODERATE: (30, 30),
+    ScheduleDensity.DENSE: (45, 15),
 }
 AUTO_FILL_STYLE_POLICIES = {
     TravelStyle.RELAXED: (20, 45),
@@ -485,7 +485,7 @@ def _fill_routes_with_recommendations(
         target_date: Counter() for target_date in routes
     }
     scheduled_per_day: Counter[date] = Counter()
-    max_per_day, density_detour, density_slack = (
+    density_detour, density_slack = (
         AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
     )
     style_detour, style_slack = AUTO_FILL_STYLE_POLICIES[trip.travel_style]
@@ -498,12 +498,6 @@ def _fill_routes_with_recommendations(
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
         for target_date in sorted(routes):
-            if scheduled_per_day[target_date] >= max_per_day:
-                rejected["DENSITY_LIMIT"] += len(remaining)
-                rejected_by_day[target_date]["DENSITY_LIMIT"] += len(
-                    remaining
-                )
-                continue
             day_type = classify_day(
                 target_date,
                 trip.trip_start_at.date(),

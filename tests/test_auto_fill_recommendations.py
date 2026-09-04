@@ -152,7 +152,7 @@ def test_fills_empty_itinerary_without_recommendation_count_limit() -> None:
     assert "placementRejectedAttempts" in diagnostics
 
 
-def test_light_density_limits_automatic_places_per_day() -> None:
+def test_light_density_does_not_impose_automatic_place_count_limit() -> None:
     recommendations = [place(f"recommendation_{index}") for index in range(5)]
     result = generate_itinerary(
         one_day_trip(schedule_density=ScheduleDensity.LIGHT),
@@ -160,7 +160,7 @@ def test_light_density_limits_automatic_places_per_day() -> None:
         matrix(*(item.place_id for item in recommendations), default=1),
         recommended_places=recommendations,
     )
-    assert result.auto_recommended_place_count == 2
+    assert result.auto_recommended_place_count == 5
 
 
 def test_explorer_dense_allows_more_automatic_places_than_light() -> None:
