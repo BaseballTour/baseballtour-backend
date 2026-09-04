@@ -75,12 +75,21 @@
 - `nickname`: 닉네임
 - `name`: 사용자 이름
 - `phoneNumber`: 휴대폰 번호
+- `birthDate`: 생년월일 (`YYYY-MM-DD`)
+- `gender`: 성별 (`MALE`, `FEMALE`)
 - `profileImageUrl`: 프로필 이미지 URL
 - `supportTeamId`: 응원팀 ID
 
 `nickname`, `supportTeamId`는 명시적으로 `null`을 전달할 수 없다.
-`name`, `phoneNumber`, `profileImageUrl`은 `null`을 전달하면 해당 값을
-삭제한다.
+`name`, `phoneNumber`, `birthDate`, `gender`, `profileImageUrl`은
+`null`을 전달하면 해당 값을 삭제한다.
+
+`birthDate`를 변경하면 기존 가입 호환 필드인 `birthYear`도 해당 연도로
+자동 갱신한다. `birthDate`를 `null`로 삭제해도 기존 `birthYear` 값은
+유지한다.
+
+기존 사용자 문서에는 `birthDate`, `gender`가 없을 수 있으며 이 경우
+사용자 응답에서 두 필드는 `null`로 반환한다.
 
 프로필 이미지는 신규 구현에서는 미디어 업로드 API를 사용하는 것을 기본으로 한다.
 기존 `profileImageUrl` 직접 수정 방식은 호환성을 위해 유지한다.

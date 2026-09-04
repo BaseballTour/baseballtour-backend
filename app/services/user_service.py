@@ -57,6 +57,8 @@ class UserService:
             email=authenticated_user.email,
             nickname=request.nickname,
             birth_year=request.birth_year,
+            birth_date=None,
+            gender=None,
             name=request.name,
             phone_number=request.phone_number,
             support_team_id=request.support_team_id,
@@ -130,6 +132,9 @@ class UserService:
             )
 
         nickname = user.nickname
+        birth_year = user.birth_year
+        birth_date = user.birth_date
+        gender = user.gender
         name = user.name
         phone_number = user.phone_number
         profile_image_url = user.profile_image_url
@@ -151,6 +156,27 @@ class UserService:
         if "phone_number" in request.model_fields_set:
             phone_number = request.phone_number
             updates["phoneNumber"] = request.phone_number
+
+        if "birth_date" in request.model_fields_set:
+            birth_date = request.birth_date
+            updates["birthDate"] = (
+                request.birth_date.isoformat()
+                if request.birth_date is not None
+                else None
+            )
+
+            # 기존 birthYear 계약과 정합성을 유지합니다.
+            if request.birth_date is not None:
+                birth_year = request.birth_date.year
+                updates["birthYear"] = birth_year
+
+        if "gender" in request.model_fields_set:
+            gender = request.gender
+            updates["gender"] = (
+                request.gender.value
+                if request.gender is not None
+                else None
+            )
 
         if "profile_image_url" in request.model_fields_set:
             profile_image_url = request.profile_image_url
@@ -189,6 +215,9 @@ class UserService:
         updated_user = user.model_copy(
             update={
                 "nickname": nickname,
+                "birth_year": birth_year,
+                "birth_date": birth_date,
+                "gender": gender,
                 "name": name,
                 "phone_number": phone_number,
                 "profile_image_url": profile_image_url,
@@ -230,6 +259,8 @@ class UserService:
             email=user.email,
             nickname=user.nickname,
             birth_year=user.birth_year,
+            birth_date=user.birth_date,
+            gender=user.gender,
             name=user.name,
             phone_number=user.phone_number,
             profile_image_url=(
