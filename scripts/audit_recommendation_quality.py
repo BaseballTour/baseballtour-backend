@@ -18,6 +18,7 @@ from app.services.recommendation import (
     RecommendationCenter,
     RecommendationService,
 )
+from app.services.itinerary_generation_service import ItineraryGenerationService
 
 
 STADIUMS = {
@@ -155,6 +156,46 @@ async def _inspect_region(
         recommended_places=candidates,
         recommendation_diagnostics=diagnostics,
     )
+    supplement_dates = (
+        ItineraryGenerationService._recommendation_supplement_dates(itinerary)
+    )
+    supplemental_candidates = []
+    if supplement_dates:
+        supplemental_candidates = await service.get_candidates(
+            centers=(
+                ItineraryGenerationService._supplement_recommendation_centers(
+                    result=itinerary,
+                    target_dates=supplement_dates,
+                )
+            ),
+            selected_place_ids={place.place_id for place in candidates},
+            excluded_places=[
+                ExcludedRecommendationPlace(
+                    name=name,
+                    latitude=latitude,
+                    longitude=longitude,
+                )
+            ],
+            travel_start_date=min(supplement_dates),
+            travel_end_date=max(supplement_dates),
+        )
+        if supplemental_candidates:
+            matrix = await build_itinerary_travel_time_matrix(
+                trip,
+                [*candidates, *supplemental_candidates],
+                provider=get_cached_fastest_route if live_routes else None,
+            )
+            itinerary = generate_itinerary(
+                trip,
+                [],
+                matrix,
+                recommended_places=candidates,
+                supplemental_recommendations_by_date={
+                    target_date: supplemental_candidates
+                    for target_date in supplement_dates
+                },
+                recommendation_diagnostics=diagnostics,
+            )
     schedule_seconds = perf_counter() - matrix_started
 
     return {
@@ -200,6 +241,10 @@ async def _inspect_region(
         "scheduledRecommendationCount": (
             itinerary.auto_recommended_place_count
         ),
+        "supplementTargetDates": [
+            target_date.isoformat() for target_date in supplement_dates
+        ],
+        "supplementalCandidateCount": len(supplemental_candidates),
         "scheduledByDay": {
             day.date.isoformat(): [
                 item.place_id

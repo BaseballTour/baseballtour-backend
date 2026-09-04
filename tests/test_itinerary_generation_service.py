@@ -7,6 +7,7 @@ import pytest
 
 from app.core.exceptions import AppException
 from app.models.itinerary import (
+    DayType,
     ItineraryDay,
     ItineraryItem,
     ItineraryItemAddedBy,
@@ -347,6 +348,88 @@ def test_recommendation_centers_include_accommodation_and_departure() -> None:
         (37.56, 126.98),
         (37.49, 126.86),
     ]
+
+
+def test_supplement_dates_select_only_sparse_free_days() -> None:
+    free_day_item = ItineraryItem(
+        type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_sparse",
+        name="부족한 날짜 장소",
+        address="인천광역시",
+        latitude=37.5,
+        longitude=126.9,
+        scheduled_start_at=datetime.fromisoformat(
+            "2026-08-16T11:00:00+09:00"
+        ),
+        scheduled_end_at=datetime.fromisoformat(
+            "2026-08-16T12:00:00+09:00"
+        ),
+        travel_minutes_from_previous=10,
+        added_by=ItineraryItemAddedBy.ALGORITHM,
+    )
+    result = ItineraryResult(
+        trip_id=TRIP_ID,
+        algorithm_version="test",
+        total_travel_minutes=20,
+        days=[
+            ItineraryDay(
+                date=START_AT.date(),
+                day_type=DayType.GAME_DAY,
+                items=[free_day_item],
+            ),
+            ItineraryDay(
+                date=START_AT.date() + timedelta(days=1),
+                day_type=DayType.NON_GAME_DAY,
+                items=[free_day_item],
+            ),
+        ],
+        excluded_places=[],
+    )
+
+    assert ItineraryGenerationService._recommendation_supplement_dates(
+        result
+    ) == [START_AT.date() + timedelta(days=1)]
+
+
+def test_long_gap_is_selected_for_supplement_even_with_enough_items() -> None:
+    base = ItineraryItem(
+        type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_gap_1",
+        name="오전 장소",
+        address="인천광역시",
+        latitude=37.5,
+        longitude=126.9,
+        scheduled_start_at=datetime.fromisoformat(
+            "2026-08-16T09:00:00+09:00"
+        ),
+        scheduled_end_at=datetime.fromisoformat(
+            "2026-08-16T10:00:00+09:00"
+        ),
+        travel_minutes_from_previous=0,
+        added_by=ItineraryItemAddedBy.ALGORITHM,
+    )
+    items = [
+        base.model_copy(
+            update={
+                "sequence": index,
+                "place_id": f"tour_gap_{index}",
+                "scheduled_start_at": base.scheduled_start_at
+                + timedelta(minutes=(index - 1) * 70),
+                "scheduled_end_at": base.scheduled_end_at
+                + timedelta(minutes=(index - 1) * 70),
+            }
+        )
+        for index in range(1, 5)
+    ]
+    day = ItineraryDay(
+        date=base.scheduled_start_at.date(),
+        day_type=DayType.NON_GAME_DAY,
+        items=items,
+    )
+
+    assert ItineraryGenerationService._has_supplementable_gap(day) is True
 
 
 def test_build_trip_input_normalizes_firestore_times_to_korea() -> None:

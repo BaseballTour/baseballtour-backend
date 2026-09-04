@@ -66,6 +66,7 @@ def generate_itinerary(
     matrix: TravelTimeMatrix,
     *,
     recommended_places: list[Place] | None = None,
+    supplemental_recommendations_by_date: dict[date, list[Place]] | None = None,
     recommendation_diagnostics: dict[str, object] | None = None,
 ) -> ItineraryResult:
     """Anchor와 가까운 장소 우선 규칙을 적용하는 1차 일정 생성기."""
@@ -92,6 +93,35 @@ def generate_itinerary(
             excluded_ids=set(selected),
             diagnostics=recommendation_diagnostics,
         )
+    if trip.auto_fill_recommendations and supplemental_recommendations_by_date:
+        for target_date in sorted(supplemental_recommendations_by_date):
+            if target_date not in routes:
+                continue
+            supplemental = supplemental_recommendations_by_date[target_date]
+            if not supplemental:
+                continue
+            occupied_ids = {
+                place.place_id
+                for route in routes.values()
+                for place in route
+            }
+            supplemental_diagnostics: dict[str, object] = {}
+            updated, supplemental_ids = _fill_routes_with_recommendations(
+                trip,
+                {target_date: routes[target_date]},
+                supplemental,
+                matrix,
+                excluded_ids=set(selected) | auto_ids | occupied_ids,
+                detour_limit_multiplier=3,
+                diagnostics=supplemental_diagnostics,
+            )
+            routes[target_date] = updated[target_date]
+            auto_ids.update(supplemental_ids)
+            _merge_supplemental_diagnostics(
+                recommendation_diagnostics,
+                supplemental_diagnostics,
+                target_date,
+            )
 
     current_date = trip.trip_start_at.date()
     end_date = trip.trip_end_at.date()
@@ -462,6 +492,42 @@ def _assign_places_to_dates(
     return routes, failures
 
 
+def _merge_supplemental_diagnostics(
+    diagnostics: dict[str, object] | None,
+    supplemental: dict[str, object],
+    target_date: date,
+) -> None:
+    if diagnostics is None:
+        return
+
+    supplemental_count = int(supplemental.get("scheduledCount", 0))
+    diagnostics["scheduledCount"] = (
+        int(diagnostics.get("scheduledCount", 0)) + supplemental_count
+    )
+    scheduled_by_day = dict(diagnostics.get("scheduledByDay", {}))
+    target_key = target_date.isoformat()
+    supplemental_by_day = dict(supplemental.get("scheduledByDay", {}))
+    scheduled_by_day[target_key] = int(
+        scheduled_by_day.get(target_key, 0)
+    ) + int(supplemental_by_day.get(target_key, 0))
+    diagnostics["scheduledByDay"] = scheduled_by_day
+
+    rejected = Counter(diagnostics.get("placementRejectedAttempts", {}))
+    rejected.update(supplemental.get("placementRejectedAttempts", {}))
+    diagnostics["placementRejectedAttempts"] = dict(sorted(rejected.items()))
+
+    rejected_by_day = dict(
+        diagnostics.get("placementRejectedAttemptsByDay", {})
+    )
+    target_rejected = Counter(rejected_by_day.get(target_key, {}))
+    supplemental_rejected_by_day = dict(
+        supplemental.get("placementRejectedAttemptsByDay", {})
+    )
+    target_rejected.update(supplemental_rejected_by_day.get(target_key, {}))
+    rejected_by_day[target_key] = dict(sorted(target_rejected.items()))
+    diagnostics["placementRejectedAttemptsByDay"] = rejected_by_day
+
+
 def _fill_routes_with_recommendations(
     trip: TripInput,
     routes: dict[date, list[Place]],
@@ -469,6 +535,7 @@ def _fill_routes_with_recommendations(
     matrix: TravelTimeMatrix,
     *,
     excluded_ids: set[str],
+    detour_limit_multiplier: int = 1,
     diagnostics: dict[str, object] | None = None,
 ) -> tuple[dict[date, list[Place]], set[str]]:
     """사용자 후보를 보존하면서 실행 가능한 추천 장소를 반복 삽입한다."""
@@ -489,7 +556,9 @@ def _fill_routes_with_recommendations(
         AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
     )
     style_detour, style_slack = AUTO_FILL_STYLE_POLICIES[trip.travel_style]
-    maximum_detour_minutes = min(density_detour, style_detour)
+    maximum_detour_minutes = (
+        min(density_detour, style_detour) * detour_limit_multiplier
+    )
     minimum_non_game_slack = max(density_slack, style_slack)
     trip_day_count = (
         trip.trip_end_at.date() - trip.trip_start_at.date()

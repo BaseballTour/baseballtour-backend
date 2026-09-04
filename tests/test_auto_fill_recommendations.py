@@ -562,6 +562,33 @@ def test_four_day_trip_allows_first_place_within_relaxed_day_detour() -> None:
     )
 
 
+def test_supplemental_recommendation_is_used_only_on_target_date() -> None:
+    initial = place("initial")
+    supplemental = place("supplemental")
+    four_day_trip = trip().model_copy(
+        update={
+            "trip_end_at": datetime(2026, 8, 17, 20, tzinfo=UTC),
+        }
+    )
+
+    result = generate_itinerary(
+        four_day_trip,
+        [],
+        matrix(initial.place_id, supplemental.place_id, default=1),
+        recommended_places=[initial],
+        supplemental_recommendations_by_date={
+            datetime(2026, 8, 17, tzinfo=UTC).date(): [supplemental]
+        },
+    )
+
+    supplemental_days = [
+        day.date
+        for day in result.days
+        if any(item.place_id == supplemental.place_id for item in day.items)
+    ]
+    assert supplemental_days == [datetime(2026, 8, 17, tzinfo=UTC).date()]
+
+
 def test_does_not_auto_recommend_accommodation_or_unverified_festival() -> None:
     accommodation = place(
         "hotel", category=PlaceCategory.ACCOMMODATION
