@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 from zoneinfo import ZoneInfo
 
@@ -57,6 +57,7 @@ from app.services.recommendation import (
 
 ItineraryGenerator = Callable[..., ItineraryResult]
 RECOMMENDATION_TIMEOUT_SECONDS = 45.0
+GENERATION_STALE_AFTER = timedelta(minutes=10)
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,7 @@ class ItineraryGenerationService:
             user_id=user_id,
             trip_id=trip_id,
         )
+        trip = self._recover_stale_generation(trip)
 
         self._validate_generation_status(trip)
         self._validate_required_points(trip)
@@ -831,8 +833,42 @@ class ItineraryGenerationService:
                 },
             )
         except Exception:
-            # 원래 예외를 덮어쓰지 않습니다.
-            pass
+            # 원래 예외를 덮어쓰지는 않되 운영자가 고착 상태를 찾을 수 있게
+            # 복구 실패 사실과 여행 ID를 반드시 남깁니다.
+            logger.exception(
+                "일정 생성 실패 후 여행 상태 복구에 실패했습니다: "
+                "trip_id=%s target_status=%s",
+                trip_id,
+                original_status.value,
+            )
+
+    def _recover_stale_generation(self, trip: TripRecord) -> TripRecord:
+        """인스턴스 종료 등으로 남은 오래된 GENERATING lease를 회수합니다."""
+
+        if trip.status != TripStatus.GENERATING:
+            return trip
+
+        now = datetime.now(timezone.utc)
+        recovered = self._trip_repository.recover_stale_generation(
+            trip_id=trip.trip_id,
+            stale_before=now - GENERATION_STALE_AFTER,
+            updated_at=now,
+        )
+        if recovered is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="TRIP_NOT_FOUND",
+                message="여행 정보를 찾을 수 없습니다.",
+            )
+        if recovered.status != TripStatus.GENERATING:
+            logger.warning(
+                "중단된 일정 생성 상태를 복구했습니다: trip_id=%s "
+                "restored_status=%s stale_after_seconds=%s",
+                trip.trip_id,
+                recovered.status.value,
+                int(GENERATION_STALE_AFTER.total_seconds()),
+            )
+        return recovered
 
     @staticmethod
     def _build_plan_document(
