@@ -460,6 +460,33 @@ async def test_default_candidate_pool_is_limited_before_detail_lookup() -> None:
 
 
 @pytest.mark.anyio
+async def test_candidate_pool_scales_for_four_day_trip() -> None:
+    candidates = [make_place(f"tour_{index}") for index in range(50)]
+    adapter = Mock()
+    adapter.get_nearby_place_page = AsyncMock(
+        return_value=NearbyPlacePage(places=candidates, next_page_token=None)
+    )
+    by_content_id = {
+        place.source_content_id: place for place in candidates
+    }
+    adapter.get_place_detail = AsyncMock(
+        side_effect=lambda content_id: by_content_id[content_id]
+    )
+    diagnostics: dict[str, object] = {}
+
+    result = await RecommendationService(adapter).get_candidates(
+        centers=[RecommendationCenter(latitude=35.19, longitude=129.06)],
+        travel_start_date=date(2026, 9, 1),
+        travel_end_date=date(2026, 9, 4),
+        diagnostics=diagnostics,
+    )
+
+    assert len(result) == 32
+    assert adapter.get_place_detail.await_count == 32
+    assert diagnostics["candidatePoolTarget"] == 32
+
+
+@pytest.mark.anyio
 async def test_candidate_pool_reserves_restaurants_and_cafes() -> None:
     tourist_spots = [
         make_place(f"tour_spot_{index}", distance=float(index))

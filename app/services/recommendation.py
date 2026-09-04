@@ -25,6 +25,8 @@ DEFAULT_RECOMMENDATION_RADIUS_METERS = 10_000
 DEFAULT_RECOMMENDATION_PAGE_SIZE = 20
 DEFAULT_MAX_PAGES_PER_CENTER = 3
 DEFAULT_MAX_CANDIDATES = 20
+MAX_DYNAMIC_CANDIDATES = 40
+CANDIDATES_PER_TRAVEL_DAY = 8
 DETAIL_CONCURRENCY = 5
 # HTTP client의 read timeout보다 짧게 취소하지 않는다. 두 번의 시도와
 # backoff를 포함해 요청 자체가 원인을 분류하고 로그를 남길 시간을 준다.
@@ -135,9 +137,14 @@ class RecommendationService:
         source_categories = Counter(
             _enum_value(place.category) for place in eligible
         )
+        effective_max_candidates = _candidate_pool_size(
+            configured_max=self._max_candidates,
+            travel_start_date=travel_start_date,
+            travel_end_date=travel_end_date,
+        )
         filtered = _select_diverse_candidates(
             eligible,
-            max_candidates=self._max_candidates,
+            max_candidates=effective_max_candidates,
             rejected=rejected,
         )
         detailed = await self._resolve_details(filtered)
@@ -198,6 +205,7 @@ class RecommendationService:
                         sorted(hours_statuses.items())
                     ),
                     "detailLookupCount": len(filtered),
+                    "candidatePoolTarget": effective_max_candidates,
                     "filteredCounts": dict(sorted(rejected.items())),
                 }
             )
@@ -420,6 +428,25 @@ def _select_diverse_candidates(
     ordered = sorted(places, key=_recommendation_sort_key)
     selected: list[Place] = []
     selected_ids: set[str] = set()
+    scale = max(1, math.ceil(max_candidates / DEFAULT_MAX_CANDIDATES))
+    dining_minimums = {
+        PlaceCategory.RESTAURANT: min(
+            max_candidates,
+            DINING_CATEGORY_MINIMUMS[PlaceCategory.RESTAURANT]
+            + 2 * (scale - 1),
+        ),
+        PlaceCategory.CAFE: min(
+            max_candidates,
+            DINING_CATEGORY_MINIMUMS[PlaceCategory.CAFE] + scale - 1,
+        ),
+    }
+    category_maximums = {
+        category: max(
+            maximum * scale,
+            dining_minimums.get(category, 0),
+        )
+        for category, maximum in CATEGORY_MAXIMUMS.items()
+    }
 
     breakfast_candidate = next(
         (
@@ -447,7 +474,7 @@ def _select_diverse_candidates(
             selected_ids.add(place.place_id)
             if sum(
                 item.category == category for item in selected
-            ) >= DINING_CATEGORY_MINIMUMS[category]:
+            ) >= dining_minimums[category]:
                 break
 
     category_order = sorted(
@@ -469,7 +496,7 @@ def _select_diverse_candidates(
         made_progress = False
         for category in category_order:
             queue = category_queues[category]
-            maximum = CATEGORY_MAXIMUMS.get(category, max_candidates)
+            maximum = category_maximums.get(category, max_candidates)
             if not queue or category_counts[category] >= maximum:
                 continue
             place = queue.pop(0)
@@ -488,7 +515,7 @@ def _select_diverse_candidates(
             break
         if place.place_id in selected_ids:
             continue
-        maximum = CATEGORY_MAXIMUMS.get(place.category, max_candidates)
+        maximum = category_maximums.get(place.category, max_candidates)
         if (
             (
                 place.category == PlaceCategory.RESTAURANT
@@ -508,6 +535,24 @@ def _select_diverse_candidates(
     if rejected is not None and len(selected) >= max_candidates:
         rejected["CANDIDATE_LIMIT"] += max(0, len(ordered) - len(selected))
     return sorted(selected, key=_recommendation_sort_key)
+
+
+def _candidate_pool_size(
+    *,
+    configured_max: int,
+    travel_start_date: date | None,
+    travel_end_date: date | None,
+) -> int:
+    """여행 일수에 비례해 후보 풀을 늘리되 외부 상세 호출은 제한한다."""
+
+    if travel_start_date is None or travel_end_date is None:
+        return configured_max
+    travel_days = max(1, (travel_end_date - travel_start_date).days + 1)
+    dynamic_target = min(
+        MAX_DYNAMIC_CANDIDATES,
+        travel_days * CANDIDATES_PER_TRAVEL_DAY,
+    )
+    return max(configured_max, dynamic_target)
 
 
 def _is_available_during_trip(
