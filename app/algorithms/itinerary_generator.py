@@ -49,14 +49,14 @@ DEPARTURE_BUFFER_MINUTES = 60
 
 
 AUTO_FILL_DENSITY_POLICIES = {
-    ScheduleDensity.LIGHT: (2, 20, 45),
-    ScheduleDensity.MODERATE: (3, 30, 30),
-    ScheduleDensity.DENSE: (5, 45, 15),
+    ScheduleDensity.LIGHT: (0.35, 45),
+    ScheduleDensity.MODERATE: (0.50, 30),
+    ScheduleDensity.DENSE: (0.60, 15),
 }
 AUTO_FILL_STYLE_POLICIES = {
-    TravelStyle.RELAXED: (20, 45),
-    TravelStyle.BALANCED: (30, 30),
-    TravelStyle.EXPLORER: (45, 15),
+    TravelStyle.RELAXED: (0.35, 45),
+    TravelStyle.BALANCED: (0.50, 30),
+    TravelStyle.EXPLORER: (0.60, 15),
 }
 
 
@@ -66,6 +66,7 @@ def generate_itinerary(
     matrix: TravelTimeMatrix,
     *,
     recommended_places: list[Place] | None = None,
+    supplemental_recommendations_by_date: dict[date, list[Place]] | None = None,
     recommendation_diagnostics: dict[str, object] | None = None,
 ) -> ItineraryResult:
     """Anchor와 가까운 장소 우선 규칙을 적용하는 1차 일정 생성기."""
@@ -92,6 +93,34 @@ def generate_itinerary(
             excluded_ids=set(selected),
             diagnostics=recommendation_diagnostics,
         )
+    if trip.auto_fill_recommendations and supplemental_recommendations_by_date:
+        for target_date in sorted(supplemental_recommendations_by_date):
+            if target_date not in routes:
+                continue
+            supplemental = supplemental_recommendations_by_date[target_date]
+            if not supplemental:
+                continue
+            occupied_ids = {
+                place.place_id
+                for route in routes.values()
+                for place in route
+            }
+            supplemental_diagnostics: dict[str, object] = {}
+            updated, supplemental_ids = _fill_routes_with_recommendations(
+                trip,
+                {target_date: routes[target_date]},
+                supplemental,
+                matrix,
+                excluded_ids=set(selected) | auto_ids | occupied_ids,
+                diagnostics=supplemental_diagnostics,
+            )
+            routes[target_date] = updated[target_date]
+            auto_ids.update(supplemental_ids)
+            _merge_supplemental_diagnostics(
+                recommendation_diagnostics,
+                supplemental_diagnostics,
+                target_date,
+            )
 
     current_date = trip.trip_start_at.date()
     end_date = trip.trip_end_at.date()
@@ -462,6 +491,63 @@ def _assign_places_to_dates(
     return routes, failures
 
 
+def _merge_supplemental_diagnostics(
+    diagnostics: dict[str, object] | None,
+    supplemental: dict[str, object],
+    target_date: date,
+) -> None:
+    if diagnostics is None:
+        return
+
+    supplemental_count = int(supplemental.get("scheduledCount", 0))
+    diagnostics["scheduledCount"] = (
+        int(diagnostics.get("scheduledCount", 0)) + supplemental_count
+    )
+    scheduled_by_day = dict(diagnostics.get("scheduledByDay", {}))
+    target_key = target_date.isoformat()
+    supplemental_by_day = dict(supplemental.get("scheduledByDay", {}))
+    scheduled_by_day[target_key] = int(
+        scheduled_by_day.get(target_key, 0)
+    ) + int(supplemental_by_day.get(target_key, 0))
+    diagnostics["scheduledByDay"] = scheduled_by_day
+
+    rejected = Counter(diagnostics.get("placementRejectedAttempts", {}))
+    rejected.update(supplemental.get("placementRejectedAttempts", {}))
+    diagnostics["placementRejectedAttempts"] = dict(sorted(rejected.items()))
+
+    rejected_by_day = dict(
+        diagnostics.get("placementRejectedAttemptsByDay", {})
+    )
+    target_rejected = Counter(rejected_by_day.get(target_key, {}))
+    supplemental_rejected_by_day = dict(
+        supplemental.get("placementRejectedAttemptsByDay", {})
+    )
+    target_rejected.update(supplemental_rejected_by_day.get(target_key, {}))
+    rejected_by_day[target_key] = dict(sorted(target_rejected.items()))
+    diagnostics["placementRejectedAttemptsByDay"] = rejected_by_day
+
+
+def _route_uses_estimated_time(
+    start_id: str,
+    route: list[Place],
+    end_id: str | None,
+    matrix: TravelTimeMatrix,
+) -> bool:
+    previous = start_id
+    for place in route:
+        if (
+            matrix.get_source(previous, place.place_id)
+            == TravelTimeSource.ESTIMATED
+        ):
+            return True
+        previous = place.place_id
+    return (
+        end_id is not None
+        and matrix.get_source(previous, end_id)
+        == TravelTimeSource.ESTIMATED
+    )
+
+
 def _fill_routes_with_recommendations(
     trip: TripInput,
     routes: dict[date, list[Place]],
@@ -481,20 +567,22 @@ def _fill_routes_with_recommendations(
     }
     added: set[str] = set()
     rejected: Counter[str] = Counter()
+    rejected_by_day: dict[date, Counter[str]] = {
+        target_date: Counter() for target_date in routes
+    }
     scheduled_per_day: Counter[date] = Counter()
-    max_per_day, density_detour, density_slack = (
+    density_efficiency, density_slack = (
         AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
     )
-    style_detour, style_slack = AUTO_FILL_STYLE_POLICIES[trip.travel_style]
-    maximum_detour_minutes = min(density_detour, style_detour)
+    style_efficiency, style_slack = AUTO_FILL_STYLE_POLICIES[
+        trip.travel_style
+    ]
+    maximum_travel_ratio = min(density_efficiency, style_efficiency)
     minimum_non_game_slack = max(density_slack, style_slack)
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
         for target_date in sorted(routes):
-            if scheduled_per_day[target_date] >= max_per_day:
-                rejected["DENSITY_LIMIT"] += len(remaining)
-                continue
             day_type = classify_day(
                 target_date,
                 trip.trip_start_at.date(),
@@ -529,6 +617,9 @@ def _fill_routes_with_recommendations(
                     != BusinessRuleStatus.PARSED
                 ):
                     rejected["UNVERIFIED_FESTIVAL"] += 1
+                    rejected_by_day[target_date][
+                        "UNVERIFIED_FESTIVAL"
+                    ] += 1
                     continue
                 candidate = _place_for_next_meal_period(
                     place,
@@ -539,6 +630,9 @@ def _fill_routes_with_recommendations(
                 )
                 if candidate is None:
                     rejected["NO_AVAILABLE_MEAL_PERIOD"] += 1
+                    rejected_by_day[target_date][
+                        "NO_AVAILABLE_MEAL_PERIOD"
+                    ] += 1
                     continue
                 for index in range(len(current) + 1):
                     proposed = [*current[:index], candidate, *current[index:]]
@@ -550,6 +644,7 @@ def _fill_routes_with_recommendations(
                             else "INFEASIBLE"
                         )
                         rejected[reason] += 1
+                        rejected_by_day[target_date][reason] += 1
                         continue
                     if (
                         result.anchor_slack_minutes is None
@@ -557,15 +652,45 @@ def _fill_routes_with_recommendations(
                         < minimum_anchor_slack
                     ):
                         rejected["INSUFFICIENT_TIME"] += 1
+                        rejected_by_day[target_date]["INSUFFICIENT_TIME"] += 1
                         continue
                     marginal = route_travel_minutes(
                         args["start_id"], proposed, args["end_id"], matrix
                     ) - current_cost
-                    if marginal > maximum_detour_minutes:
+                    route_travel = route_travel_minutes(
+                        args["start_id"], proposed, args["end_id"], matrix
+                    )
+                    route_edges = len(proposed) + (
+                        1 if args["end_id"] is not None else 0
+                    )
+                    route_travel += route_edges * 15
+                    available_minutes = max(
+                        1,
+                        int(
+                            (
+                                args["available_end"]
+                                - args["available_start"]
+                            ).total_seconds()
+                            // 60
+                        ),
+                    )
+                    travel_ratio = route_travel / available_minutes
+                    effective_ratio = maximum_travel_ratio
+                    if _route_uses_estimated_time(
+                        args["start_id"], proposed, args["end_id"], matrix
+                    ):
+                        effective_ratio = max(0.25, effective_ratio - 0.10)
+                    if travel_ratio > effective_ratio:
                         rejected["ROUTE_INEFFICIENT"] += 1
+                        rejected_by_day[target_date][
+                            "ROUTE_INEFFICIENT"
+                        ] += 1
                         continue
                     if _has_duplicate_meal_restaurants(result.visits):
                         rejected["CONSECUTIVE_RESTAURANT"] += 1
+                        rejected_by_day[target_date][
+                            "CONSECUTIVE_RESTAURANT"
+                        ] += 1
                         continue
                     visit = next(
                         item
@@ -577,6 +702,9 @@ def _fill_routes_with_recommendations(
                         and _meal_period(visit.start.time()) is None
                     ):
                         rejected["OUTSIDE_MEAL_PERIOD"] += 1
+                        rejected_by_day[target_date][
+                            "OUTSIDE_MEAL_PERIOD"
+                        ] += 1
                         continue
                     closing_slack = (
                         result.closing_slack_minutes
@@ -643,6 +771,12 @@ def _fill_routes_with_recommendations(
         diagnostics["placementRejectedAttempts"] = dict(
             sorted(rejected.items())
         )
+        diagnostics["placementRejectedAttemptsByDay"] = {
+            target_date.isoformat(): dict(
+                sorted(rejected_by_day[target_date].items())
+            )
+            for target_date in sorted(routes)
+        }
 
     return routes, added
 

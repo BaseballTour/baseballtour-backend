@@ -152,7 +152,7 @@ def test_fills_empty_itinerary_without_recommendation_count_limit() -> None:
     assert "placementRejectedAttempts" in diagnostics
 
 
-def test_light_density_limits_automatic_places_per_day() -> None:
+def test_light_density_does_not_impose_automatic_place_count_limit() -> None:
     recommendations = [place(f"recommendation_{index}") for index in range(5)]
     result = generate_itinerary(
         one_day_trip(schedule_density=ScheduleDensity.LIGHT),
@@ -160,7 +160,7 @@ def test_light_density_limits_automatic_places_per_day() -> None:
         matrix(*(item.place_id for item in recommendations), default=1),
         recommended_places=recommendations,
     )
-    assert result.auto_recommended_place_count == 2
+    assert result.auto_recommended_place_count == 5
 
 
 def test_explorer_dense_allows_more_automatic_places_than_light() -> None:
@@ -511,11 +511,12 @@ def test_departure_day_auto_fill_starts_in_morning() -> None:
     assert place_item.scheduled_end_at < departure_item.scheduled_start_at
 
 
-def test_rejects_recommendation_with_more_than_thirty_minute_detour() -> None:
+def test_rejects_recommendation_when_travel_dominates_available_day() -> None:
     recommendation = place("far")
     travel = matrix(recommendation.place_id, default=10)
-    travel.minutes[("arrival", recommendation.place_id)] = 50
-    travel.minutes[(recommendation.place_id, "departure")] = 50
+    for anchor_id in ("arrival", "departure", "stadium"):
+        travel.minutes[(anchor_id, recommendation.place_id)] = 500
+        travel.minutes[(recommendation.place_id, anchor_id)] = 500
 
     result = generate_itinerary(
         trip(), [], travel, recommended_places=[recommendation]
@@ -523,6 +524,70 @@ def test_rejects_recommendation_with_more_than_thirty_minute_detour() -> None:
 
     assert result.auto_fill_applied is False
     assert result.auto_recommended_place_count == 0
+
+
+def test_four_day_trip_allows_first_place_with_efficient_travel_ratio() -> None:
+    recommendation = place(
+        "departure_day_excursion",
+        business_hours_status=BusinessRuleStatus.PARSED,
+        business_hours_rules=[
+            BusinessHoursRule(
+                weekdays=[Weekday.MONDAY],
+                open_time="09:00",
+                close_time="20:00",
+            )
+        ],
+    )
+    four_day_trip = trip().model_copy(
+        update={
+            "trip_end_at": datetime(2026, 8, 17, 20, tzinfo=UTC),
+        }
+    )
+    travel = matrix(recommendation.place_id, default=10)
+    travel.minutes[("arrival", recommendation.place_id)] = 20
+    travel.minutes[(recommendation.place_id, "departure")] = 20
+
+    result = generate_itinerary(
+        four_day_trip,
+        [],
+        travel,
+        recommended_places=[recommendation],
+    )
+
+    departure_day = next(
+        day for day in result.days if day.day_type == "DEPARTURE_DAY"
+    )
+    assert any(
+        item.place_id == recommendation.place_id
+        for item in departure_day.items
+    )
+
+
+def test_supplemental_recommendation_is_used_only_on_target_date() -> None:
+    initial = place("initial")
+    supplemental = place("supplemental")
+    four_day_trip = trip().model_copy(
+        update={
+            "trip_end_at": datetime(2026, 8, 17, 20, tzinfo=UTC),
+        }
+    )
+
+    result = generate_itinerary(
+        four_day_trip,
+        [],
+        matrix(initial.place_id, supplemental.place_id, default=1),
+        recommended_places=[initial],
+        supplemental_recommendations_by_date={
+            datetime(2026, 8, 17, tzinfo=UTC).date(): [supplemental]
+        },
+    )
+
+    supplemental_days = [
+        day.date
+        for day in result.days
+        if any(item.place_id == supplemental.place_id for item in day.items)
+    ]
+    assert supplemental_days == [datetime(2026, 8, 17, tzinfo=UTC).date()]
 
 
 def test_does_not_auto_recommend_accommodation_or_unverified_festival() -> None:

@@ -1,6 +1,7 @@
 import asyncio
+from collections import Counter
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import logging
 from zoneinfo import ZoneInfo
 
@@ -22,6 +23,7 @@ from app.external.tour_api.adapter import (
 from app.models.itinerary import (
     GameAnchor,
     GeoPoint,
+    DayType,
     ItineraryItemAddedBy,
     ItineraryItemType,
     ItineraryResult,
@@ -57,6 +59,7 @@ from app.services.recommendation import (
 
 ItineraryGenerator = Callable[..., ItineraryResult]
 RECOMMENDATION_TIMEOUT_SECONDS = 45.0
+SUPPLEMENT_GAP_MINUTES = 150
 GENERATION_STALE_AFTER = timedelta(minutes=10)
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -284,6 +287,70 @@ class ItineraryGenerationService:
                 recommended_places=recommended_places,
                 recommendation_diagnostics=recommendation_diagnostics,
             )
+            supplement_dates = self._recommendation_supplement_dates(result)
+            if supplement_dates:
+                supplemental_diagnostics: dict[str, object] = {}
+                try:
+                    supplemental_places = await asyncio.wait_for(
+                        self._recommendation_service.get_candidates(
+                            centers=self._supplement_recommendation_centers(
+                                result=result,
+                                target_dates=supplement_dates,
+                            ),
+                            selected_place_ids=(
+                                recommendation_excluded_ids
+                                | {place.place_id for place in recommended_places}
+                            ),
+                            excluded_places=[
+                                ExcludedRecommendationPlace(
+                                    name=stadium.name,
+                                    latitude=stadium.latitude,
+                                    longitude=stadium.longitude,
+                                )
+                            ],
+                            travel_start_date=min(supplement_dates),
+                            travel_end_date=max(supplement_dates),
+                            diagnostics=supplemental_diagnostics,
+                        ),
+                        timeout=RECOMMENDATION_TIMEOUT_SECONDS,
+                    )
+                except (asyncio.TimeoutError, AppException) as error:
+                    logger.warning(
+                        "부족 날짜 추천 보충을 건너뜁니다: trip_id=%s "
+                        "dates=%s reason=%s",
+                        trip_id,
+                        [item.isoformat() for item in supplement_dates],
+                        error,
+                    )
+                    supplemental_places = []
+
+                if supplemental_places:
+                    matrix_places.extend(supplemental_places)
+                    matrix = await build_itinerary_travel_time_matrix(
+                        trip_input,
+                        list(
+                            {
+                                place.place_id: place
+                                for place in matrix_places
+                            }.values()
+                        ),
+                        provider=self._travel_time_provider,
+                    )
+                    result = self._generator(
+                        trip_input,
+                        places,
+                        matrix,
+                        recommended_places=recommended_places,
+                        supplemental_recommendations_by_date={
+                            target_date: supplemental_places
+                            for target_date in supplement_dates
+                        },
+                        recommendation_diagnostics=recommendation_diagnostics,
+                    )
+                    self._merge_recommendation_fetch_diagnostics(
+                        recommendation_diagnostics,
+                        supplemental_diagnostics,
+                    )
             result = result.model_copy(
                 update={
                     "recommendation_summary": RecommendationSummary(
@@ -356,6 +423,131 @@ class ItineraryGenerationService:
                     original_status=original_status,
                 )
             raise
+
+    @staticmethod
+    def _recommendation_supplement_dates(
+        result: ItineraryResult,
+    ) -> list[date]:
+        """1차 결과에서 자동 추천이 부족한 자유 일정 날짜만 고른다."""
+
+        minimums = {
+            DayType.ARRIVAL_DAY: 3,
+            DayType.GAME_DAY: 2,
+            DayType.NON_GAME_DAY: 4,
+            DayType.DEPARTURE_DAY: 3,
+        }
+        targets: list[date] = []
+        for day in result.days:
+            minimum = minimums.get(day.day_type)
+            if minimum is None:
+                continue
+            automatic_count = sum(
+                item.added_by == ItineraryItemAddedBy.ALGORITHM
+                for item in day.items
+            )
+            if automatic_count < minimum or (
+                ItineraryGenerationService._has_supplementable_gap(day)
+            ):
+                targets.append(day.date)
+        return targets
+
+    @staticmethod
+    def _has_supplementable_gap(day) -> bool:
+        items = sorted(day.items, key=lambda item: item.scheduled_start_at)
+        if not items:
+            return True
+        timezone_info = items[0].scheduled_start_at.tzinfo
+        cursor = datetime.combine(day.date, time(9, 0), timezone_info)
+        arrival = next(
+            (
+                item
+                for item in items
+                if item.item_type == ItineraryItemType.ARRIVAL_POINT
+            ),
+            None,
+        )
+        if arrival is not None:
+            cursor = max(cursor, arrival.scheduled_end_at)
+        closing_anchor = next(
+            (
+                item
+                for item in items
+                if item.item_type
+                in {
+                    ItineraryItemType.STADIUM,
+                    ItineraryItemType.DEPARTURE_POINT,
+                }
+            ),
+            None,
+        )
+        available_end = (
+            closing_anchor.scheduled_start_at
+            if closing_anchor is not None
+            else datetime.combine(day.date, time(21, 0), timezone_info)
+        )
+        for item in items:
+            if item is closing_anchor:
+                break
+            if item.item_type == ItineraryItemType.ARRIVAL_POINT:
+                continue
+            gap = item.scheduled_start_at - cursor
+            if gap >= timedelta(minutes=SUPPLEMENT_GAP_MINUTES):
+                return True
+            cursor = max(cursor, item.scheduled_end_at)
+        return available_end - cursor >= timedelta(
+            minutes=SUPPLEMENT_GAP_MINUTES
+        )
+
+    @staticmethod
+    def _supplement_recommendation_centers(
+        *,
+        result: ItineraryResult,
+        target_dates: list[date],
+    ) -> list[RecommendationCenter]:
+        """부족한 날짜에 이미 형성된 동선을 추가 조회 기준점으로 사용한다."""
+
+        target_set = set(target_dates)
+        centers: list[RecommendationCenter] = []
+        for day in result.days:
+            if day.date not in target_set or not day.items:
+                continue
+            movable_items = [
+                item
+                for item in day.items
+                if item.item_type
+                not in {
+                    ItineraryItemType.ARRIVAL_POINT,
+                    ItineraryItemType.DEPARTURE_POINT,
+                }
+            ]
+            anchor = movable_items[-1] if movable_items else day.items[0]
+            centers.append(
+                RecommendationCenter(
+                    latitude=anchor.latitude,
+                    longitude=anchor.longitude,
+                )
+            )
+        return centers
+
+    @staticmethod
+    def _merge_recommendation_fetch_diagnostics(
+        diagnostics: dict[str, object],
+        supplemental: dict[str, object],
+    ) -> None:
+        for key in ("fetchedCount", "candidateCount", "detailLookupCount"):
+            diagnostics[key] = int(diagnostics.get(key, 0)) + int(
+                supplemental.get(key, 0)
+            )
+        for key in ("categoryDistribution", "filteredCounts"):
+            combined = Counter(diagnostics.get(key, {}))
+            combined.update(supplemental.get(key, {}))
+            diagnostics[key] = dict(sorted(combined.items()))
+        diagnostics["supplementalFetchCount"] = int(
+            supplemental.get("fetchedCount", 0)
+        )
+        diagnostics["supplementalCandidateCount"] = int(
+            supplemental.get("candidateCount", 0)
+        )
 
     def _get_previous_unfixed_recommendation_ids(
         self,

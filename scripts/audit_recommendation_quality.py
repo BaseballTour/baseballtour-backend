@@ -2,9 +2,10 @@ import argparse
 import asyncio
 import json
 from collections import Counter
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from time import perf_counter
+from zoneinfo import ZoneInfo
 
 from app.external.tour_api import adapter as adapter_module
 from app.external.tour_api.adapter import TourApiAdapter
@@ -17,6 +18,7 @@ from app.services.recommendation import (
     RecommendationCenter,
     RecommendationService,
 )
+from app.services.itinerary_generation_service import ItineraryGenerationService
 
 
 STADIUMS = {
@@ -24,7 +26,9 @@ STADIUMS = {
     "고척": ("고척스카이돔", 37.4982, 126.8671),
     "사직": ("사직야구장", 35.1940, 129.0615),
     "대전": ("대전 한화생명 볼파크", 36.3172, 127.4292),
+    "인천": ("인천 SSG 랜더스필드", 37.4370, 126.6932),
 }
+KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 def _distribution(places) -> dict[str, int]:
@@ -59,6 +63,8 @@ async def _inspect_region(
     *,
     live_routes: bool = False,
     max_candidates: int = 20,
+    travel_start_date: date = date(2026, 8, 15),
+    nights: int = 2,
 ) -> dict:
     name, latitude, longitude = stadium
     adapter = TourApiAdapter(cache_ttl_seconds=300)
@@ -75,8 +81,8 @@ async def _inspect_region(
                 longitude=longitude,
             )
         ],
-        travel_start_date=date(2026, 8, 15),
-        travel_end_date=date(2026, 8, 17),
+        travel_start_date=travel_start_date,
+        travel_end_date=travel_start_date + timedelta(days=nights),
         diagnostics=diagnostics,
     )
     cold_seconds = perf_counter() - started
@@ -93,16 +99,24 @@ async def _inspect_region(
                 longitude=longitude,
             )
         ],
-        travel_start_date=date(2026, 8, 15),
-        travel_end_date=date(2026, 8, 17),
+        travel_start_date=travel_start_date,
+        travel_end_date=travel_start_date + timedelta(days=nights),
     )
     warm_seconds = perf_counter() - warm_started
     warm_calls = calls - before_warm
 
     trip = TripInput(
         trip_id=f"audit_{label}",
-        trip_start_at=datetime.fromisoformat("2026-08-15T10:00:00+09:00"),
-        trip_end_at=datetime.fromisoformat("2026-08-17T22:00:00+09:00"),
+        trip_start_at=datetime.combine(
+            travel_start_date,
+            time(10, 0),
+            tzinfo=KOREA_TIMEZONE,
+        ),
+        trip_end_at=datetime.combine(
+            travel_start_date + timedelta(days=nights),
+            time(22, 0),
+            tzinfo=KOREA_TIMEZONE,
+        ),
         arrival_point=GeoPoint(
             name=f"{label} 도착지",
             address=f"{label} 도착지",
@@ -122,8 +136,10 @@ async def _inspect_region(
             address=name,
             latitude=latitude,
             longitude=longitude,
-            game_start_at=datetime.fromisoformat(
-                "2026-08-16T18:30:00+09:00"
+            game_start_at=datetime.combine(
+                travel_start_date + timedelta(days=1),
+                time(18, 30),
+                tzinfo=KOREA_TIMEZONE,
             ),
         ),
     )
@@ -140,6 +156,46 @@ async def _inspect_region(
         recommended_places=candidates,
         recommendation_diagnostics=diagnostics,
     )
+    supplement_dates = (
+        ItineraryGenerationService._recommendation_supplement_dates(itinerary)
+    )
+    supplemental_candidates = []
+    if supplement_dates:
+        supplemental_candidates = await service.get_candidates(
+            centers=(
+                ItineraryGenerationService._supplement_recommendation_centers(
+                    result=itinerary,
+                    target_dates=supplement_dates,
+                )
+            ),
+            selected_place_ids={place.place_id for place in candidates},
+            excluded_places=[
+                ExcludedRecommendationPlace(
+                    name=name,
+                    latitude=latitude,
+                    longitude=longitude,
+                )
+            ],
+            travel_start_date=min(supplement_dates),
+            travel_end_date=max(supplement_dates),
+        )
+        if supplemental_candidates:
+            matrix = await build_itinerary_travel_time_matrix(
+                trip,
+                [*candidates, *supplemental_candidates],
+                provider=get_cached_fastest_route if live_routes else None,
+            )
+            itinerary = generate_itinerary(
+                trip,
+                [],
+                matrix,
+                recommended_places=candidates,
+                supplemental_recommendations_by_date={
+                    target_date: supplemental_candidates
+                    for target_date in supplement_dates
+                },
+                recommendation_diagnostics=diagnostics,
+            )
     schedule_seconds = perf_counter() - matrix_started
 
     return {
@@ -185,6 +241,10 @@ async def _inspect_region(
         "scheduledRecommendationCount": (
             itinerary.auto_recommended_place_count
         ),
+        "supplementTargetDates": [
+            target_date.isoformat() for target_date in supplement_dates
+        ],
+        "supplementalCandidateCount": len(supplemental_candidates),
         "scheduledByDay": {
             day.date.isoformat(): [
                 item.place_id
@@ -250,6 +310,8 @@ async def main(
     regions: list[str] | None = None,
     live_routes: bool = False,
     max_candidates: int = 20,
+    travel_start_date: date = date(2026, 8, 15),
+    nights: int = 2,
 ) -> None:
     calls = _install_call_counters()
     results = []
@@ -264,6 +326,8 @@ async def main(
                     calls,
                     live_routes=live_routes,
                     max_candidates=max_candidates,
+                    travel_start_date=travel_start_date,
+                    nights=nights,
                 ),
                 timeout=90,
             )
@@ -306,6 +370,20 @@ if __name__ == "__main__":
         default=20,
         help="일정 배치에 전달할 최대 후보 수입니다.",
     )
+    parser.add_argument(
+        "--start-date",
+        type=date.fromisoformat,
+        default=date(2026, 8, 15),
+        help="여행 시작일(YYYY-MM-DD)입니다.",
+    )
+    parser.add_argument(
+        "--nights",
+        type=int,
+        default=2,
+        choices=range(1, 8),
+        metavar="1-7",
+        help="여행 박수입니다. 3박 4일은 3을 지정합니다.",
+    )
     arguments = parser.parse_args()
     asyncio.run(
         main(
@@ -313,5 +391,7 @@ if __name__ == "__main__":
             regions=arguments.regions,
             live_routes=arguments.live_routes,
             max_candidates=arguments.max_candidates,
+            travel_start_date=arguments.start_date,
+            nights=arguments.nights,
         )
     )
