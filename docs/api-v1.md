@@ -214,6 +214,26 @@ placeholder seed는 production 환경에서 실행하지 않는다.
 `shortDescription`은 `overview`의 줄바꿈과 연속 공백을 한 줄로 정규화한 값이며,
 원본 `overview`를 대체하지 않는다. 소개가 없으면 `null`일 수 있다.
 
+## 여행 상태
+
+`Trip.status`는 다음 상태만 사용한다. `ACTIVE`는 여행 상태가 아니며 더 이상
+저장하지 않는다.
+
+| 상태 | 의미 | 다음 정상 상태 |
+| --- | --- | --- |
+| `PLANNING` | 여행 생성 후 일정 입력·후보 선택 중 | `GENERATING` |
+| `GENERATING` | 일정 생성 작업이 실행 중인 임시 상태 | `GENERATED` 또는 실패 전 상태 |
+| `GENERATED` | 현재 일정 Plan이 생성된 상태 | 재생성 시 `GENERATING` |
+| `COMPLETED` | 여행이 종료되어 확정된 상태 | 없음 |
+| `CANCELLED` | 여행이 취소된 상태 | 없음 |
+
+Cloud Run 강제 종료 등으로 `GENERATING`이 10분 이상 유지되면 다음 일정 생성
+요청에서 오래된 작업으로 판단한다. `activePlanId`가 있으면 `GENERATED`, 없으면
+`PLANNING`으로 원자적으로 복구한 뒤 새 생성을 시작한다.
+
+`ItineraryPlan.status=ACTIVE`와 Trip의 `activePlanId`는 별도 개념이다. 전자는
+여러 Plan 중 현재 사용 중인 Plan을 표시하고, 후자는 그 Plan ID를 가리킨다.
+
 ### 직관 로그 일정 조회
 
 `GET /api/v1/attendance-logs/{attendanceLogId}/itinerary`는 직관 로그와
