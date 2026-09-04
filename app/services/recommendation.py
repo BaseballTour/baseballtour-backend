@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
+from app.core.exceptions import AppException
 from app.external.tour_api.adapter import TourApiAdapter, tour_api_adapter
 from app.models.place import (
     BusinessRuleStatus,
@@ -104,10 +105,23 @@ class RecommendationService:
                 for center in _deduplicate_centers(centers)
             )
         )
-        if center_results and all(failed for _, failed in center_results):
-            raise asyncio.TimeoutError(
-                "모든 추천 기준점의 TourAPI 조회에 실패했습니다."
+        failures = [error for _, error in center_results if error is not None]
+        if center_results and len(failures) == len(center_results):
+            # TourAPI client가 분류한 429/timeout 등의 원인을 API 응답까지
+            # 보존합니다. 원인을 버리고 일반 TimeoutError를 만들면 FastAPI가
+            # 처리하지 못해 500으로 잘못 응답합니다.
+            first_app_error = next(
+                (error for error in failures if isinstance(error, AppException)),
+                None,
             )
+            if first_app_error is not None:
+                raise first_app_error
+            raise AppException(
+                status_code=503,
+                code="EXTERNAL_API_UNAVAILABLE",
+                message="TourAPI 추천 장소를 일시적으로 조회할 수 없습니다.",
+                details={"failedCenterCount": len(failures)},
+            ) from failures[0]
 
         for places, _ in center_results:
             nearby_places.extend(places)
@@ -192,10 +206,10 @@ class RecommendationService:
     async def _load_all_nearby_pages(
         self,
         center: RecommendationCenter,
-    ) -> tuple[list[Place], bool]:
+    ) -> tuple[list[Place], Exception | None]:
         places: list[Place] = []
         page_no = 1
-        first_page_failed = False
+        first_page_error: Exception | None = None
 
         while page_no <= self._max_pages_per_center:
             try:
@@ -211,17 +225,27 @@ class RecommendationService:
                 )
             except Exception as exc:
                 # 추천 실패는 사용자가 선택한 장소의 일정 생성을 막지 않습니다.
+                error_code = exc.code if isinstance(exc, AppException) else None
+                error_details = (
+                    exc.details
+                    if isinstance(exc, AppException)
+                    and isinstance(exc.details, dict)
+                    else None
+                )
                 logger.warning(
                     "TourAPI 추천 후보 조회를 건너뜁니다: page=%s "
                     "center_latitude=%s center_longitude=%s "
-                    "error_type=%s reason=%s",
+                    "error_type=%s error_code=%s error_details=%s reason=%s",
                     page_no,
                     center.latitude,
                     center.longitude,
                     type(exc).__name__,
+                    error_code,
+                    error_details,
                     exc,
                 )
-                first_page_failed = page_no == 1
+                if page_no == 1:
+                    first_page_error = exc
                 break
 
             places.extend(page.places)
@@ -238,7 +262,7 @@ class RecommendationService:
                 break
             page_no = next_page
 
-        return places, first_page_failed
+        return places, first_page_error
 
     async def _resolve_details(self, places: list[Place]) -> list[Place]:
         semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)

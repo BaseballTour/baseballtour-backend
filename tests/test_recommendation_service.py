@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from app.core.exceptions import AppException
 from app.services import recommendation as recommendation_module
 from app.external.tour_api.adapter import NearbyPlacePage
 from app.models.place import (
@@ -366,19 +367,46 @@ async def test_nearby_or_detail_failure_does_not_fail_recommendation() -> None:
 
 
 @pytest.mark.anyio
-async def test_all_nearby_centers_failed_raises_timeout() -> None:
+async def test_all_nearby_centers_failed_raises_external_unavailable() -> None:
     adapter = Mock()
     adapter.get_nearby_place_page = AsyncMock(
         side_effect=RuntimeError("TourAPI unavailable")
     )
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(AppException) as exc_info:
         await RecommendationService(adapter).get_candidates(
             centers=[
                 RecommendationCenter(latitude=35.19, longitude=129.06),
                 RecommendationCenter(latitude=35.11, longitude=129.04),
             ]
         )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.code == "EXTERNAL_API_UNAVAILABLE"
+
+
+@pytest.mark.anyio
+async def test_all_nearby_centers_preserve_tour_api_timeout() -> None:
+    adapter = Mock()
+    timeout_error = AppException(
+        status_code=503,
+        code="EXTERNAL_API_TIMEOUT",
+        message="TourAPI 요청 시간이 초과되었습니다.",
+        details={"timeoutType": "ReadTimeout", "elapsedMs": 20250},
+    )
+    adapter.get_nearby_place_page = AsyncMock(side_effect=timeout_error)
+
+    with pytest.raises(AppException) as exc_info:
+        await RecommendationService(adapter).get_candidates(
+            centers=[
+                RecommendationCenter(latitude=35.19, longitude=129.06),
+                RecommendationCenter(latitude=35.11, longitude=129.04),
+            ]
+        )
+
+    assert exc_info.value is timeout_error
+    assert exc_info.value.code == "EXTERNAL_API_TIMEOUT"
+    assert exc_info.value.details["timeoutType"] == "ReadTimeout"
 
 
 @pytest.mark.anyio

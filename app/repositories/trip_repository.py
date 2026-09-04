@@ -33,15 +33,37 @@ class TripRepository:
     def _to_record(*, trip_id: str, data: dict[str, Any]) -> TripRecord:
         """Firestore 여행 문서를 검증하고 실패 위치를 진단 로그에 남깁니다."""
 
+        normalized_data = dict(data)
+        raw_status = normalized_data.get("status")
+        if raw_status == "ACTIVE":
+            # 초기 스키마에서 Plan의 ACTIVE 상태가 Trip 문서에도 저장된
+            # 데이터와의 읽기 호환성. 활성 일정이 있으면 생성 완료,
+            # 없으면 계획 중으로 해석합니다.
+            normalized_status = (
+                TripStatus.GENERATED.value
+                if normalized_data.get("activePlanId")
+                else TripStatus.PLANNING.value
+            )
+            logger.warning(
+                "기존 여행 상태값을 정규화합니다: trip_id=%s "
+                "legacy_status=%s normalized_status=%s",
+                trip_id,
+                raw_status,
+                normalized_status,
+            )
+            normalized_data["status"] = normalized_status
+
         try:
             return TripRecord(
                 trip_id=trip_id,
-                **data,
+                **normalized_data,
             )
         except ValidationError as error:
             logger.error(
-                "여행 문서 모델 검증 실패: trip_id=%s errors=%s",
+                "여행 문서 모델 검증 실패: trip_id=%s raw_status=%r "
+                "errors=%s",
                 trip_id,
+                raw_status,
                 error.errors(include_input=False),
             )
             raise
