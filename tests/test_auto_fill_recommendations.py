@@ -511,11 +511,12 @@ def test_departure_day_auto_fill_starts_in_morning() -> None:
     assert place_item.scheduled_end_at < departure_item.scheduled_start_at
 
 
-def test_rejects_recommendation_with_more_than_thirty_minute_detour() -> None:
+def test_rejects_recommendation_when_travel_dominates_available_day() -> None:
     recommendation = place("far")
     travel = matrix(recommendation.place_id, default=10)
-    travel.minutes[("arrival", recommendation.place_id)] = 50
-    travel.minutes[(recommendation.place_id, "departure")] = 50
+    for anchor_id in ("arrival", "departure", "stadium"):
+        travel.minutes[(anchor_id, recommendation.place_id)] = 500
+        travel.minutes[(recommendation.place_id, anchor_id)] = 500
 
     result = generate_itinerary(
         trip(), [], travel, recommended_places=[recommendation]
@@ -525,7 +526,7 @@ def test_rejects_recommendation_with_more_than_thirty_minute_detour() -> None:
     assert result.auto_recommended_place_count == 0
 
 
-def test_four_day_trip_allows_first_place_within_relaxed_day_detour() -> None:
+def test_four_day_trip_allows_first_place_with_efficient_travel_ratio() -> None:
     recommendation = place(
         "departure_day_excursion",
         business_hours_status=BusinessRuleStatus.PARSED,
@@ -543,8 +544,8 @@ def test_four_day_trip_allows_first_place_within_relaxed_day_detour() -> None:
         }
     )
     travel = matrix(recommendation.place_id, default=10)
-    travel.minutes[("arrival", recommendation.place_id)] = 40
-    travel.minutes[(recommendation.place_id, "departure")] = 40
+    travel.minutes[("arrival", recommendation.place_id)] = 20
+    travel.minutes[(recommendation.place_id, "departure")] = 20
 
     result = generate_itinerary(
         four_day_trip,

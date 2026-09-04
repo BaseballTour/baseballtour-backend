@@ -429,6 +429,8 @@ class ItineraryGenerationService:
         """1차 결과에서 자동 추천이 부족한 자유 일정 날짜만 고른다."""
 
         minimums = {
+            DayType.ARRIVAL_DAY: 3,
+            DayType.GAME_DAY: 2,
             DayType.NON_GAME_DAY: 4,
             DayType.DEPARTURE_DAY: 3,
         }
@@ -454,22 +456,38 @@ class ItineraryGenerationService:
             return True
         timezone_info = items[0].scheduled_start_at.tzinfo
         cursor = datetime.combine(day.date, time(9, 0), timezone_info)
-        departure = next(
+        arrival = next(
             (
                 item
                 for item in items
-                if item.item_type == ItineraryItemType.DEPARTURE_POINT
+                if item.item_type == ItineraryItemType.ARRIVAL_POINT
+            ),
+            None,
+        )
+        if arrival is not None:
+            cursor = max(cursor, arrival.scheduled_end_at)
+        closing_anchor = next(
+            (
+                item
+                for item in items
+                if item.item_type
+                in {
+                    ItineraryItemType.STADIUM,
+                    ItineraryItemType.DEPARTURE_POINT,
+                }
             ),
             None,
         )
         available_end = (
-            departure.scheduled_start_at
-            if departure is not None
+            closing_anchor.scheduled_start_at
+            if closing_anchor is not None
             else datetime.combine(day.date, time(21, 0), timezone_info)
         )
         for item in items:
-            if item.item_type == ItineraryItemType.DEPARTURE_POINT:
+            if item is closing_anchor:
                 break
+            if item.item_type == ItineraryItemType.ARRIVAL_POINT:
+                continue
             gap = item.scheduled_start_at - cursor
             if gap >= timedelta(minutes=SUPPLEMENT_GAP_MINUTES):
                 return True

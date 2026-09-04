@@ -303,13 +303,19 @@ async def test_generate_supplies_real_recommendation_candidates() -> None:
         generator=generator,
         recommendations=[recommendation],
     )
+    context.recommendation_service.get_candidates.side_effect = [
+        [recommendation],
+        [],
+    ]
 
     await context.service.generate(
         user_id=USER_ID,
         trip_id=TRIP_ID,
     )
 
-    request = context.recommendation_service.get_candidates.await_args.kwargs
+    request = context.recommendation_service.get_candidates.await_args_list[
+        0
+    ].kwargs
     assert set(request["selected_place_ids"]) == set()
     assert len(request["centers"]) == 2
     assert request["centers"][0].latitude == 35.194
@@ -350,7 +356,7 @@ def test_recommendation_centers_include_accommodation_and_departure() -> None:
     ]
 
 
-def test_supplement_dates_select_only_sparse_free_days() -> None:
+def test_supplement_dates_include_sparse_game_and_free_days() -> None:
     free_day_item = ItineraryItem(
         type=ItineraryItemType.PLACE,
         sequence=1,
@@ -389,7 +395,7 @@ def test_supplement_dates_select_only_sparse_free_days() -> None:
 
     assert ItineraryGenerationService._recommendation_supplement_dates(
         result
-    ) == [START_AT.date() + timedelta(days=1)]
+    ) == [START_AT.date(), START_AT.date() + timedelta(days=1)]
 
 
 def test_long_gap_is_selected_for_supplement_even_with_enough_items() -> None:

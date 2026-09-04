@@ -49,14 +49,14 @@ DEPARTURE_BUFFER_MINUTES = 60
 
 
 AUTO_FILL_DENSITY_POLICIES = {
-    ScheduleDensity.LIGHT: (20, 45),
-    ScheduleDensity.MODERATE: (30, 30),
-    ScheduleDensity.DENSE: (45, 15),
+    ScheduleDensity.LIGHT: (0.35, 45),
+    ScheduleDensity.MODERATE: (0.50, 30),
+    ScheduleDensity.DENSE: (0.60, 15),
 }
 AUTO_FILL_STYLE_POLICIES = {
-    TravelStyle.RELAXED: (20, 45),
-    TravelStyle.BALANCED: (30, 30),
-    TravelStyle.EXPLORER: (45, 15),
+    TravelStyle.RELAXED: (0.35, 45),
+    TravelStyle.BALANCED: (0.50, 30),
+    TravelStyle.EXPLORER: (0.60, 15),
 }
 
 
@@ -112,7 +112,6 @@ def generate_itinerary(
                 supplemental,
                 matrix,
                 excluded_ids=set(selected) | auto_ids | occupied_ids,
-                detour_limit_multiplier=3,
                 diagnostics=supplemental_diagnostics,
             )
             routes[target_date] = updated[target_date]
@@ -528,6 +527,27 @@ def _merge_supplemental_diagnostics(
     diagnostics["placementRejectedAttemptsByDay"] = rejected_by_day
 
 
+def _route_uses_estimated_time(
+    start_id: str,
+    route: list[Place],
+    end_id: str | None,
+    matrix: TravelTimeMatrix,
+) -> bool:
+    previous = start_id
+    for place in route:
+        if (
+            matrix.get_source(previous, place.place_id)
+            == TravelTimeSource.ESTIMATED
+        ):
+            return True
+        previous = place.place_id
+    return (
+        end_id is not None
+        and matrix.get_source(previous, end_id)
+        == TravelTimeSource.ESTIMATED
+    )
+
+
 def _fill_routes_with_recommendations(
     trip: TripInput,
     routes: dict[date, list[Place]],
@@ -535,7 +555,6 @@ def _fill_routes_with_recommendations(
     matrix: TravelTimeMatrix,
     *,
     excluded_ids: set[str],
-    detour_limit_multiplier: int = 1,
     diagnostics: dict[str, object] | None = None,
 ) -> tuple[dict[date, list[Place]], set[str]]:
     """사용자 후보를 보존하면서 실행 가능한 추천 장소를 반복 삽입한다."""
@@ -552,17 +571,14 @@ def _fill_routes_with_recommendations(
         target_date: Counter() for target_date in routes
     }
     scheduled_per_day: Counter[date] = Counter()
-    density_detour, density_slack = (
+    density_efficiency, density_slack = (
         AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
     )
-    style_detour, style_slack = AUTO_FILL_STYLE_POLICIES[trip.travel_style]
-    maximum_detour_minutes = (
-        min(density_detour, style_detour) * detour_limit_multiplier
-    )
+    style_efficiency, style_slack = AUTO_FILL_STYLE_POLICIES[
+        trip.travel_style
+    ]
+    maximum_travel_ratio = min(density_efficiency, style_efficiency)
     minimum_non_game_slack = max(density_slack, style_slack)
-    trip_day_count = (
-        trip.trip_end_at.date() - trip.trip_start_at.date()
-    ).days + 1
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
@@ -641,18 +657,30 @@ def _fill_routes_with_recommendations(
                     marginal = route_travel_minutes(
                         args["start_id"], proposed, args["end_id"], matrix
                     ) - current_cost
-                    # 장기 여행의 비어 있는 하루는 첫 방문지를 잡기 위해
-                    # 숙소/Anchor에서 왕복 이동해야 한다. 이 첫 이동에 일반
-                    # 삽입 기준을 그대로 쓰면 하루 전체가 빈 일정이 될 수
-                    # 있으므로 3박 4일 이상에서 첫 장소에만 완화한다.
-                    effective_detour_limit = maximum_detour_minutes
-                    if (
-                        trip_day_count >= 4
-                        and not current
-                        and scheduled_per_day[target_date] == 0
+                    route_travel = route_travel_minutes(
+                        args["start_id"], proposed, args["end_id"], matrix
+                    )
+                    route_edges = len(proposed) + (
+                        1 if args["end_id"] is not None else 0
+                    )
+                    route_travel += route_edges * 15
+                    available_minutes = max(
+                        1,
+                        int(
+                            (
+                                args["available_end"]
+                                - args["available_start"]
+                            ).total_seconds()
+                            // 60
+                        ),
+                    )
+                    travel_ratio = route_travel / available_minutes
+                    effective_ratio = maximum_travel_ratio
+                    if _route_uses_estimated_time(
+                        args["start_id"], proposed, args["end_id"], matrix
                     ):
-                        effective_detour_limit *= 3
-                    if marginal > effective_detour_limit:
+                        effective_ratio = max(0.25, effective_ratio - 0.10)
+                    if travel_ratio > effective_ratio:
                         rejected["ROUTE_INEFFICIENT"] += 1
                         rejected_by_day[target_date][
                             "ROUTE_INEFFICIENT"
