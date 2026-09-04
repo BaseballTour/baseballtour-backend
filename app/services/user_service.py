@@ -7,6 +7,8 @@ from app.core.exceptions import AppException
 from app.repositories.team_repository import TeamRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.team import SupportTeamResponse, TeamResponse
+from app.services.storage_service import StorageService
+from app.services.team_service import resolve_team_logo_url
 from app.schemas.user import (
     UserBootstrapRequest,
     UserDocument,
@@ -55,6 +57,8 @@ class UserService:
             email=authenticated_user.email,
             nickname=request.nickname,
             birth_year=request.birth_year,
+            name=request.name,
+            phone_number=request.phone_number,
             support_team_id=request.support_team_id,
             profile_image_url=None,
             onboarding_completed=True,
@@ -126,6 +130,12 @@ class UserService:
             )
 
         nickname = user.nickname
+        name = user.name
+        phone_number = user.phone_number
+        profile_image_url = user.profile_image_url
+        profile_image_storage_path = (
+            user.profile_image_storage_path
+        )
         support_team_id = user.support_team_id
 
         updates: dict[str, object] = {}
@@ -133,6 +143,27 @@ class UserService:
         if request.nickname is not None:
             nickname = request.nickname
             updates["nickname"] = request.nickname
+
+        if "name" in request.model_fields_set:
+            name = request.name
+            updates["name"] = request.name
+
+        if "phone_number" in request.model_fields_set:
+            phone_number = request.phone_number
+            updates["phoneNumber"] = request.phone_number
+
+        if "profile_image_url" in request.model_fields_set:
+            profile_image_url = request.profile_image_url
+
+            # legacy profileImageUrl을 명시적으로 수정하면
+            # 기존 Storage 이미지를 다시 fallback하지 않도록
+            # Storage 기준 경로도 함께 해제합니다.
+            profile_image_storage_path = None
+
+            updates["profileImageUrl"] = (
+                request.profile_image_url
+            )
+            updates["profileImageStoragePath"] = None
 
         if request.support_team_id is not None:
             support_team_id = request.support_team_id
@@ -158,6 +189,12 @@ class UserService:
         updated_user = user.model_copy(
             update={
                 "nickname": nickname,
+                "name": name,
+                "phone_number": phone_number,
+                "profile_image_url": profile_image_url,
+                "profile_image_storage_path": (
+                    profile_image_storage_path
+                ),
                 "support_team_id": support_team_id,
                 "updated_at": updated_at,
             }
@@ -193,11 +230,23 @@ class UserService:
             email=user.email,
             nickname=user.nickname,
             birth_year=user.birth_year,
-            profile_image_url=user.profile_image_url,
+            name=user.name,
+            phone_number=user.phone_number,
+            profile_image_url=(
+                user.profile_image_url
+                if user.profile_image_url is not None
+                else (
+                    StorageService().create_download_url(
+                        user.profile_image_storage_path
+                    )
+                    if user.profile_image_storage_path
+                    else None
+                )
+            ),
             support_team=SupportTeamResponse(
                 team_id=team.team_id,
                 name=team.name,
-                logo_url=team.logo_url,
+                logo_url=resolve_team_logo_url(team),
             ),
             onboarding_completed=user.onboarding_completed,
             created_at=user.created_at,

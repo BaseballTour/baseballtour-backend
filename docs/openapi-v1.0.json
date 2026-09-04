@@ -6,6 +6,953 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/attendance-logs": {
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "내 직관 로그 목록 조회",
+        "operationId": "list_attendance_logs_api_v1_attendance_logs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_AttendanceLogResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "attendanceLogId": "log_001",
+                          "tripId": "trip_001",
+                          "gameId": "game_001",
+                          "planId": "plan_001",
+                          "logTitle": "사직 원정 직관 기록",
+                          "summaryText": "역전승을 직접 본 날",
+                          "logStatus": "PUBLISHED",
+                          "visibility": "PUBLIC",
+                          "createdAt": "2026-08-19T12:00:00+09:00",
+                          "updatedAt": "2026-08-19T13:00:00+09:00"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 초안 생성",
+        "operationId": "create_attendance_log_api_v1_attendance_logs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceLogCreateRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "tripId": "trip_001",
+                    "logTitle": "사직 원정 직관 기록"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "attendanceLogId": "log_001",
+                        "tripId": "trip_001",
+                        "gameId": "game_001",
+                        "planId": "plan_001",
+                        "logTitle": "사직 원정 직관 기록",
+                        "summaryText": "역전승을 직접 본 날",
+                        "logStatus": "PUBLISHED",
+                        "visibility": "PUBLIC",
+                        "createdAt": "2026-08-19T12:00:00+09:00",
+                        "updatedAt": "2026-08-19T13:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}": {
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 상세 조회",
+        "operationId": "get_attendance_log_api_v1_attendance_logs__attendanceLogId__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogDetailResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "attendanceLogId": "log_001",
+                        "tripId": "trip_001",
+                        "gameId": "game_001",
+                        "planId": "plan_001",
+                        "logTitle": "사직 원정 직관 기록",
+                        "summaryText": "역전승을 직접 본 날",
+                        "logStatus": "PUBLISHED",
+                        "visibility": "PUBLIC",
+                        "createdAt": "2026-08-19T12:00:00+09:00",
+                        "updatedAt": "2026-08-19T13:00:00+09:00",
+                        "entries": [
+                          {
+                            "logEntryId": "entry_001",
+                            "planItemId": "place_001",
+                            "placeId": "tour_001",
+                            "sequenceNo": 1,
+                            "entryType": "PLACE",
+                            "entryTitle": "광안리해수욕장",
+                            "reviewText": "경기 전에 들르기 좋았습니다.",
+                            "occurredAt": "2026-08-19T15:00:00+09:00",
+                            "media": [
+                              {
+                                "logMediaId": "media_001",
+                                "mediaType": "IMAGE",
+                                "mediaUrl": "https://storage.example/signed-read",
+                                "thumbnailUrl": null,
+                                "sequenceNo": 1,
+                                "createdAt": "2026-08-19T12:30:00+09:00"
+                              }
+                            ],
+                            "createdAt": "2026-08-19T12:00:00+09:00",
+                            "updatedAt": "2026-08-19T13:00:00+09:00"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 수정",
+        "operationId": "update_attendance_log_api_v1_attendance_logs__attendanceLogId__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceLogUpdateRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "summaryText": "역전승을 직접 본 날",
+                    "logStatus": "PUBLISHED",
+                    "visibility": "PUBLIC"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "attendanceLogId": "log_001",
+                        "tripId": "trip_001",
+                        "gameId": "game_001",
+                        "planId": "plan_001",
+                        "logTitle": "사직 원정 직관 기록",
+                        "summaryText": "역전승을 직접 본 날",
+                        "logStatus": "PUBLISHED",
+                        "visibility": "PUBLIC",
+                        "createdAt": "2026-08-19T12:00:00+09:00",
+                        "updatedAt": "2026-08-19T13:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 삭제",
+        "operationId": "delete_attendance_log_api_v1_attendance_logs__attendanceLogId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_dict_str__bool__"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "deleted": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}/entries/{entryId}": {
+      "patch": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 Entry 수정",
+        "operationId": "update_attendance_log_entry_api_v1_attendance_logs__attendanceLogId__entries__entryId__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entryid"
+            },
+            "description": "직관 로그 타임라인 Entry 문서 ID",
+            "example": "entry_001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogEntryUpdateRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "entryTitle": "경기장 입장",
+                    "reviewText": "경기 시작 전에 입장했습니다.",
+                    "occurredAt": "2026-08-19T17:30:00+09:00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_LogEntryResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "logEntryId": "entry_001",
+                        "planItemId": "place_001",
+                        "placeId": "tour_001",
+                        "sequenceNo": 1,
+                        "entryType": "PLACE",
+                        "entryTitle": "광안리해수욕장",
+                        "reviewText": "경기 전에 들르기 좋았습니다.",
+                        "occurredAt": "2026-08-19T15:00:00+09:00",
+                        "media": [
+                          {
+                            "logMediaId": "media_001",
+                            "mediaType": "IMAGE",
+                            "mediaUrl": "https://storage.example/signed-read",
+                            "thumbnailUrl": null,
+                            "sequenceNo": 1,
+                            "createdAt": "2026-08-19T12:30:00+09:00"
+                          }
+                        ],
+                        "createdAt": "2026-08-19T12:00:00+09:00",
+                        "updatedAt": "2026-08-19T13:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 Entry 삭제",
+        "operationId": "delete_attendance_log_entry_api_v1_attendance_logs__attendanceLogId__entries__entryId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entryid"
+            },
+            "description": "직관 로그 타임라인 Entry 문서 ID",
+            "example": "entry_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_dict_str__bool__"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "deleted": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance-logs/{attendanceLogId}/entries/{entryId}/media/{mediaId}": {
+      "delete": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 미디어 삭제",
+        "operationId": "delete_attendance_log_media_api_v1_attendance_logs__attendanceLogId__entries__entryId__media__mediaId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "example": "log_001"
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entryid"
+            },
+            "description": "직관 로그 타임라인 Entry 문서 ID",
+            "example": "entry_001"
+          },
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mediaid"
+            },
+            "description": "직관 로그 Entry에 연결된 미디어 문서 ID",
+            "example": "media_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_dict_str__bool__"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "deleted": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/attendance-logs/{attendanceLogId}/itinerary": {
       "get": {
         "tags": [
@@ -2835,6 +3782,232 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/media/upload-urls": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "미디어 업로드 URL 발급",
+        "description": "Firebase Storage에 직접 업로드할 수 있는 15분 유효 V4 PUT signed URL을 발급합니다.",
+        "operationId": "create_media_upload_url_api_v1_media_upload_urls_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaUploadUrlRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "purpose": "PROFILE_IMAGE",
+                    "fileName": "profile.jpg",
+                    "contentType": "image/jpeg",
+                    "fileSizeBytes": 1048576
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MediaUploadUrlResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "uploadUrl": "https://storage.googleapis.com/signed-upload",
+                        "storagePath": "users/firebase_uid_example/profile/media_example.jpg",
+                        "contentType": "image/jpeg",
+                        "expiresInSeconds": 900,
+                        "requiredHeaders": {
+                          "Content-Type": "image/jpeg"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/media/complete": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "미디어 업로드 완료",
+        "description": "Firebase Storage 직접 업로드 후 호출합니다. 실제 객체 크기와 Content-Type을 검증한 뒤 프로필 또는 직관 로그에 연결합니다.",
+        "operationId": "complete_media_upload_api_v1_media_complete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaCompleteRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "purpose": "PROFILE_IMAGE",
+                    "storagePath": "users/firebase_uid_example/profile/media_example.jpg",
+                    "contentType": "image/jpeg"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MediaCompleteResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "purpose": "PROFILE_IMAGE",
+                        "storagePath": "users/firebase_uid_example/profile/media_example.jpg",
+                        "contentType": "image/jpeg",
+                        "mediaUrl": "https://storage.example/signed-read",
+                        "logMediaId": null,
+                        "sequenceNo": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/teams": {
@@ -13583,7 +14756,7 @@
           "Users"
         ],
         "summary": "내 사용자 정보 수정",
-        "description": "인증된 사용자의 닉네임 및 응원팀을 수정합니다.",
+        "description": "인증된 사용자의 프로필 정보를 수정합니다.",
         "operationId": "update_my_profile_api_v1_users_me_patch",
         "requestBody": {
           "content": {
@@ -15691,37 +16864,91 @@
       "AccommodationCandidate": {
         "properties": {
           "accommodationId": {
+            "type": "string",
+            "pattern": "^accommodation_(?:kakao_[0-9]+|map_[0-9a-f]{16})$",
             "title": "Accommodationid",
             "description": "앱 내부 숙소 ID"
           },
           "kakaoPlaceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Kakaoplaceid"
           },
           "name": {
+            "type": "string",
+            "minLength": 1,
             "title": "Name"
           },
           "address": {
+            "type": "string",
+            "minLength": 1,
             "title": "Address"
           },
           "roadAddressName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Roadaddressname"
           },
           "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
             "title": "Latitude"
           },
           "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
             "title": "Longitude"
           },
           "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Phone"
           },
           "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Placeurl"
           },
           "categoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Categoryname"
           },
-          "selectionType": {}
+          "selectionType": {
+            "$ref": "#/components/schemas/AccommodationSelectionType"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -15736,7 +16963,7 @@
         "title": "AccommodationCandidate",
         "description": "검색 결과 또는 지도에서 선택한 숙소 정보."
       },
-      "AccommodationInfo-Input": {
+      "AccommodationInfo": {
         "properties": {
           "accommodationId": {
             "anyOf": [
@@ -15789,40 +17016,6 @@
         "title": "AccommodationInfo",
         "description": "여행 숙소 정보."
       },
-      "AccommodationInfo-Output": {
-        "properties": {
-          "accommodationId": {
-            "title": "Accommodationid",
-            "description": "앱 내부 숙소 ID. 신규 여행 입력은 accommodation_ 접두사가 포함된 값을 반드시 전달합니다."
-          },
-          "name": {
-            "title": "Name",
-            "description": "숙소 이름"
-          },
-          "address": {
-            "title": "Address",
-            "description": "숙소 주소"
-          },
-          "latitude": {
-            "title": "Latitude",
-            "description": "숙소 위도"
-          },
-          "longitude": {
-            "title": "Longitude",
-            "description": "숙소 경도"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "name",
-          "address",
-          "latitude",
-          "longitude"
-        ],
-        "title": "AccommodationInfo",
-        "description": "여행 숙소 정보."
-      },
       "AccommodationSelectionType": {
         "type": "string",
         "enum": [
@@ -15830,6 +17023,265 @@
           "MAP_POINT"
         ],
         "title": "AccommodationSelectionType"
+      },
+      "AttendanceLogCreateRequest": {
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tripid",
+            "description": "직관 로그를 생성할 여행 ID"
+          },
+          "logTitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logtitle",
+            "description": "직관 로그 제목. 생략하면 서버가 여행 정보를 기반으로 생성합니다."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tripId"
+        ],
+        "title": "AttendanceLogCreateRequest",
+        "description": "여행을 기반으로 직관 로그 초안을 생성하는 요청.\n\ngameId와 planId는 서버가 Trip을 통해 결정합니다.",
+        "examples": [
+          {
+            "logTitle": "사직 원정 직관 기록",
+            "tripId": "trip_001"
+          }
+        ]
+      },
+      "AttendanceLogDetailResponse": {
+        "properties": {
+          "attendanceLogId": {
+            "type": "string",
+            "title": "Attendancelogid"
+          },
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "planId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planid"
+          },
+          "logTitle": {
+            "type": "string",
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "logStatus": {
+            "$ref": "#/components/schemas/AttendanceLogStatus"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/AttendanceLogVisibility"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LogEntryResponse"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attendanceLogId",
+          "tripId",
+          "gameId",
+          "logTitle",
+          "logStatus",
+          "visibility",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "AttendanceLogDetailResponse",
+        "description": "직관 로그 상세 응답."
+      },
+      "AttendanceLogResponse": {
+        "properties": {
+          "attendanceLogId": {
+            "type": "string",
+            "title": "Attendancelogid"
+          },
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "gameId": {
+            "type": "string",
+            "title": "Gameid"
+          },
+          "planId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planid"
+          },
+          "logTitle": {
+            "type": "string",
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "logStatus": {
+            "$ref": "#/components/schemas/AttendanceLogStatus"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/AttendanceLogVisibility"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attendanceLogId",
+          "tripId",
+          "gameId",
+          "logTitle",
+          "logStatus",
+          "visibility",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "AttendanceLogResponse",
+        "description": "직관 로그 목록용 응답."
+      },
+      "AttendanceLogStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "PUBLISHED",
+          "ARCHIVED"
+        ],
+        "title": "AttendanceLogStatus",
+        "description": "직관 로그 상태."
+      },
+      "AttendanceLogUpdateRequest": {
+        "properties": {
+          "logTitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logtitle"
+          },
+          "summaryText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summarytext"
+          },
+          "logStatus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendanceLogStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendanceLogVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AttendanceLogUpdateRequest",
+        "description": "직관 로그 기본 정보 수정 요청."
+      },
+      "AttendanceLogVisibility": {
+        "type": "string",
+        "enum": [
+          "PRIVATE",
+          "PUBLIC"
+        ],
+        "title": "AttendanceLogVisibility",
+        "description": "직관 로그 공개 범위."
       },
       "BusinessHoursRule": {
         "properties": {
@@ -15880,12 +17332,26 @@
       "ErrorBody": {
         "properties": {
           "code": {
+            "type": "string",
             "title": "Code"
           },
           "message": {
+            "type": "string",
             "title": "Message"
           },
           "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                },
+                "type": "array"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
             "title": "Details"
           }
         },
@@ -15900,9 +17366,11 @@
       "ErrorDetail": {
         "properties": {
           "field": {
+            "type": "string",
             "title": "Field"
           },
           "reason": {
+            "type": "string",
             "title": "Reason"
           }
         },
@@ -15917,9 +17385,14 @@
       "ErrorResponse": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": false,
+            "title": "Success",
+            "default": false
           },
-          "error": {}
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -15931,13 +17404,19 @@
       "ExcludedPlace": {
         "properties": {
           "placeId": {
+            "type": "string",
             "title": "Placeid"
           },
           "isRequired": {
-            "title": "Isrequired"
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
           },
-          "reasonCode": {},
+          "reasonCode": {
+            "$ref": "#/components/schemas/ExcludedReasonCode"
+          },
           "message": {
+            "type": "string",
             "title": "Message"
           }
         },
@@ -15984,9 +17463,12 @@
       "FavoriteCollectionItemResponse": {
         "properties": {
           "placeId": {
+            "type": "string",
             "title": "Placeid"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Createdat"
           }
         },
@@ -16002,19 +17484,33 @@
       "FavoriteCollectionResponse": {
         "properties": {
           "collectionId": {
+            "type": "string",
             "title": "Collectionid"
           },
           "name": {
+            "type": "string",
             "title": "Name"
           },
           "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Thumbnailurl",
             "description": "컬렉션 첫 장소의 대표 이미지"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Createdat"
           },
           "updatedAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Updatedat"
           }
         },
@@ -16049,22 +17545,57 @@
       "GameResponse": {
         "properties": {
           "gameId": {
+            "type": "string",
             "title": "Gameid"
           },
           "gameStartAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Gamestartat"
           },
-          "status": {},
-          "homeTeam": {},
-          "awayTeam": {},
-          "stadium": {},
+          "status": {
+            "$ref": "#/components/schemas/GameStatus"
+          },
+          "homeTeam": {
+            "$ref": "#/components/schemas/GameTeamSummaryResponse"
+          },
+          "awayTeam": {
+            "$ref": "#/components/schemas/GameTeamSummaryResponse"
+          },
+          "stadium": {
+            "$ref": "#/components/schemas/StadiumSummaryResponse"
+          },
           "homeScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Homescore"
           },
           "awayScore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Awayscore"
           },
           "resultText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Resulttext"
           }
         },
@@ -16120,12 +17651,22 @@
       "GameTeamSummaryResponse": {
         "properties": {
           "teamId": {
+            "type": "string",
             "title": "Teamid"
           },
           "name": {
+            "type": "string",
             "title": "Name"
           },
           "logoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Logourl"
           }
         },
@@ -16141,8 +17682,11 @@
       "HealthData": {
         "properties": {
           "status": {
+            "type": "string",
+            "const": "healthy",
             "title": "Status",
-            "description": "서버 상태"
+            "description": "서버 상태",
+            "default": "healthy"
           }
         },
         "additionalProperties": false,
@@ -16218,10 +17762,18 @@
       "ItineraryPlanDay": {
         "properties": {
           "date": {
+            "type": "string",
+            "format": "date",
             "title": "Date"
           },
-          "dayType": {},
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
           "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryPlanItem"
+            },
+            "type": "array",
             "title": "Items"
           }
         },
@@ -16251,68 +17803,167 @@
       },
       "ItineraryPlanItem": {
         "properties": {
-          "type": {},
+          "type": {
+            "$ref": "#/components/schemas/ItineraryItemType"
+          },
           "sequence": {
+            "type": "integer",
+            "minimum": 1.0,
             "title": "Sequence"
           },
           "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Placeid"
           },
           "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceCategory"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "PLACE 항목의 내부 장소 카테고리"
           },
           "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Thumbnailurl",
             "description": "장소 카드에 표시할 대표 이미지"
           },
           "shortDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Shortdescription",
             "description": "PLACE 항목의 한 줄 표시용 장소 소개"
           },
           "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Overview",
             "description": "장소 한 줄 소개 또는 원문 소개"
           },
           "name": {
+            "type": "string",
             "title": "Name"
           },
           "address": {
+            "type": "string",
+            "minLength": 1,
             "title": "Address"
           },
           "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
             "title": "Latitude"
           },
           "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
             "title": "Longitude"
           },
           "scheduledStartAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Scheduledstartat"
           },
           "scheduledEndAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Scheduledendat"
           },
           "travelMinutesFromPrevious": {
-            "title": "Travelminutesfromprevious"
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Travelminutesfromprevious",
+            "default": 0
           },
           "travelDistanceMetersFromPrevious": {
-            "title": "Traveldistancemetersfromprevious"
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Traveldistancemetersfromprevious",
+            "default": 0
           },
           "transferBufferMinutes": {
+            "type": "integer",
+            "minimum": 0.0,
             "title": "Transferbufferminutes",
-            "description": "이동시간과 별도로 확보한 환승·대기 여유시간"
+            "description": "이동시간과 별도로 확보한 환승·대기 여유시간",
+            "default": 0
           },
-          "travelMode": {},
-          "travelTimeSource": {},
+          "travelMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "travelTimeSource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelTimeSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "isRequired": {
-            "title": "Isrequired"
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
           },
-          "addedBy": {},
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItineraryItemAddedBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "itemId": {
+            "type": "string",
+            "minLength": 1,
             "title": "Itemid"
           },
           "isFixed": {
+            "type": "boolean",
             "title": "Isfixed",
-            "description": "재생성 시 현재 날짜와 순서를 유지할지 여부"
+            "description": "재생성 시 현재 날짜와 순서를 유지할지 여부",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -16359,28 +18010,58 @@
       "ItineraryPlanResponse": {
         "properties": {
           "planId": {
+            "type": "string",
+            "minLength": 1,
             "title": "Planid"
           },
           "tripId": {
+            "type": "string",
+            "minLength": 1,
             "title": "Tripid"
           },
-          "status": {},
+          "status": {
+            "$ref": "#/components/schemas/ItineraryPlanStatus"
+          },
           "algorithmVersion": {
+            "type": "string",
+            "minLength": 1,
             "title": "Algorithmversion"
           },
           "totalTravelMinutes": {
+            "type": "integer",
+            "minimum": 0.0,
             "title": "Totaltravelminutes"
           },
           "totalTravelDistanceMeters": {
-            "title": "Totaltraveldistancemeters"
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Totaltraveldistancemeters",
+            "default": 0
           },
           "days": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryPlanDay"
+            },
+            "type": "array",
             "title": "Days"
           },
           "excludedPlaces": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedPlace"
+            },
+            "type": "array",
             "title": "Excludedplaces"
           },
-          "recommendationSummary": {}
+          "recommendationSummary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16427,10 +18108,20 @@
       "ListMeta": {
         "properties": {
           "count": {
+            "type": "integer",
+            "minimum": 0.0,
             "title": "Count",
             "description": "현재 응답에 포함된 데이터 개수"
           },
           "nextPageToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Nextpagetoken",
             "description": "다음 페이지 조회 토큰"
           }
@@ -16445,12 +18136,21 @@
       "ListSuccessResponse_AccommodationCandidate_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/AccommodationCandidate"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16460,15 +18160,51 @@
         ],
         "title": "ListSuccessResponse[AccommodationCandidate]"
       },
+      "ListSuccessResponse_AttendanceLogResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceLogResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[AttendanceLogResponse]"
+      },
       "ListSuccessResponse_FavoriteCollectionResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/FavoriteCollectionResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16481,12 +18217,21 @@
       "ListSuccessResponse_GameResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/GameResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16499,12 +18244,21 @@
       "ListSuccessResponse_PlaceSelectionResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSelectionResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16517,12 +18271,21 @@
       "ListSuccessResponse_Place_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16535,12 +18298,21 @@
       "ListSuccessResponse_PlayerPickResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerPickResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16553,12 +18325,21 @@
       "ListSuccessResponse_TeamResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16571,12 +18352,21 @@
       "ListSuccessResponse_TermResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/TermResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16589,12 +18379,21 @@
       "ListSuccessResponse_TourClassification_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/TourClassification"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16607,12 +18406,21 @@
       "ListSuccessResponse_TourFilterOption_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/TourFilterOption"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16625,12 +18433,21 @@
       "ListSuccessResponse_TripSummaryResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
           "data": {
+            "items": {
+              "$ref": "#/components/schemas/TripSummaryResponse"
+            },
+            "type": "array",
             "title": "Data"
           },
-          "meta": {}
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -16639,6 +18456,455 @@
           "meta"
         ],
         "title": "ListSuccessResponse[TripSummaryResponse]"
+      },
+      "LogEntryResponse": {
+        "properties": {
+          "logEntryId": {
+            "type": "string",
+            "title": "Logentryid"
+          },
+          "planItemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planitemid"
+          },
+          "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeid"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "title": "Sequenceno"
+          },
+          "entryType": {
+            "$ref": "#/components/schemas/LogEntryType"
+          },
+          "entryTitle": {
+            "type": "string",
+            "title": "Entrytitle"
+          },
+          "reviewText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewtext"
+          },
+          "occurredAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurredat"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/LogMediaResponse"
+            },
+            "type": "array",
+            "title": "Media"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "logEntryId",
+          "sequenceNo",
+          "entryType",
+          "entryTitle",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "LogEntryResponse",
+        "description": "로그 Entry API 응답."
+      },
+      "LogEntryType": {
+        "type": "string",
+        "enum": [
+          "PLACE",
+          "GAME",
+          "MOVE",
+          "NOTE"
+        ],
+        "title": "LogEntryType",
+        "description": "직관 로그 타임라인 항목 종류."
+      },
+      "LogEntryUpdateRequest": {
+        "properties": {
+          "entryTitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entrytitle"
+          },
+          "reviewText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewtext"
+          },
+          "occurredAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurredat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LogEntryUpdateRequest",
+        "description": "직관 로그 타임라인 Entry 수정 요청.",
+        "examples": [
+          {
+            "entryTitle": "경기장 입장",
+            "occurredAt": "2026-08-19T17:30:00+09:00",
+            "reviewText": "경기 시작 전에 입장했습니다."
+          }
+        ]
+      },
+      "LogMediaResponse": {
+        "properties": {
+          "logMediaId": {
+            "type": "string",
+            "title": "Logmediaid"
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/LogMediaType"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "title": "Mediaurl"
+          },
+          "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnailurl"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "title": "Sequenceno"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "logMediaId",
+          "mediaType",
+          "mediaUrl",
+          "sequenceNo",
+          "createdAt"
+        ],
+        "title": "LogMediaResponse",
+        "description": "로그 미디어 API 응답."
+      },
+      "LogMediaType": {
+        "type": "string",
+        "enum": [
+          "IMAGE",
+          "VIDEO"
+        ],
+        "title": "LogMediaType",
+        "description": "직관 로그 미디어 종류."
+      },
+      "MediaCompleteRequest": {
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/MediaPurpose"
+          },
+          "storagePath": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Storagepath"
+          },
+          "contentType": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Contenttype"
+          },
+          "attendanceLogId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendancelogid"
+          },
+          "logEntryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logentryid"
+          },
+          "sequenceNo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequenceno"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "storagePath",
+          "contentType"
+        ],
+        "title": "MediaCompleteRequest",
+        "description": "Storage 직접 업로드 완료 등록 요청.",
+        "examples": [
+          {
+            "attendanceLogId": "log_001",
+            "contentType": "image/jpeg",
+            "logEntryId": "entry_001",
+            "purpose": "ATTENDANCE_LOG",
+            "sequenceNo": 1,
+            "storagePath": "users/firebase_uid/attendance-logs/log_001/entry_001/media_example.jpg"
+          }
+        ]
+      },
+      "MediaCompleteResponse": {
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/MediaPurpose"
+          },
+          "storagePath": {
+            "type": "string",
+            "title": "Storagepath"
+          },
+          "contentType": {
+            "type": "string",
+            "title": "Contenttype"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "title": "Mediaurl"
+          },
+          "logMediaId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logmediaid"
+          },
+          "sequenceNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequenceno"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "storagePath",
+          "contentType",
+          "mediaUrl"
+        ],
+        "title": "MediaCompleteResponse",
+        "description": "Storage 업로드 완료 등록 응답."
+      },
+      "MediaPurpose": {
+        "type": "string",
+        "enum": [
+          "PROFILE_IMAGE",
+          "ATTENDANCE_LOG"
+        ],
+        "title": "MediaPurpose",
+        "description": "미디어 업로드 용도."
+      },
+      "MediaUploadUrlRequest": {
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/MediaPurpose"
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "contentType": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Contenttype"
+          },
+          "fileSizeBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Filesizebytes",
+            "description": "업로드할 파일 크기(bytes)"
+          },
+          "attendanceLogId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendancelogid"
+          },
+          "logEntryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logentryid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "fileName",
+          "contentType",
+          "fileSizeBytes"
+        ],
+        "title": "MediaUploadUrlRequest",
+        "description": "Firebase Storage 업로드 URL 발급 요청.",
+        "examples": [
+          {
+            "contentType": "image/jpeg",
+            "fileName": "profile.jpg",
+            "fileSizeBytes": 1048576,
+            "purpose": "PROFILE_IMAGE"
+          }
+        ]
+      },
+      "MediaUploadUrlResponse": {
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "title": "Uploadurl"
+          },
+          "storagePath": {
+            "type": "string",
+            "title": "Storagepath"
+          },
+          "contentType": {
+            "type": "string",
+            "title": "Contenttype"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "title": "Expiresinseconds"
+          },
+          "requiredHeaders": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Requiredheaders"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "uploadUrl",
+          "storagePath",
+          "contentType",
+          "expiresInSeconds",
+          "requiredHeaders"
+        ],
+        "title": "MediaUploadUrlResponse",
+        "description": "Firebase Storage 업로드 URL 응답."
       },
       "Place": {
         "properties": {
@@ -17049,12 +19315,16 @@
       "PlaceSelectionResponse": {
         "properties": {
           "placeId": {
+            "type": "string",
             "title": "Placeid"
           },
           "isRequired": {
+            "type": "boolean",
             "title": "Isrequired"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Createdat"
           }
         },
@@ -17097,16 +19367,29 @@
       "PlayerPickResponse": {
         "properties": {
           "playerPickId": {
+            "type": "string",
             "title": "Playerpickid"
           },
           "stadiumId": {
+            "type": "string",
             "title": "Stadiumid"
           },
           "playerName": {
+            "type": "string",
             "title": "Playername"
           },
-          "place": {},
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
           "recommendationNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Recommendationnote"
           }
         },
@@ -17123,21 +19406,42 @@
       "RecommendationSummary": {
         "properties": {
           "fetchedCount": {
-            "title": "Fetchedcount"
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Fetchedcount",
+            "default": 0
           },
           "candidateCount": {
-            "title": "Candidatecount"
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Candidatecount",
+            "default": 0
           },
           "scheduledCount": {
-            "title": "Scheduledcount"
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Scheduledcount",
+            "default": 0
           },
           "categoryDistribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
             "title": "Categorydistribution"
           },
           "filteredCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
             "title": "Filteredcounts"
           },
           "placementRejectedAttempts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
             "title": "Placementrejectedattempts",
             "description": "장소 고유 개수가 아니라 날짜·삽입 위치별 실패 시도 횟수"
           }
@@ -17150,16 +19454,21 @@
       "RootData": {
         "properties": {
           "name": {
+            "type": "string",
             "title": "Name",
             "description": "애플리케이션 이름"
           },
           "environment": {
+            "type": "string",
             "title": "Environment",
             "description": "현재 실행 환경"
           },
           "status": {
+            "type": "string",
+            "const": "running",
             "title": "Status",
-            "description": "애플리케이션 실행 상태"
+            "description": "애플리케이션 실행 상태",
+            "default": "running"
           }
         },
         "additionalProperties": false,
@@ -17182,18 +19491,23 @@
       "StadiumSummaryResponse": {
         "properties": {
           "stadiumId": {
+            "type": "string",
             "title": "Stadiumid"
           },
           "name": {
+            "type": "string",
             "title": "Name"
           },
           "address": {
+            "type": "string",
             "title": "Address"
           },
           "latitude": {
+            "type": "number",
             "title": "Latitude"
           },
           "longitude": {
+            "type": "number",
             "title": "Longitude"
           }
         },
@@ -17212,9 +19526,14 @@
       "SuccessResponse_AccommodationCandidate_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/AccommodationCandidate"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17223,12 +19542,55 @@
         ],
         "title": "SuccessResponse[AccommodationCandidate]"
       },
+      "SuccessResponse_AttendanceLogDetailResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AttendanceLogDetailResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[AttendanceLogDetailResponse]"
+      },
+      "SuccessResponse_AttendanceLogResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AttendanceLogResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[AttendanceLogResponse]"
+      },
       "SuccessResponse_FavoriteCollectionItemResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/FavoriteCollectionItemResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17240,9 +19602,14 @@
       "SuccessResponse_FavoriteCollectionResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/FavoriteCollectionResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17254,9 +19621,14 @@
       "SuccessResponse_GameResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/GameResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17268,9 +19640,14 @@
       "SuccessResponse_HealthData_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/HealthData"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17282,9 +19659,14 @@
       "SuccessResponse_ItineraryPlanResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/ItineraryPlanResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17293,12 +19675,74 @@
         ],
         "title": "SuccessResponse[ItineraryPlanResponse]"
       },
+      "SuccessResponse_LogEntryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/LogEntryResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[LogEntryResponse]"
+      },
+      "SuccessResponse_MediaCompleteResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/MediaCompleteResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[MediaCompleteResponse]"
+      },
+      "SuccessResponse_MediaUploadUrlResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/MediaUploadUrlResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[MediaUploadUrlResponse]"
+      },
       "SuccessResponse_PlaceSelectionResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/PlaceSelectionResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17310,9 +19754,14 @@
       "SuccessResponse_Place_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/Place"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17324,9 +19773,14 @@
       "SuccessResponse_RootData_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/RootData"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17338,9 +19792,14 @@
       "SuccessResponse_TermAgreementsResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/TermAgreementsResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17352,9 +19811,14 @@
       "SuccessResponse_TripDetailResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/TripDetailResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17366,9 +19830,14 @@
       "SuccessResponse_TripSummaryResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/TripSummaryResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17380,9 +19849,14 @@
       "SuccessResponse_UserResponse_": {
         "properties": {
           "success": {
-            "title": "Success"
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
           },
-          "data": {}
+          "data": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
         },
         "additionalProperties": false,
         "type": "object",
@@ -17391,15 +19865,48 @@
         ],
         "title": "SuccessResponse[UserResponse]"
       },
+      "SuccessResponse_dict_str__bool__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[dict[str, bool]]"
+      },
       "SupportTeamResponse": {
         "properties": {
           "teamId": {
+            "type": "string",
             "title": "Teamid"
           },
           "name": {
+            "type": "string",
             "title": "Name"
           },
           "logoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Logourl"
           }
         },
@@ -17407,42 +19914,53 @@
         "type": "object",
         "required": [
           "teamId",
-          "name",
-          "logoUrl"
+          "name"
         ],
         "title": "SupportTeamResponse",
         "description": "사용자 프로필에 포함되는 응원팀 요약 정보."
       },
       "TeamResponse": {
         "properties": {
+          "teamId": {
+            "type": "string",
+            "title": "Teamid"
+          },
           "name": {
+            "type": "string",
             "title": "Name"
           },
           "shortName": {
+            "type": "string",
             "title": "Shortname"
           },
           "logoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Logourl"
           },
           "homeRegion": {
+            "type": "string",
             "title": "Homeregion"
           },
           "stadiumId": {
+            "type": "string",
             "title": "Stadiumid"
-          },
-          "teamId": {
-            "title": "Teamid"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "teamId",
           "name",
           "shortName",
-          "logoUrl",
           "homeRegion",
-          "stadiumId",
-          "teamId"
+          "stadiumId"
         ],
         "title": "TeamResponse",
         "description": "구단 API 응답 모델."
@@ -17475,14 +19993,27 @@
       },
       "TermAgreementResponse": {
         "properties": {
-          "termCode": {},
+          "termCode": {
+            "$ref": "#/components/schemas/TermCode"
+          },
           "version": {
+            "type": "string",
             "title": "Version"
           },
           "agreed": {
+            "type": "boolean",
             "title": "Agreed"
           },
           "agreedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Agreedat"
           }
         },
@@ -17520,6 +20051,10 @@
       "TermAgreementsResponse": {
         "properties": {
           "agreements": {
+            "items": {
+              "$ref": "#/components/schemas/TermAgreementResponse"
+            },
+            "type": "array",
             "title": "Agreements"
           }
         },
@@ -17543,20 +20078,28 @@
       },
       "TermResponse": {
         "properties": {
-          "termCode": {},
+          "termCode": {
+            "$ref": "#/components/schemas/TermCode"
+          },
           "title": {
+            "type": "string",
             "title": "Title"
           },
           "required": {
+            "type": "boolean",
             "title": "Required"
           },
           "version": {
+            "type": "string",
             "title": "Version"
           },
           "content": {
+            "type": "string",
             "title": "Content"
           },
           "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Effectiveat"
           }
         },
@@ -17576,26 +20119,60 @@
       "TourClassification": {
         "properties": {
           "lclsSystem1": {
+            "type": "string",
             "title": "Lclssystem1",
             "description": "TourAPI 신분류 대분류 코드"
           },
           "lclsSystem1Name": {
+            "type": "string",
             "title": "Lclssystem1Name",
             "description": "TourAPI 신분류 대분류 한글명"
           },
           "lclsSystem2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Lclssystem2",
             "description": "TourAPI 신분류 중분류 코드"
           },
           "lclsSystem2Name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Lclssystem2Name",
             "description": "TourAPI 신분류 중분류 한글명"
           },
           "lclsSystem3": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Lclssystem3",
             "description": "TourAPI 신분류 소분류 코드"
           },
           "lclsSystem3Name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Lclssystem3Name",
             "description": "TourAPI 신분류 소분류 한글명"
           }
@@ -17695,18 +20272,25 @@
       "TourFilterOption": {
         "properties": {
           "filterId": {
+            "type": "string",
             "title": "Filterid",
             "description": "프론트가 검색 요청에 전달할 필터 ID"
           },
           "label": {
+            "type": "string",
             "title": "Label",
             "description": "화면에 표시할 한글명"
           },
           "group": {
+            "type": "string",
             "title": "Group",
             "description": "필터가 속한 상위 화면 그룹"
           },
           "classificationCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
             "title": "Classificationcodes",
             "description": "백엔드가 조합하는 TourAPI 신분류 코드"
           }
@@ -17788,7 +20372,7 @@
           "arrivalPoint": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TripPoint-Input"
+                "$ref": "#/components/schemas/TripPoint"
               },
               {
                 "type": "null"
@@ -17798,7 +20382,7 @@
           "departurePoint": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TripPoint-Input"
+                "$ref": "#/components/schemas/TripPoint"
               },
               {
                 "type": "null"
@@ -17808,7 +20392,7 @@
           "accommodation": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AccommodationInfo-Input"
+                "$ref": "#/components/schemas/AccommodationInfo"
               },
               {
                 "type": "null"
@@ -17865,36 +20449,89 @@
       "TripDetailResponse": {
         "properties": {
           "tripId": {
+            "type": "string",
             "title": "Tripid"
           },
           "gameId": {
+            "type": "string",
             "title": "Gameid"
           },
           "title": {
+            "type": "string",
             "title": "Title"
           },
           "subtitle": {
+            "type": "string",
             "title": "Subtitle"
           },
-          "status": {},
+          "status": {
+            "$ref": "#/components/schemas/TripStatus"
+          },
           "tripStartAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Tripstartat"
           },
           "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Tripendat"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Createdat"
           },
-          "arrivalPoint": {},
-          "departurePoint": {},
-          "accommodation": {},
-          "travelStyle": {},
-          "scheduleDensity": {},
+          "arrivalPoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "departurePoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accommodation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccommodationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "travelStyle": {
+            "$ref": "#/components/schemas/TravelStyle"
+          },
+          "scheduleDensity": {
+            "$ref": "#/components/schemas/ScheduleDensity"
+          },
           "activePlanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Activeplanid"
           },
           "updatedAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Updatedat"
           }
         },
@@ -17916,7 +20553,7 @@
         "title": "TripDetailResponse",
         "description": "여행 상세 및 수정 응답."
       },
-      "TripPoint-Input": {
+      "TripPoint": {
         "properties": {
           "name": {
             "type": "string",
@@ -17949,31 +20586,6 @@
         "title": "TripPoint",
         "description": "여행의 도착 또는 출발 장소."
       },
-      "TripPoint-Output": {
-        "properties": {
-          "name": {
-            "title": "Name",
-            "description": "장소 이름"
-          },
-          "latitude": {
-            "title": "Latitude",
-            "description": "위도"
-          },
-          "longitude": {
-            "title": "Longitude",
-            "description": "경도"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "name",
-          "latitude",
-          "longitude"
-        ],
-        "title": "TripPoint",
-        "description": "여행의 도착 또는 출발 장소."
-      },
       "TripStatus": {
         "type": "string",
         "enum": [
@@ -17989,25 +20601,37 @@
       "TripSummaryResponse": {
         "properties": {
           "tripId": {
+            "type": "string",
             "title": "Tripid"
           },
           "gameId": {
+            "type": "string",
             "title": "Gameid"
           },
           "title": {
+            "type": "string",
             "title": "Title"
           },
           "subtitle": {
+            "type": "string",
             "title": "Subtitle"
           },
-          "status": {},
+          "status": {
+            "$ref": "#/components/schemas/TripStatus"
+          },
           "tripStartAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Tripstartat"
           },
           "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Tripendat"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Createdat"
           }
         },
@@ -18092,7 +20716,7 @@
           "arrivalPoint": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TripPoint-Input"
+                "$ref": "#/components/schemas/TripPoint"
               },
               {
                 "type": "null"
@@ -18102,7 +20726,7 @@
           "departurePoint": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TripPoint-Input"
+                "$ref": "#/components/schemas/TripPoint"
               },
               {
                 "type": "null"
@@ -18112,7 +20736,7 @@
           "accommodation": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AccommodationInfo-Input"
+                "$ref": "#/components/schemas/AccommodationInfo"
               },
               {
                 "type": "null"
@@ -18169,6 +20793,34 @@
             "type": "integer",
             "title": "Birthyear"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "사용자 이름"
+          },
+          "phoneNumber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phonenumber",
+            "description": "휴대폰 번호"
+          },
           "supportTeamId": {
             "type": "string",
             "title": "Supportteamid"
@@ -18194,28 +20846,83 @@
       "UserResponse": {
         "properties": {
           "userId": {
+            "type": "string",
             "title": "Userid"
           },
           "email": {
+            "type": "string",
             "title": "Email"
           },
           "nickname": {
+            "type": "string",
             "title": "Nickname"
           },
           "birthYear": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Birthyear"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phoneNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phonenumber"
+          },
           "profileImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Profileimageurl"
           },
-          "supportTeam": {},
+          "supportTeam": {
+            "$ref": "#/components/schemas/SupportTeamResponse"
+          },
           "onboardingCompleted": {
+            "type": "boolean",
             "title": "Onboardingcompleted"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
             "title": "Createdat"
           },
           "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Updatedat"
           }
         },
@@ -18254,6 +20961,7 @@
             "anyOf": [
               {
                 "type": "string",
+                "maxLength": 50,
                 "minLength": 1
               },
               {
@@ -18262,6 +20970,47 @@
             ],
             "title": "Nickname",
             "description": "변경할 닉네임"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "변경할 사용자 이름. null이면 삭제"
+          },
+          "phoneNumber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phonenumber",
+            "description": "변경할 휴대폰 번호. null이면 삭제"
+          },
+          "profileImageUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profileimageurl",
+            "description": "프로필 이미지 URL. null이면 삭제"
           },
           "supportTeamId": {
             "anyOf": [
@@ -18283,8 +21032,10 @@
         "description": "사용자 프로필 수정 요청.",
         "examples": [
           {
+            "name": "서민준",
             "nickname": "민준",
-            "supportTeamId": "LG"
+            "phoneNumber": "01012345678",
+            "profileImageUrl": "https://example.com/profile.jpg"
           }
         ]
       },

@@ -21,6 +21,21 @@ class TermRepository:
             self.COLLECTION_NAME
         )
 
+    def set_term(
+        self,
+        term_id: str,
+        term: TermDocument,
+    ) -> None:
+        """약관 문서를 생성하거나 덮어씁니다."""
+
+        self._collection.document(
+            term_id
+        ).set(
+            term.model_dump(
+                by_alias=True,
+            )
+        )
+
     def get_active_terms(
         self,
     ) -> list[TermRecord]:

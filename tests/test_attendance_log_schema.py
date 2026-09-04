@@ -200,3 +200,43 @@ def test_log_media_document_matches_erd_fields() -> None:
     )
 
     assert record.log_media_id == "media_001"
+
+
+def test_attendance_log_defaults_to_private_visibility() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogDocument,
+        AttendanceLogStatus,
+        AttendanceLogVisibility,
+    )
+
+    media_free_log = AttendanceLogDocument(
+        user_id="user_001",
+        trip_id="trip_001",
+        game_id="game_001",
+        plan_id="plan_001",
+        log_title="직관 기록",
+        summary_text=None,
+        log_status=AttendanceLogStatus.DRAFT,
+        created_at=NOW,
+        updated_at=NOW,
+        deleted_at=None,
+    )
+
+    assert (
+        media_free_log.visibility
+        == AttendanceLogVisibility.PRIVATE
+    )
+
+
+def test_attendance_log_update_rejects_null_visibility() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    with pytest.raises(ValidationError):
+        AttendanceLogUpdateRequest(
+            visibility=None
+        )

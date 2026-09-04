@@ -13,7 +13,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.core.time import to_korea_datetime, to_korea_isoformat
+from app.core.time import to_korea_datetime
 from app.models.place import PlaceCategory
 from app.models.travel_preferences import ScheduleDensity, TravelStyle
 
@@ -48,11 +48,21 @@ class AlgorithmModel(BaseModel):
             return to_korea_datetime(value)
         return value
 
-    @field_serializer("*", when_used="json", check_fields=False)
-    def serialize_datetime_as_korea(self, value: Any) -> Any:
-        if isinstance(value, datetime):
-            return to_korea_isoformat(value)
-        return value
+    @field_serializer(
+        "game_start_at",
+        "trip_start_at",
+        "trip_end_at",
+        "scheduled_start_at",
+        "scheduled_end_at",
+        when_used="json",
+        check_fields=False,
+    )
+    def serialize_datetime_as_korea(
+        self,
+        value: datetime,
+    ) -> datetime:
+        """일정 알고리즘 datetime을 한국시간으로 변환해 직렬화합니다."""
+        return to_korea_datetime(value)
 
 
 class DayType(str, Enum):

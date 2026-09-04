@@ -77,7 +77,7 @@ def get_my_profile(
     "/me",
     response_model=SuccessResponse[UserResponse],
     summary="내 사용자 정보 수정",
-    description="인증된 사용자의 닉네임 및 응원팀을 수정합니다.",
+    description="인증된 사용자의 프로필 정보를 수정합니다.",
 )
 def update_my_profile(
     request: UserUpdateRequest,

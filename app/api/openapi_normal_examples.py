@@ -214,8 +214,222 @@ SUCCESS_EXAMPLES = {
     }]),
 }
 
+# ===== Attendance Log / Media examples =====
+
+ATTENDANCE_LOG_EXAMPLE = {
+    "attendanceLogId": "log_001",
+    "tripId": "trip_001",
+    "gameId": "game_001",
+    "planId": "plan_001",
+    "logTitle": "사직 원정 직관 기록",
+    "summaryText": "역전승을 직접 본 날",
+    "logStatus": "PUBLISHED",
+    "visibility": "PUBLIC",
+    "createdAt": "2026-08-19T12:00:00+09:00",
+    "updatedAt": "2026-08-19T13:00:00+09:00",
+}
+
+LOG_MEDIA_EXAMPLE = {
+    "logMediaId": "media_001",
+    "mediaType": "IMAGE",
+    "mediaUrl": "https://storage.example/signed-read",
+    "thumbnailUrl": None,
+    "sequenceNo": 1,
+    "createdAt": "2026-08-19T12:30:00+09:00",
+}
+
+LOG_ENTRY_EXAMPLE = {
+    "logEntryId": "entry_001",
+    "planItemId": "place_001",
+    "placeId": "tour_001",
+    "sequenceNo": 1,
+    "entryType": "PLACE",
+    "entryTitle": "광안리해수욕장",
+    "reviewText": "경기 전에 들르기 좋았습니다.",
+    "occurredAt": "2026-08-19T15:00:00+09:00",
+    "media": [LOG_MEDIA_EXAMPLE],
+    "createdAt": "2026-08-19T12:00:00+09:00",
+    "updatedAt": "2026-08-19T13:00:00+09:00",
+}
+
+ATTENDANCE_LOG_DETAIL_EXAMPLE = {
+    **ATTENDANCE_LOG_EXAMPLE,
+    "entries": [LOG_ENTRY_EXAMPLE],
+}
+
+MEDIA_UPLOAD_URL_EXAMPLE = {
+    "uploadUrl": "https://storage.googleapis.com/signed-upload",
+    "storagePath": (
+        "users/firebase_uid_example/"
+        "profile/media_example.jpg"
+    ),
+    "contentType": "image/jpeg",
+    "expiresInSeconds": 900,
+    "requiredHeaders": {
+        "Content-Type": "image/jpeg",
+    },
+}
+
+MEDIA_COMPLETE_EXAMPLE = {
+    "purpose": "PROFILE_IMAGE",
+    "storagePath": (
+        "users/firebase_uid_example/"
+        "profile/media_example.jpg"
+    ),
+    "contentType": "image/jpeg",
+    "mediaUrl": "https://storage.example/signed-read",
+    "logMediaId": None,
+    "sequenceNo": None,
+}
+
+
+REQUEST_EXAMPLES.update({
+    (
+        "post",
+        "/api/v1/attendance-logs",
+    ): {
+        "tripId": "trip_001",
+        "logTitle": "사직 원정 직관 기록",
+    },
+    (
+        "patch",
+        "/api/v1/attendance-logs/{attendanceLogId}",
+    ): {
+        "summaryText": "역전승을 직접 본 날",
+        "logStatus": "PUBLISHED",
+        "visibility": "PUBLIC",
+    },
+    (
+        "patch",
+        (
+            "/api/v1/attendance-logs/"
+            "{attendanceLogId}/entries/{entryId}"
+        ),
+    ): {
+        "entryTitle": "경기장 입장",
+        "reviewText": "경기 시작 전에 입장했습니다.",
+        "occurredAt": "2026-08-19T17:30:00+09:00",
+    },
+    (
+        "post",
+        "/api/v1/media/upload-urls",
+    ): {
+        "purpose": "PROFILE_IMAGE",
+        "fileName": "profile.jpg",
+        "contentType": "image/jpeg",
+        "fileSizeBytes": 1048576,
+    },
+    (
+        "post",
+        "/api/v1/media/complete",
+    ): {
+        "purpose": "PROFILE_IMAGE",
+        "storagePath": (
+            "users/firebase_uid_example/"
+            "profile/media_example.jpg"
+        ),
+        "contentType": "image/jpeg",
+    },
+})
+
+
+SUCCESS_EXAMPLES.update({
+    (
+        "get",
+        "/api/v1/attendance-logs",
+        "200",
+    ): _list([
+        ATTENDANCE_LOG_EXAMPLE,
+    ]),
+    (
+        "post",
+        "/api/v1/attendance-logs",
+        "201",
+    ): _success(
+        ATTENDANCE_LOG_EXAMPLE
+    ),
+    (
+        "get",
+        "/api/v1/attendance-logs/{attendanceLogId}",
+        "200",
+    ): _success(
+        ATTENDANCE_LOG_DETAIL_EXAMPLE
+    ),
+    (
+        "patch",
+        "/api/v1/attendance-logs/{attendanceLogId}",
+        "200",
+    ): _success(
+        ATTENDANCE_LOG_EXAMPLE
+    ),
+    (
+        "delete",
+        "/api/v1/attendance-logs/{attendanceLogId}",
+        "200",
+    ): _success({
+        "deleted": True,
+    }),
+    (
+        "patch",
+        (
+            "/api/v1/attendance-logs/"
+            "{attendanceLogId}/entries/{entryId}"
+        ),
+        "200",
+    ): _success(
+        LOG_ENTRY_EXAMPLE
+    ),
+    (
+        "delete",
+        (
+            "/api/v1/attendance-logs/"
+            "{attendanceLogId}/entries/{entryId}"
+        ),
+        "200",
+    ): _success({
+        "deleted": True,
+    }),
+    (
+        "delete",
+        (
+            "/api/v1/attendance-logs/"
+            "{attendanceLogId}/entries/{entryId}"
+            "/media/{mediaId}"
+        ),
+        "200",
+    ): _success({
+        "deleted": True,
+    }),
+    (
+        "post",
+        "/api/v1/media/upload-urls",
+        "200",
+    ): _success(
+        MEDIA_UPLOAD_URL_EXAMPLE
+    ),
+    (
+        "post",
+        "/api/v1/media/complete",
+        "200",
+    ): _success(
+        MEDIA_COMPLETE_EXAMPLE
+    ),
+})
+
+
 PARAMETER_DOCS = {
-    "attendanceLogId": ("직관 로그 문서 ID", "log_001"),
+    "attendanceLogId": (
+        "직관 로그 문서 ID",
+        "log_001",
+    ),
+    "entryId": (
+        "직관 로그 타임라인 Entry 문서 ID",
+        "entry_001",
+    ),
+    "mediaId": (
+        "직관 로그 Entry에 연결된 미디어 문서 ID",
+        "media_001",
+    ),
     "tripId": ("여행 문서 ID", "trip_001"), "gameId": ("경기 문서 ID", GAME["gameId"]),
     "collectionId": ("개인 찜 컬렉션 ID", "collection_001"),
     "placeId": ("내부 장소 ID. TourAPI 장소는 tour_{contentId} 형식", PLACE["placeId"]),

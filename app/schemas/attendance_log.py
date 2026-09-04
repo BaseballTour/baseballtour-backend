@@ -18,6 +18,13 @@ class AttendanceLogStatus(str, Enum):
     ARCHIVED = "ARCHIVED"
 
 
+class AttendanceLogVisibility(str, Enum):
+    """직관 로그 공개 범위."""
+
+    PRIVATE = "PRIVATE"
+    PUBLIC = "PUBLIC"
+
+
 class LogEntryType(str, Enum):
     """직관 로그 타임라인 항목 종류."""
 
@@ -81,6 +88,8 @@ class AttendanceLogUpdateRequest(ApiModel):
 
     log_status: AttendanceLogStatus | None = None
 
+    visibility: AttendanceLogVisibility | None = None
+
     @model_validator(mode="after")
     def validate_at_least_one_field(
         self,
@@ -88,6 +97,30 @@ class AttendanceLogUpdateRequest(ApiModel):
         if not self.model_fields_set:
             raise ValueError(
                 "수정할 필드를 하나 이상 전달해야 합니다."
+            )
+
+        if (
+            "log_title" in self.model_fields_set
+            and self.log_title is None
+        ):
+            raise ValueError(
+                "직관 로그 제목은 null로 변경할 수 없습니다."
+            )
+
+        if (
+            "log_status" in self.model_fields_set
+            and self.log_status is None
+        ):
+            raise ValueError(
+                "직관 로그 상태는 null로 변경할 수 없습니다."
+            )
+
+        if (
+            "visibility" in self.model_fields_set
+            and self.visibility is None
+        ):
+            raise ValueError(
+                "직관 로그 공개 범위는 null로 변경할 수 없습니다."
             )
 
         return self
@@ -132,6 +165,9 @@ class AttendanceLogDocument(ApiModel):
         AttendanceLogStatus.DRAFT
     )
 
+    visibility: AttendanceLogVisibility = (
+        AttendanceLogVisibility.PRIVATE
+    )
     created_at: AwareDatetime
     updated_at: AwareDatetime
     deleted_at: AwareDatetime | None = None
@@ -185,19 +221,41 @@ class LogMediaDocument(ApiModel):
     """
     Firestore entries/{entryId}/media 하위 문서.
 
-    ERD의 log_entry_id FK는 부모 경로로 표현합니다.
+    실제 파일 위치는 storagePath로 영구 저장하고,
+    mediaUrl은 응답 시 signed URL로 생성합니다.
     """
 
     media_type: LogMediaType
 
-    media_url: str = Field(
+    storage_path: str | None = Field(
+        default=None,
         min_length=1,
-        max_length=500,
+        max_length=1024,
+        description=(
+            "Firebase Storage 객체 경로. "
+            "기존 URL 기반 데이터는 null일 수 있습니다."
+        ),
+    )
+
+    content_type: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description=(
+            "Storage 객체 Content-Type. "
+            "기존 URL 기반 데이터는 null일 수 있습니다."
+        ),
+    )
+
+    media_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="기존 데이터 호환용 URL",
     )
 
     thumbnail_url: str | None = Field(
         default=None,
-        max_length=500,
+        max_length=2048,
     )
 
     sequence_no: int = Field(
@@ -334,6 +392,7 @@ class AttendanceLogResponse(ApiModel):
     summary_text: str | None = None
     log_status: AttendanceLogStatus
 
+    visibility: AttendanceLogVisibility
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

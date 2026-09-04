@@ -308,3 +308,150 @@ def test_update_user_reuses_supplied_user_without_repository_read(
 
     assert fields["nickname"] == "새닉네임"
     assert "supportTeamId" not in fields
+
+
+def test_update_user_changes_extended_profile_fields(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    user_repository, team_repository = repositories
+
+    user = make_user()
+    user_repository.get_by_id.return_value = user
+    user_repository.update_fields.return_value = True
+    team_repository.get_by_id.return_value = make_team()
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    result = service.update_user(
+        user_id="firebase-user-123",
+        request=UserUpdateRequest.model_validate(
+            {
+                "name": "서민준",
+                "phoneNumber": "01012345678",
+                "profileImageUrl": (
+                    "https://example.com/profile.jpg"
+                ),
+            }
+        ),
+    )
+
+    assert result.name == "서민준"
+    assert result.phone_number == "01012345678"
+    assert (
+        result.profile_image_url
+        == "https://example.com/profile.jpg"
+    )
+
+    fields = (
+        user_repository.update_fields
+        .call_args.args[1]
+    )
+
+    assert fields["name"] == "서민준"
+    assert fields["phoneNumber"] == "01012345678"
+    assert (
+        fields["profileImageUrl"]
+        == "https://example.com/profile.jpg"
+    )
+
+
+def test_update_user_can_clear_optional_profile_fields(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    user_repository, team_repository = repositories
+
+    user = make_user().model_copy(
+        update={
+            "name": "기존 이름",
+            "phone_number": "01012345678",
+            "profile_image_url": (
+                "https://example.com/old.jpg"
+            ),
+        }
+    )
+
+    user_repository.get_by_id.return_value = user
+    user_repository.update_fields.return_value = True
+    team_repository.get_by_id.return_value = make_team()
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    result = service.update_user(
+        user_id="firebase-user-123",
+        request=UserUpdateRequest.model_validate(
+            {
+                "name": None,
+                "phoneNumber": None,
+                "profileImageUrl": None,
+            }
+        ),
+    )
+
+    assert result.name is None
+    assert result.phone_number is None
+    assert result.profile_image_url is None
+
+    fields = (
+        user_repository.update_fields
+        .call_args.args[1]
+    )
+
+    assert fields["name"] is None
+    assert fields["phoneNumber"] is None
+    assert fields["profileImageUrl"] is None
+
+
+def test_get_user_generates_profile_url_from_storage_path(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    from unittest.mock import patch
+
+    user_repository, team_repository = repositories
+
+    user = make_user().model_copy(
+        update={
+            "profile_image_url": None,
+            "profile_image_storage_path": (
+                "users/firebase-user-123/"
+                "profile/media_001.jpg"
+            ),
+        }
+    )
+
+    user_repository.get_by_id.return_value = user
+    team_repository.get_by_id.return_value = make_team()
+
+    storage_service = Mock()
+    storage_service.create_download_url.return_value = (
+        "https://storage.example/profile-read"
+    )
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    with patch(
+        "app.services.user_service.StorageService",
+        return_value=storage_service,
+    ):
+        result = service.get_user(
+            "firebase-user-123"
+        )
+
+    assert result.profile_image_url == (
+        "https://storage.example/profile-read"
+    )
+
+    storage_service.create_download_url.assert_called_once_with(
+        (
+            "users/firebase-user-123/"
+            "profile/media_001.jpg"
+        )
+    )

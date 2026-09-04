@@ -171,3 +171,50 @@ def test_get_active_terms_returns_signup_order() -> None:
         TermCode.LOCATION_BASED_SERVICE,
         TermCode.MARKETING,
     ]
+
+
+def test_set_term_upserts_term_document() -> None:
+    from app.schemas.term import TermDocument
+
+    client = MagicMock()
+    collection = MagicMock()
+    document = MagicMock()
+
+    client.collection.return_value = collection
+    collection.document.return_value = document
+
+    repository = TermRepository(
+        client=client,
+    )
+
+    term = TermDocument(
+        term_code=TermCode.TERMS_OF_SERVICE,
+        title="서비스 이용약관",
+        required=True,
+        version="1.0",
+        content="약관 본문",
+        effective_at=NOW,
+        active=True,
+    )
+
+    repository.set_term(
+        "TERMS_OF_SERVICE_1.0",
+        term,
+    )
+
+    collection.document.assert_called_once_with(
+        "TERMS_OF_SERVICE_1.0"
+    )
+
+    document.set.assert_called_once()
+
+    payload = document.set.call_args.args[0]
+
+    assert (
+        payload["termCode"]
+        == TermCode.TERMS_OF_SERVICE
+    )
+    assert payload["title"] == "서비스 이용약관"
+    assert payload["required"] is True
+    assert payload["version"] == "1.0"
+    assert payload["active"] is True

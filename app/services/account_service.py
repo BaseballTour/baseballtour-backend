@@ -17,6 +17,7 @@ from app.repositories.place_selection_repository import (
 )
 from app.repositories.trip_repository import TripRepository
 from app.repositories.user_repository import UserRepository
+from app.services.storage_service import StorageService
 
 
 class AccountService:
@@ -37,6 +38,9 @@ class AccountService:
         ) = None,
         attendance_log_repository: (
             AttendanceLogRepository | None
+        ) = None,
+        storage_service: (
+            StorageService | None
         ) = None,
     ) -> None:
         self._user_repository = (
@@ -64,6 +68,17 @@ class AccountService:
             or AttendanceLogRepository()
         )
 
+        # 회원탈퇴 시에만 필요하므로 lazy 생성합니다.
+        self._storage_service = storage_service
+
+    def _get_storage_service(
+        self,
+    ) -> StorageService:
+        if self._storage_service is None:
+            self._storage_service = StorageService()
+
+        return self._storage_service
+
     def withdraw_user(
         self,
         *,
@@ -73,6 +88,12 @@ class AccountService:
 
         deleted_at = datetime.now(
             timezone.utc
+        )
+
+        # Storage 장애 시 Firestore 데이터를 건드리기 전에
+        # 회원탈퇴를 중단합니다.
+        self._get_storage_service().delete_user_files(
+            user_id
         )
 
         trips = self._trip_repository.get_by_user_id(
