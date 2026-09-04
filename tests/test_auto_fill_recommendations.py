@@ -525,6 +525,43 @@ def test_rejects_recommendation_with_more_than_thirty_minute_detour() -> None:
     assert result.auto_recommended_place_count == 0
 
 
+def test_four_day_trip_allows_first_place_within_relaxed_day_detour() -> None:
+    recommendation = place(
+        "departure_day_excursion",
+        business_hours_status=BusinessRuleStatus.PARSED,
+        business_hours_rules=[
+            BusinessHoursRule(
+                weekdays=[Weekday.MONDAY],
+                open_time="09:00",
+                close_time="20:00",
+            )
+        ],
+    )
+    four_day_trip = trip().model_copy(
+        update={
+            "trip_end_at": datetime(2026, 8, 17, 20, tzinfo=UTC),
+        }
+    )
+    travel = matrix(recommendation.place_id, default=10)
+    travel.minutes[("arrival", recommendation.place_id)] = 40
+    travel.minutes[(recommendation.place_id, "departure")] = 40
+
+    result = generate_itinerary(
+        four_day_trip,
+        [],
+        travel,
+        recommended_places=[recommendation],
+    )
+
+    departure_day = next(
+        day for day in result.days if day.day_type == "DEPARTURE_DAY"
+    )
+    assert any(
+        item.place_id == recommendation.place_id
+        for item in departure_day.items
+    )
+
+
 def test_does_not_auto_recommend_accommodation_or_unverified_festival() -> None:
     accommodation = place(
         "hotel", category=PlaceCategory.ACCOMMODATION

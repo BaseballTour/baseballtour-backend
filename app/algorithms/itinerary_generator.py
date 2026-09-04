@@ -481,6 +481,9 @@ def _fill_routes_with_recommendations(
     }
     added: set[str] = set()
     rejected: Counter[str] = Counter()
+    rejected_by_day: dict[date, Counter[str]] = {
+        target_date: Counter() for target_date in routes
+    }
     scheduled_per_day: Counter[date] = Counter()
     max_per_day, density_detour, density_slack = (
         AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
@@ -488,12 +491,18 @@ def _fill_routes_with_recommendations(
     style_detour, style_slack = AUTO_FILL_STYLE_POLICIES[trip.travel_style]
     maximum_detour_minutes = min(density_detour, style_detour)
     minimum_non_game_slack = max(density_slack, style_slack)
+    trip_day_count = (
+        trip.trip_end_at.date() - trip.trip_start_at.date()
+    ).days + 1
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
         for target_date in sorted(routes):
             if scheduled_per_day[target_date] >= max_per_day:
                 rejected["DENSITY_LIMIT"] += len(remaining)
+                rejected_by_day[target_date]["DENSITY_LIMIT"] += len(
+                    remaining
+                )
                 continue
             day_type = classify_day(
                 target_date,
@@ -529,6 +538,9 @@ def _fill_routes_with_recommendations(
                     != BusinessRuleStatus.PARSED
                 ):
                     rejected["UNVERIFIED_FESTIVAL"] += 1
+                    rejected_by_day[target_date][
+                        "UNVERIFIED_FESTIVAL"
+                    ] += 1
                     continue
                 candidate = _place_for_next_meal_period(
                     place,
@@ -539,6 +551,9 @@ def _fill_routes_with_recommendations(
                 )
                 if candidate is None:
                     rejected["NO_AVAILABLE_MEAL_PERIOD"] += 1
+                    rejected_by_day[target_date][
+                        "NO_AVAILABLE_MEAL_PERIOD"
+                    ] += 1
                     continue
                 for index in range(len(current) + 1):
                     proposed = [*current[:index], candidate, *current[index:]]
@@ -550,6 +565,7 @@ def _fill_routes_with_recommendations(
                             else "INFEASIBLE"
                         )
                         rejected[reason] += 1
+                        rejected_by_day[target_date][reason] += 1
                         continue
                     if (
                         result.anchor_slack_minutes is None
@@ -557,15 +573,33 @@ def _fill_routes_with_recommendations(
                         < minimum_anchor_slack
                     ):
                         rejected["INSUFFICIENT_TIME"] += 1
+                        rejected_by_day[target_date]["INSUFFICIENT_TIME"] += 1
                         continue
                     marginal = route_travel_minutes(
                         args["start_id"], proposed, args["end_id"], matrix
                     ) - current_cost
-                    if marginal > maximum_detour_minutes:
+                    # 장기 여행의 비어 있는 하루는 첫 방문지를 잡기 위해
+                    # 숙소/Anchor에서 왕복 이동해야 한다. 이 첫 이동에 일반
+                    # 삽입 기준을 그대로 쓰면 하루 전체가 빈 일정이 될 수
+                    # 있으므로 3박 4일 이상에서 첫 장소에만 완화한다.
+                    effective_detour_limit = maximum_detour_minutes
+                    if (
+                        trip_day_count >= 4
+                        and not current
+                        and scheduled_per_day[target_date] == 0
+                    ):
+                        effective_detour_limit *= 3
+                    if marginal > effective_detour_limit:
                         rejected["ROUTE_INEFFICIENT"] += 1
+                        rejected_by_day[target_date][
+                            "ROUTE_INEFFICIENT"
+                        ] += 1
                         continue
                     if _has_duplicate_meal_restaurants(result.visits):
                         rejected["CONSECUTIVE_RESTAURANT"] += 1
+                        rejected_by_day[target_date][
+                            "CONSECUTIVE_RESTAURANT"
+                        ] += 1
                         continue
                     visit = next(
                         item
@@ -577,6 +611,9 @@ def _fill_routes_with_recommendations(
                         and _meal_period(visit.start.time()) is None
                     ):
                         rejected["OUTSIDE_MEAL_PERIOD"] += 1
+                        rejected_by_day[target_date][
+                            "OUTSIDE_MEAL_PERIOD"
+                        ] += 1
                         continue
                     closing_slack = (
                         result.closing_slack_minutes
@@ -643,6 +680,12 @@ def _fill_routes_with_recommendations(
         diagnostics["placementRejectedAttempts"] = dict(
             sorted(rejected.items())
         )
+        diagnostics["placementRejectedAttemptsByDay"] = {
+            target_date.isoformat(): dict(
+                sorted(rejected_by_day[target_date].items())
+            )
+            for target_date in sorted(routes)
+        }
 
     return routes, added
 
