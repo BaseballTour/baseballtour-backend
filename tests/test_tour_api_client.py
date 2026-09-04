@@ -121,6 +121,47 @@ async def test_http_timeout_is_mapped(monkeypatch) -> None:
 
     assert exc_info.value.status_code == 503
     assert exc_info.value.code == "EXTERNAL_API_TIMEOUT"
+    assert exc_info.value.details["timeoutType"] == "ReadTimeout"
+    assert exc_info.value.details["attempts"] == 2
+
+
+@pytest.mark.anyio
+async def test_read_timeout_is_retried_once(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="test-key",
+            tour_api_max_attempts=2,
+            tour_api_retry_backoff_seconds=0,
+        ),
+    )
+    calls = 0
+
+    def timeout_then_success(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise httpx.ReadTimeout("slow", request=request)
+        return httpx.Response(
+            200,
+            request=request,
+            json=_success_response(),
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(timeout_then_success)
+    ) as client:
+        result = await client_module._request_tour_api(
+            "locationBasedList2",
+            {},
+            client=client,
+        )
+
+    assert calls == 2
+    assert result["response"]["header"]["resultCode"] == "0000"
 
 
 @pytest.mark.anyio
@@ -148,6 +189,9 @@ async def test_http_rate_limit_is_mapped(monkeypatch) -> None:
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
+    assert exc_info.value.message == "TourAPI 호출 제한을 초과했습니다."
+    assert exc_info.value.details["endpoint"] == "locationBasedList2"
+    assert exc_info.value.details["httpStatus"] == 429
 
 
 @pytest.mark.anyio
@@ -180,6 +224,92 @@ async def test_empty_provider_response_remains_successful(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
+async def test_persistent_cache_hit_skips_http_request(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    cached_response = _success_response([{"contentid": "cached"}])
+
+    class FakeCache:
+        def get(self, endpoint, params):
+            assert endpoint == "searchKeyword2"
+            assert params == {"keyword": "잠실"}
+            return cached_response
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="test-key",
+            tour_api_persistent_cache_enabled=True,
+        ),
+    )
+    monkeypatch.setattr(client_module, "_response_cache", FakeCache())
+
+    def unexpected_http(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("캐시 적중 시 HTTP 요청을 보내면 안 됩니다.")
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(unexpected_http)
+    ) as client:
+        result = await client_module._request_tour_api(
+            "searchKeyword2",
+            {"keyword": "잠실"},
+            client=client,
+        )
+
+    assert result == cached_response
+
+
+@pytest.mark.anyio
+async def test_successful_response_is_saved_to_persistent_cache(
+    monkeypatch,
+) -> None:
+    from app.external.tour_api import client as client_module
+
+    stored = {}
+
+    class FakeCache:
+        def get(self, endpoint, params):
+            return None
+
+        def set(self, endpoint, params, payload, *, ttl_seconds):
+            stored.update(
+                endpoint=endpoint,
+                params=params,
+                payload=payload,
+                ttl_seconds=ttl_seconds,
+            )
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="test-key",
+            tour_api_persistent_cache_enabled=True,
+            tour_api_max_attempts=1,
+        ),
+    )
+    monkeypatch.setattr(client_module, "_response_cache", FakeCache())
+
+    def success(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, request=request, json=_success_response())
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(success)
+    ) as client:
+        result = await client_module._request_tour_api(
+            "detailCommon2",
+            {"contentId": "1603175"},
+            client=client,
+        )
+
+    assert stored["endpoint"] == "detailCommon2"
+    assert stored["params"] == {"contentId": "1603175"}
+    assert stored["payload"] == result
+    assert stored["ttl_seconds"] == 43200
+
+
+@pytest.mark.anyio
 async def test_nearby_forwards_category_and_pagination(
     monkeypatch,
 ) -> None:
@@ -205,12 +335,16 @@ async def test_nearby_forwards_category_and_pagination(
         page_no=2,
         num_of_rows=10,
         content_type_id="39",
+        lcls_system1="FD",
+        lcls_system2="FD05",
     )
 
     assert received["operation"] == "locationBasedList2"
     assert received["params"]["pageNo"] == 2
     assert received["params"]["numOfRows"] == 10
     assert received["params"]["contentTypeId"] == "39"
+    assert received["params"]["lclsSystm1"] == "FD"
+    assert received["params"]["lclsSystm2"] == "FD05"
 
 
 @pytest.mark.anyio

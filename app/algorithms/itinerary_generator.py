@@ -34,6 +34,7 @@ from app.models.place import (
     PlaceCategory,
     Weekday,
 )
+from app.models.travel_preferences import ScheduleDensity, TravelStyle
 
 
 logger = logging.getLogger(__name__)
@@ -45,8 +46,18 @@ DEFAULT_ANCHOR_MINUTES = 20
 ACCOMMODATION_STAY_MINUTES = 30
 DEFAULT_GAME_MINUTES = 180
 DEPARTURE_BUFFER_MINUTES = 60
-AUTO_FILL_MIN_REMAINING_MINUTES = 30
-AUTO_FILL_MAX_DETOUR_MINUTES = 30
+
+
+AUTO_FILL_DENSITY_POLICIES = {
+    ScheduleDensity.LIGHT: (2, 20, 45),
+    ScheduleDensity.MODERATE: (3, 30, 30),
+    ScheduleDensity.DENSE: (5, 45, 15),
+}
+AUTO_FILL_STYLE_POLICIES = {
+    TravelStyle.RELAXED: (20, 45),
+    TravelStyle.BALANCED: (30, 30),
+    TravelStyle.EXPLORER: (45, 15),
+}
 
 
 def generate_itinerary(
@@ -166,7 +177,7 @@ def generate_itinerary(
     )
     return ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="auto-fill-v0.4",
+        algorithm_version="auto-fill-v0.6",
         total_travel_minutes=total,
         total_travel_distance_meters=total_distance,
         days=days,
@@ -466,20 +477,31 @@ def _fill_routes_with_recommendations(
         for place in recommendations
         if place.place_id not in excluded_ids
         and place.category != PlaceCategory.ACCOMMODATION
+        and place.category != PlaceCategory.OTHER
     }
     added: set[str] = set()
     rejected: Counter[str] = Counter()
     scheduled_per_day: Counter[date] = Counter()
+    max_per_day, density_detour, density_slack = (
+        AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
+    )
+    style_detour, style_slack = AUTO_FILL_STYLE_POLICIES[trip.travel_style]
+    maximum_detour_minutes = min(density_detour, style_detour)
+    minimum_non_game_slack = max(density_slack, style_slack)
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
         for target_date in sorted(routes):
+            if scheduled_per_day[target_date] >= max_per_day:
+                rejected["DENSITY_LIMIT"] += len(remaining)
+                continue
             day_type = classify_day(
                 target_date,
                 trip.trip_start_at.date(),
                 trip.trip_end_at.date(),
                 trip.game_anchor.game_start_at.date(),
             )
+            day_fill_priority = _auto_fill_day_priority(day_type)
             args = _optimizer_args_for_date(
                 target_date, day_type, trip, matrix
             )
@@ -496,7 +518,7 @@ def _fill_routes_with_recommendations(
             minimum_anchor_slack = (
                 0
                 if day_type == DayType.GAME_DAY
-                else AUTO_FILL_MIN_REMAINING_MINUTES
+                else minimum_non_game_slack
             )
             for place in sorted(
                 remaining.values(), key=lambda item: item.place_id
@@ -539,7 +561,7 @@ def _fill_routes_with_recommendations(
                     marginal = route_travel_minutes(
                         args["start_id"], proposed, args["end_id"], matrix
                     ) - current_cost
-                    if marginal > AUTO_FILL_MAX_DETOUR_MINUTES:
+                    if marginal > maximum_detour_minutes:
                         rejected["ROUTE_INEFFICIENT"] += 1
                         continue
                     if _has_duplicate_meal_restaurants(result.visits):
@@ -565,9 +587,23 @@ def _fill_routes_with_recommendations(
                         result.visits
                     )
                     meal_gain = len(proposed_meals - current_meals)
+                    same_category_count = sum(
+                        item.category == place.category for item in current
+                    )
+                    style_priority = (
+                        same_category_count
+                        if trip.travel_style == TravelStyle.EXPLORER
+                        else (
+                            marginal
+                            if trip.travel_style == TravelStyle.RELAXED
+                            else 0
+                        )
+                    )
                     score = (
+                        day_fill_priority,
                         -meal_gain,
                         scheduled_per_day[target_date],
+                        style_priority,
                         _meal_time_category_priority(
                             place, visit.start.time()
                         ),
@@ -609,6 +645,18 @@ def _fill_routes_with_recommendations(
         )
 
     return routes, added
+
+
+def _auto_fill_day_priority(day_type: DayType) -> int:
+    """사용자에게 중요한 고정 Anchor 앞의 공백부터 자동 추천으로 채운다."""
+
+    priorities = {
+        DayType.GAME_DAY: 0,
+        DayType.DEPARTURE_DAY: 1,
+        DayType.NON_GAME_DAY: 2,
+        DayType.ARRIVAL_DAY: 3,
+    }
+    return priorities[day_type]
 
 
 def _has_consecutive_restaurants(route: list[Place]) -> bool:

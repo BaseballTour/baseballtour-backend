@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     )
 
     tour_api_key: str = ""
+    tour_api_connect_timeout_seconds: float = 5.0
+    tour_api_read_timeout_seconds: float = 10.0
+    tour_api_write_timeout_seconds: float = 5.0
+    tour_api_pool_timeout_seconds: float = 5.0
+    tour_api_max_attempts: int = 2
+    tour_api_retry_backoff_seconds: float = 0.25
+    tour_api_persistent_cache_enabled: bool = True
     kakao_rest_api_key: str = ""
     firebase_credentials_path: str = (
         "secrets/firebase-service-account.json"

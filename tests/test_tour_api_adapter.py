@@ -1,7 +1,11 @@
+import asyncio
+
 import pytest
 
+from app.core.exceptions import AppException
 from app.external.tour_api import adapter as adapter_module
 from app.external.tour_api.adapter import TourApiAdapter
+from app.external.tour_api.filters import TourFilterId
 
 
 def response_with(item):
@@ -239,3 +243,117 @@ async def test_nearby_page_uses_category_pagination_and_cache(
     assert calls[0]["page_no"] == 2
     assert calls[0]["num_of_rows"] == 20
     assert calls[0]["content_type_id"] == "39"
+
+
+@pytest.mark.anyio
+async def test_compound_filter_merges_and_deduplicates_classification_pages(
+    monkeypatch,
+) -> None:
+    calls: list[str] = []
+
+    async def nearby(**kwargs):
+        code = kwargs["lcls_system3"]
+        calls.append(code)
+        content_id = "fresh" if code == "LS020500" else "sea"
+        return {
+            "response": {
+                "body": {
+                    "totalCount": 1,
+                    "items": {
+                        "item": [
+                            {
+                                "contentid": content_id,
+                                "contenttypeid": "28",
+                                "title": f"{code} 낚시",
+                                "mapx": "127.0",
+                                "mapy": "37.5",
+                                "lclsSystm1": "LS",
+                                "lclsSystm2": "LS02",
+                                "lclsSystm3": code,
+                            }
+                        ]
+                    },
+                }
+            }
+        }
+
+    monkeypatch.setattr(adapter_module, "get_nearby_places", nearby)
+    page = await TourApiAdapter().get_nearby_place_page_by_filter(
+        filter_id=TourFilterId.FISHING,
+        longitude=127.0,
+        latitude=37.5,
+        num_of_rows=20,
+    )
+    assert calls == ["LS020500", "LS020600"]
+    assert {place.place_id for place in page.places} == {
+        "tour_fresh",
+        "tour_sea",
+    }
+
+
+@pytest.mark.anyio
+async def test_cache_coalesces_concurrent_identical_loads() -> None:
+    adapter = TourApiAdapter()
+    calls = 0
+    both_started = asyncio.Event()
+
+    async def loader():
+        nonlocal calls
+        calls += 1
+        both_started.set()
+        await asyncio.sleep(0)
+        return "result"
+
+    first = asyncio.create_task(adapter._cached(("same",), loader))
+    await both_started.wait()
+    second = asyncio.create_task(adapter._cached(("same",), loader))
+
+    assert await asyncio.gather(first, second) == ["result", "result"]
+    assert calls == 1
+
+
+@pytest.mark.anyio
+async def test_cache_temporarily_reuses_rate_limit_failure() -> None:
+    adapter = TourApiAdapter()
+    calls = 0
+
+    async def loader():
+        nonlocal calls
+        calls += 1
+        raise AppException(
+            status_code=429,
+            code="EXTERNAL_API_RATE_LIMITED",
+            message="한도 초과",
+        )
+
+    for _ in range(2):
+        with pytest.raises(AppException) as exc_info:
+            await adapter._cached(
+                ("limited",),
+                loader,
+                failure_ttl_seconds=60,
+            )
+        assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
+
+    assert calls == 1
+
+
+@pytest.mark.anyio
+async def test_legacy_cafe_category_uses_fd05_filter(monkeypatch) -> None:
+    from app.models.place import PlaceCategory
+
+    calls: list[dict] = []
+
+    async def nearby(**kwargs):
+        calls.append(kwargs)
+        return {"response": {"body": {"totalCount": 0, "items": ""}}}
+
+    monkeypatch.setattr(adapter_module, "get_nearby_places", nearby)
+    page = await TourApiAdapter().get_nearby_place_page(
+        longitude=127.0,
+        latitude=37.5,
+        category=PlaceCategory.CAFE,
+    )
+    assert page.places == []
+    assert calls[0]["lcls_system1"] == "FD"
+    assert calls[0]["lcls_system2"] == "FD05"

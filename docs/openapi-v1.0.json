@@ -997,7 +997,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ARCHIVED",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -10029,7 +10029,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -10584,7 +10584,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -11648,7 +11648,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -12215,7 +12215,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -12789,7 +12789,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -13371,7 +13371,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -13956,7 +13956,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.4",
+                        "algorithmVersion": "auto-fill-v0.6",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -14990,6 +14990,217 @@
         ]
       }
     },
+    "/api/v1/tour/filter-options": {
+      "get": {
+        "tags": [
+          "TourAPI"
+        ],
+        "summary": "프론트 검색 필터 목록 조회",
+        "operationId": "read_filter_options_api_v1_tour_filter_options_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_TourFilterOption_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "filterId": "FISHING",
+                          "label": "낚시",
+                          "group": "액티비티",
+                          "classificationCodes": [
+                            "LS020500",
+                            "LS020600"
+                          ]
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "장소 검색 요청 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_place_id": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PLACE_ID",
+                        "message": "TourAPI 장소 ID 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TourAPI 호출 한도 초과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "rate_limited": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_RATE_LIMITED",
+                        "message": "TourAPI 호출 제한을 초과했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TourAPI 오류 응답",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_response": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_INVALID_RESPONSE",
+                        "message": "TourAPI 응답 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "tour_api_failed": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TOUR_API_FAILED",
+                        "message": "TourAPI 요청 처리에 실패했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "TourAPI 연결 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_TIMEOUT",
+                        "message": "TourAPI 요청 시간이 초과되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "unavailable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_UNAVAILABLE",
+                        "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tour/player-picks": {
       "get": {
         "tags": [
@@ -15082,7 +15293,8 @@
                             "lclsSystem1": "VE",
                             "lclsSystem2": "VE01",
                             "lclsSystem3": "VE010100"
-                          }
+                          },
+                          "recommendationNote": "선수 부모님이 운영하는 가게"
                         }
                       ],
                       "meta": {
@@ -15661,6 +15873,28 @@
             "example": "RESTAURANT"
           },
           {
+            "name": "filterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TourFilterId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "프론트 통합 필터 ID",
+              "examples": [
+                "CAFE"
+              ],
+              "title": "Filterid"
+            },
+            "description": "프론트 통합 필터 ID. category 및 lclsSystem 코드와 함께 사용하지 않음",
+            "example": "CAFE"
+          },
+          {
             "name": "pageSize",
             "in": "query",
             "required": false,
@@ -16229,6 +16463,28 @@
             },
             "description": "내부 장소 카테고리 필터",
             "example": "RESTAURANT"
+          },
+          {
+            "name": "filterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TourFilterId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "프론트 통합 필터 ID",
+              "examples": [
+                "JAPANESE"
+              ],
+              "title": "Filterid"
+            },
+            "description": "프론트 통합 필터 ID. category 및 lclsSystem 코드와 함께 사용하지 않음",
+            "example": "CAFE"
           },
           {
             "name": "lclsSystem1",
@@ -18147,6 +18403,33 @@
         ],
         "title": "ListSuccessResponse[TourClassification]"
       },
+      "ListSuccessResponse_TourFilterOption_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TourFilterOption"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[TourFilterOption]"
+      },
       "ListSuccessResponse_TripSummaryResponse_": {
         "properties": {
           "success": {
@@ -19097,6 +19380,17 @@
           },
           "place": {
             "$ref": "#/components/schemas/Place"
+          },
+          "recommendationNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationnote"
           }
         },
         "additionalProperties": false,
@@ -19192,8 +19486,7 @@
           "MODERATE",
           "DENSE"
         ],
-        "title": "ScheduleDensity",
-        "description": "하루 일정에 장소를 채우는 밀도."
+        "title": "ScheduleDensity"
       },
       "StadiumSummaryResponse": {
         "properties": {
@@ -19892,6 +20185,126 @@
         ],
         "title": "TourClassification"
       },
+      "TourFilterId": {
+        "type": "string",
+        "enum": [
+          "RESTAURANT",
+          "CAFE",
+          "ACTIVITY",
+          "TOURISM",
+          "FESTIVAL",
+          "EXHIBITION",
+          "SHOPPING",
+          "KOREAN",
+          "CHINESE",
+          "JAPANESE",
+          "WESTERN",
+          "GIMBAP_SNACK",
+          "CHICKEN",
+          "PIZZA_FAST_FOOD",
+          "BAKERY",
+          "BAR_PUB",
+          "DRAFT_BEER",
+          "TRADITIONAL_LIQUOR",
+          "CAFE_ONLY",
+          "TEA_HOUSE",
+          "OTHER_BEVERAGE",
+          "SPORTS_CENTER",
+          "WATER_PARK",
+          "ZOO",
+          "AQUARIUM",
+          "OBSERVATORY",
+          "TRAIL",
+          "INLINE_SKATING",
+          "KART",
+          "GOLF",
+          "HORSE_RACING",
+          "HORSE_RIDING",
+          "SKI_SNOWBOARD",
+          "ICE_SKATING",
+          "SLEDDING",
+          "SHOOTING_RANGE",
+          "ROCK_CLIMBING",
+          "BUNGEE_JUMPING",
+          "JET_SKI",
+          "KAYAK",
+          "YACHT",
+          "SNORKELING",
+          "FISHING",
+          "WATER_BICYCLE",
+          "SKYDIVING",
+          "PARAGLIDING",
+          "HOT_AIR_BALLOON",
+          "TRADITIONAL_EXPERIENCE",
+          "CRAFT_EXPERIENCE",
+          "RURAL_EXPERIENCE",
+          "TEMPLE_STAY",
+          "WELLNESS",
+          "CRUISE",
+          "HISTORIC_SITE",
+          "HISTORIC_RELIC",
+          "NATURE",
+          "LANDMARK",
+          "PARK",
+          "CULTURAL_STREET",
+          "CULTURAL_TOURISM_FESTIVAL",
+          "CULTURAL_ART_FESTIVAL",
+          "LOCAL_SPECIALTY_FESTIVAL",
+          "TRADITIONAL_HISTORY_FESTIVAL",
+          "ECO_NATURE_FESTIVAL",
+          "FAIR",
+          "MUSEUM",
+          "MEMORIAL_HALL",
+          "EXHIBITION_HALL",
+          "SCIENCE_MUSEUM",
+          "ART_MUSEUM",
+          "DEPARTMENT_STORE",
+          "SHOPPING_MALL",
+          "OUTLET",
+          "LARGE_MART",
+          "DOWNTOWN_DUTY_FREE",
+          "CRAFT_SHOP",
+          "SOUVENIR",
+          "MARKET"
+        ],
+        "title": "TourFilterId"
+      },
+      "TourFilterOption": {
+        "properties": {
+          "filterId": {
+            "type": "string",
+            "title": "Filterid",
+            "description": "프론트가 검색 요청에 전달할 필터 ID"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "화면에 표시할 한글명"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group",
+            "description": "필터가 속한 상위 화면 그룹"
+          },
+          "classificationCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Classificationcodes",
+            "description": "백엔드가 조합하는 TourAPI 신분류 코드"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filterId",
+          "label",
+          "group",
+          "classificationCodes"
+        ],
+        "title": "TourFilterOption"
+      },
       "TravelMode": {
         "type": "string",
         "enum": [
@@ -19907,8 +20320,7 @@
           "BALANCED",
           "EXPLORER"
         ],
-        "title": "TravelStyle",
-        "description": "사용자가 선호하는 여행 진행 방식."
+        "title": "TravelStyle"
       },
       "TravelTimeSource": {
         "type": "string",

@@ -60,7 +60,7 @@ TRIP_DETAIL = {
 }
 PLAN = {
     "planId": "plan_001", "tripId": "trip_001", "status": "ACTIVE",
-    "algorithmVersion": "auto-fill-v0.4", "totalTravelMinutes": 25,
+    "algorithmVersion": "auto-fill-v0.6", "totalTravelMinutes": 25,
     "totalTravelDistanceMeters": 8400,
     "days": [{"date": "2026-08-16", "dayType": "GAME_DAY", "items": [{
         "itemId": "item_1_1", "type": "PLACE", "sequence": 1,
@@ -206,6 +206,11 @@ SUCCESS_EXAMPLES = {
     ("get", "/api/v1/tour/player-picks", "200"): _list([{
         "playerPickId": "player_pick_001", "stadiumId": "gocheok",
         "playerName": "홍길동", "place": PLACE,
+        "recommendationNote": "선수 부모님이 운영하는 가게",
+    }]),
+    ("get", "/api/v1/tour/filter-options", "200"): _list([{
+        "filterId": "FISHING", "label": "낚시", "group": "액티비티",
+        "classificationCodes": ["LS020500", "LS020600"],
     }]),
 }
 
@@ -447,6 +452,10 @@ PARAMETER_DOCS = {
     "lclsSystem1": ("TourAPI 신분류 대분류 코드", "FD"),
     "lclsSystem2": ("TourAPI 신분류 중분류 코드", "FD02"),
     "lclsSystem3": ("TourAPI 신분류 소분류 코드", "FD020200"),
+    "filterId": (
+        "프론트 통합 필터 ID. category 및 lclsSystem 코드와 함께 사용하지 않음",
+        "CAFE",
+    ),
     "playerName": ("선수 이름 선택 필터. 생략하면 구장의 전체 선수 추천", "홍길동"),
 }
 
