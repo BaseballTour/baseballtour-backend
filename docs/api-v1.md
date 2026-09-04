@@ -492,7 +492,7 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 | `logStatus` | 로그 상태 |
 | `visibility` | 공개 범위 |
 
-`homeSide`와 `result`는 현재 사용자의 응원팀을 기준으로 계산한다.
+`homeSide`와 `result`는 직관 로그 생성 시점에 저장된 `supportTeamId`를 기준으로 계산한다.
 응원팀이 경기에 참가하지 않으면 `homeSide=OTHER`, `result=null`이다.
 경기 점수가 없는 경우에도 `result`는 `null`이다.
 
@@ -527,4 +527,54 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 }
 ```
 
+기존 로그처럼 `supportTeamId` snapshot이 없는 경우에는 현재 사용자의 응원팀을 fallback으로 사용한다.
+
 <!-- attendance-archive:end -->
+
+<!-- attendance-stats:start -->
+
+## 마이페이지 직관 통계 API
+
+### GET `/api/v1/users/me/attendance-stats`
+
+로그인한 사용자의 직관 로그와 실제 경기 결과를 기반으로 마이페이지용 직관 통계를 반환한다.
+
+#### 집계 기준
+
+- 직관 로그에 저장된 생성 시점 `supportTeamId` snapshot을 기준으로 집계한다.
+- 기존 로그에 snapshot이 없으면 현재 사용자의 응원팀을 fallback으로 사용한다.
+- 응원팀이 해당 경기에 참가하지 않은 `OTHER` 경기는 팀 승률 통계에서 제외한다.
+- 점수가 없는 경기는 직관 횟수에는 포함하지만 승률 계산에서는 제외한다.
+- 무승부는 승률 분모에 포함하며 승수에는 포함하지 않는다.
+- 최근 10경기는 `gameStartAt` 기준 최신 순으로 최대 10건을 사용한다.
+- 요일은 경기 시작 시각의 요일을 기준으로 집계한다.
+
+#### 주요 응답 필드
+
+| 필드 | 설명 |
+| --- | --- |
+| `awayTripCount` | 응원팀이 원정팀이었던 직관 횟수 |
+| `awayWinCount` | 원정 직관 중 승리 횟수 |
+| `homeAttendanceCount` | 응원팀이 홈팀이었던 직관 횟수 |
+| `homeWinRate` | 홈 직관 승률. 집계 가능한 결과가 없으면 `null` |
+| `awayWinRate` | 원정 직관 승률. 집계 가능한 결과가 없으면 `null` |
+| `recent10AttendanceCount` | 최근 통계에 포함된 직관 수. 최대 10 |
+| `recent10WinRate` | 최근 최대 10번 직관 승률 |
+| `weekdayStats` | 월요일~일요일 요일별 직관 통계 |
+
+#### `weekdayStats`
+
+| 필드 | 설명 |
+| --- | --- |
+| `weekday` | `MONDAY` ~ `SUNDAY` |
+| `attendanceCount` | 해당 요일 직관 횟수 |
+| `winCount` | 승리 횟수 |
+| `lossCount` | 패배 횟수 |
+| `drawCount` | 무승부 횟수 |
+| `winRate` | 해당 요일 승률. 집계 가능한 결과가 없으면 `null` |
+
+승률 계산식:
+
+`wins / (wins + losses + draws) * 100`
+
+<!-- attendance-stats:end -->
