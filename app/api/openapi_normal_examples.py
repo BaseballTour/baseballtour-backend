@@ -84,7 +84,10 @@ PLAN = {
 }
 USER = {
     "userId": "firebase_uid_example", "email": "user@example.com",
-    "nickname": "민준", "birthYear": 2002, "profileImageUrl": None,
+    "nickname": "민준", "birthYear": 2002,
+    "birthDate": "2002-05-17", "gender": "MALE",
+    "name": "서민준", "phoneNumber": "01012345678",
+    "profileImageUrl": "https://example.com/profile.jpg",
     "supportTeam": {"teamId": "lg", "name": "LG 트윈스",
                     "logoUrl": "https://example.com/lg.png"},
     "onboardingCompleted": True, "createdAt": "2026-08-12T15:00:00+09:00",
@@ -132,7 +135,14 @@ REQUEST_EXAMPLES = {
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/fixed"): {"isFixed": True},
     ("patch", "/api/v1/trips/{tripId}/plan/items/{itemId}/time"): {"scheduledStartAt": "2026-08-17T14:00:00+09:00"},
     ("post", "/api/v1/users/me/bootstrap"): {"nickname": "민준", "birthYear": 2002, "supportTeamId": "lg"},
-    ("patch", "/api/v1/users/me"): {"nickname": "민준"},
+    ("patch", "/api/v1/users/me"): {
+        "nickname": "민준",
+        "name": "서민준",
+        "phoneNumber": "01012345678",
+        "birthDate": "2002-05-17",
+        "gender": "MALE",
+        "profileImageUrl": "https://example.com/profile.jpg",
+    },
     ("patch", "/api/v1/users/me/support-team"): {"supportTeamId": "lg"},
     ("post", "/api/v1/users/me/term-agreements"): {"agreements": [
         {"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True},

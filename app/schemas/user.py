@@ -1,9 +1,17 @@
-from datetime import datetime
+from datetime import date, datetime
+from enum import Enum
 
 from pydantic import ConfigDict, Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.team import SupportTeamResponse
+
+
+class UserGender(str, Enum):
+    """사용자 성별."""
+
+    MALE = "MALE"
+    FEMALE = "FEMALE"
 
 
 class UserDocument(ApiModel):
@@ -12,6 +20,8 @@ class UserDocument(ApiModel):
     email: str
     nickname: str
     birth_year: int | None = None
+    birth_date: date | None = None
+    gender: UserGender | None = None
     name: str | None = None
     phone_number: str | None = None
     support_team_id: str
@@ -65,6 +75,8 @@ class UserUpdateRequest(ApiModel):
                     "nickname": "민준",
                     "name": "서민준",
                     "phoneNumber": "01012345678",
+                    "birthDate": "2002-05-17",
+                    "gender": "MALE",
                     "profileImageUrl": "https://example.com/profile.jpg",
                 }
             ]
@@ -92,6 +104,22 @@ class UserUpdateRequest(ApiModel):
         description="변경할 휴대폰 번호. null이면 삭제",
     )
 
+    birth_date: date | None = Field(
+        default=None,
+        description=(
+            "변경할 생년월일(YYYY-MM-DD). "
+            "null이면 삭제"
+        ),
+    )
+
+    gender: UserGender | None = Field(
+        default=None,
+        description=(
+            "변경할 성별(MALE/FEMALE). "
+            "null이면 삭제"
+        ),
+    )
+
     profile_image_url: str | None = Field(
         default=None,
         max_length=2048,
@@ -110,6 +138,8 @@ class UserUpdateRequest(ApiModel):
             "nickname",
             "name",
             "phone_number",
+            "birth_date",
+            "gender",
             "profile_image_url",
             "support_team_id",
         }
@@ -149,7 +179,11 @@ class UserResponse(ApiModel):
                     "email": "user@example.com",
                     "nickname": "민준",
                     "birthYear": 2002,
-                    "profileImageUrl": None,
+                    "birthDate": "2002-05-17",
+                    "gender": "MALE",
+                    "name": "서민준",
+                    "phoneNumber": "01012345678",
+                    "profileImageUrl": "https://example.com/profile.jpg",
                     "supportTeam": {
                         "teamId": "LG",
                         "name": "LG 트윈스",
@@ -167,6 +201,8 @@ class UserResponse(ApiModel):
     email: str
     nickname: str
     birth_year: int | None = None
+    birth_date: date | None = None
+    gender: UserGender | None = None
     name: str | None = None
     phone_number: str | None = None
     profile_image_url: str | None = None

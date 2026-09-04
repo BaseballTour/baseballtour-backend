@@ -455,3 +455,99 @@ def test_get_user_generates_profile_url_from_storage_path(
             "profile/media_001.jpg"
         )
     )
+
+
+def test_update_user_changes_birth_date_and_gender(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    from datetime import date
+
+    from app.schemas.user import UserGender
+
+    user_repository, team_repository = repositories
+
+    user = make_user()
+
+    user_repository.get_by_id.return_value = user
+    user_repository.update_fields.return_value = True
+    team_repository.get_by_id.return_value = make_team()
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    result = service.update_user(
+        user_id="firebase-user-123",
+        request=UserUpdateRequest.model_validate(
+            {
+                "birthDate": "2001-09-15",
+                "gender": "MALE",
+            }
+        ),
+    )
+
+    assert result.birth_date == date(2001, 9, 15)
+    assert result.birth_year == 2001
+    assert result.gender == UserGender.MALE
+
+    fields = (
+        user_repository.update_fields
+        .call_args.args[1]
+    )
+
+    assert fields["birthDate"] == "2001-09-15"
+    assert fields["birthYear"] == 2001
+    assert fields["gender"] == "MALE"
+
+
+def test_update_user_can_clear_birth_date_and_gender(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    from datetime import date
+
+    from app.schemas.user import UserGender
+
+    user_repository, team_repository = repositories
+
+    user = make_user().model_copy(
+        update={
+            "birth_date": date(2002, 5, 17),
+            "gender": UserGender.FEMALE,
+        }
+    )
+
+    user_repository.get_by_id.return_value = user
+    user_repository.update_fields.return_value = True
+    team_repository.get_by_id.return_value = make_team()
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+    )
+
+    result = service.update_user(
+        user_id="firebase-user-123",
+        request=UserUpdateRequest.model_validate(
+            {
+                "birthDate": None,
+                "gender": None,
+            }
+        ),
+    )
+
+    assert result.birth_date is None
+    assert result.gender is None
+
+    # birthDate 삭제가 기존 가입용 birthYear까지
+    # 삭제하지는 않습니다.
+    assert result.birth_year == 2002
+
+    fields = (
+        user_repository.update_fields
+        .call_args.args[1]
+    )
+
+    assert fields["birthDate"] is None
+    assert fields["gender"] is None
+    assert "birthYear" not in fields

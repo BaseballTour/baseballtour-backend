@@ -35,12 +35,22 @@ class UserRepository:
     def create(self, user_id: str, user: UserDocument) -> bool:
         """사용자 문서를 최초 한 번만 생성합니다."""
 
+        payload = user.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+
+        if user.birth_date is not None:
+            payload["birthDate"] = (
+                user.birth_date.isoformat()
+            )
+
+        if user.gender is not None:
+            payload["gender"] = user.gender.value
+
         try:
             self._collection.document(user_id).create(
-                user.model_dump(
-                    by_alias=True,
-                    exclude_none=False,
-                )
+                payload
             )
         except Conflict:
             return False

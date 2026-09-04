@@ -366,3 +366,51 @@ def test_update_my_profile_can_clear_optional_profile_fields(
     assert "name" in request.model_fields_set
     assert "phone_number" in request.model_fields_set
     assert "profile_image_url" in request.model_fields_set
+
+
+def test_update_my_profile_changes_birth_date_and_gender(
+    authenticated_client: TestClient,
+) -> None:
+    from datetime import date
+
+    from app.schemas.user import UserGender
+
+    service = Mock()
+
+    updated = make_user_response().model_copy(
+        update={
+            "birth_year": 2001,
+            "birth_date": date(2001, 9, 15),
+            "gender": UserGender.FEMALE,
+        }
+    )
+
+    service.update_user.return_value = updated
+
+    with patch(
+        "app.api.v1.endpoints.users.UserService",
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            "/api/v1/users/me",
+            json={
+                "birthDate": "2001-09-15",
+                "gender": "FEMALE",
+            },
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["birthYear"] == 2001
+    assert body["data"]["birthDate"] == "2001-09-15"
+    assert body["data"]["gender"] == "FEMALE"
+
+    request = service.update_user.call_args.kwargs[
+        "request"
+    ]
+
+    assert request.birth_date == date(2001, 9, 15)
+    assert request.gender == UserGender.FEMALE

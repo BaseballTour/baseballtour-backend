@@ -14550,7 +14550,11 @@
                         "email": "user@example.com",
                         "nickname": "민준",
                         "birthYear": 2002,
-                        "profileImageUrl": null,
+                        "birthDate": "2002-05-17",
+                        "gender": "MALE",
+                        "name": "서민준",
+                        "phoneNumber": "01012345678",
+                        "profileImageUrl": "https://example.com/profile.jpg",
                         "supportTeam": {
                           "teamId": "lg",
                           "name": "LG 트윈스",
@@ -14649,7 +14653,11 @@
                         "email": "user@example.com",
                         "nickname": "민준",
                         "birthYear": 2002,
-                        "profileImageUrl": null,
+                        "birthDate": "2002-05-17",
+                        "gender": "MALE",
+                        "name": "서민준",
+                        "phoneNumber": "01012345678",
+                        "profileImageUrl": "https://example.com/profile.jpg",
                         "supportTeam": {
                           "teamId": "lg",
                           "name": "LG 트윈스",
@@ -14805,7 +14813,12 @@
                 "normal": {
                   "summary": "정상 요청",
                   "value": {
-                    "nickname": "민준"
+                    "nickname": "민준",
+                    "name": "서민준",
+                    "phoneNumber": "01012345678",
+                    "birthDate": "2002-05-17",
+                    "gender": "MALE",
+                    "profileImageUrl": "https://example.com/profile.jpg"
                   }
                 }
               }
@@ -14831,7 +14844,11 @@
                         "email": "user@example.com",
                         "nickname": "민준",
                         "birthYear": 2002,
-                        "profileImageUrl": null,
+                        "birthDate": "2002-05-17",
+                        "gender": "MALE",
+                        "name": "서민준",
+                        "phoneNumber": "01012345678",
+                        "profileImageUrl": "https://example.com/profile.jpg",
                         "supportTeam": {
                           "teamId": "lg",
                           "name": "LG 트윈스",
@@ -21411,6 +21428,15 @@
           }
         ]
       },
+      "UserGender": {
+        "type": "string",
+        "enum": [
+          "MALE",
+          "FEMALE"
+        ],
+        "title": "UserGender",
+        "description": "사용자 성별."
+      },
       "UserResponse": {
         "properties": {
           "userId": {
@@ -21435,6 +21461,28 @@
               }
             ],
             "title": "Birthyear"
+          },
+          "birthDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthdate"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserGender"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "anyOf": [
@@ -21508,11 +21556,16 @@
         "description": "사용자 프로필 API 응답.",
         "examples": [
           {
+            "birthDate": "2002-05-17",
             "birthYear": 2002,
             "createdAt": "2026-08-12T15:00:00+09:00",
             "email": "user@example.com",
+            "gender": "MALE",
+            "name": "서민준",
             "nickname": "민준",
             "onboardingCompleted": true,
+            "phoneNumber": "01012345678",
+            "profileImageUrl": "https://example.com/profile.jpg",
             "supportTeam": {
               "logoUrl": "https://example.com/lg.png",
               "name": "LG 트윈스",
@@ -21567,6 +21620,30 @@
             "title": "Phonenumber",
             "description": "변경할 휴대폰 번호. null이면 삭제"
           },
+          "birthDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthdate",
+            "description": "변경할 생년월일(YYYY-MM-DD). null이면 삭제"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserGender"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "변경할 성별(MALE/FEMALE). null이면 삭제"
+          },
           "profileImageUrl": {
             "anyOf": [
               {
@@ -21600,6 +21677,8 @@
         "description": "사용자 프로필 수정 요청.",
         "examples": [
           {
+            "birthDate": "2002-05-17",
+            "gender": "MALE",
             "name": "서민준",
             "nickname": "민준",
             "phoneNumber": "01012345678",
