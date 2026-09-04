@@ -433,3 +433,78 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 - `ODSAY`는 기존 Firestore 저장 일정의 역직렬화 하위 호환을 위한 enum 값으로만 유지하며 ODsay API를 호출하지 않는다.
 - `FAKE`는 테스트와 Mock 전용이다.
 - 이동이 없는 첫 Item은 `travelMode`, `travelTimeSource`가 `null`일 수 있다.
+
+<!-- attendance-archive:start -->
+
+## 직관 로그 아카이브 API
+
+### GET `/api/v1/attendance-logs`
+
+로그인한 사용자의 직관 로그를 아카이브 휠 화면용으로 조회한다.
+
+#### Query Parameters
+
+| 이름 | 타입 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- | --- |
+| `pageSize` | integer | X | `12` | 페이지 크기. 1~50 |
+| `pageToken` | string | X | - | 이전 응답의 `nextPageToken` |
+
+#### 주요 응답 필드
+
+| 필드 | 설명 |
+| --- | --- |
+| `attendanceLogId` | 직관 로그 ID |
+| `tripId` | 연결된 여행 ID |
+| `gameId` | 경기 ID |
+| `planId` | 로그 생성 시점 일정 ID |
+| `logTitle` | 직관 로그 제목 |
+| `summaryText` | 한 줄 직관 메모 |
+| `seat` | 좌석 정보 |
+| `gameStartAt` | 경기 시작 시각 |
+| `stadiumName` | 경기장 이름 |
+| `homeTeamName` | 홈 팀 이름 |
+| `awayTeamName` | 원정 팀 이름 |
+| `homeScore` | 홈 팀 점수 |
+| `awayScore` | 원정 팀 점수 |
+| `homeSide` | `HOME`, `AWAY`, `OTHER` |
+| `result` | `WIN`, `LOSS`, `DRAW` 또는 `null` |
+| `coverImageUrl` | 대표 이미지 URL 또는 `null` |
+| `logStatus` | 로그 상태 |
+| `visibility` | 공개 범위 |
+
+`homeSide`와 `result`는 현재 사용자의 응원팀을 기준으로 계산한다.
+응원팀이 경기에 참가하지 않으면 `homeSide=OTHER`, `result=null`이다.
+경기 점수가 없는 경우에도 `result`는 `null`이다.
+
+대표 이미지는 Entry 순서와 Media 순서를 기준으로
+가장 먼저 발견되는 `IMAGE`를 사용한다.
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "count": 0,
+    "nextPageToken": null
+  }
+}
+```
+
+### PATCH `/api/v1/attendance-logs/{attendanceLogId}`
+
+`seat`를 함께 수정할 수 있으며 `null`을 전달하면 좌석 정보를 삭제한다.
+
+```json
+{
+  "summaryText": "역전승 직관",
+  "seat": "1루 내야 101구역 10열"
+}
+```
+
+```json
+{
+  "seat": null
+}
+```
+
+<!-- attendance-archive:end -->

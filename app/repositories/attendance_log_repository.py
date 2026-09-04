@@ -110,7 +110,10 @@ class AttendanceLogRepository:
 
         return sorted(
             logs,
-            key=lambda log: log.created_at,
+            key=lambda log: (
+                log.created_at,
+                log.attendance_log_id,
+            ),
             reverse=True,
         )
 

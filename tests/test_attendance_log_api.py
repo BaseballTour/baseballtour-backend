@@ -304,10 +304,45 @@ def test_create_attendance_log_api(
 def test_list_attendance_logs_api(
     authenticated_client: TestClient,
 ) -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogArchiveItemResponse,
+        AttendanceLogGameResult,
+        AttendanceLogHomeSide,
+        AttendanceLogStatus,
+        AttendanceLogVisibility,
+    )
+
     service = Mock()
-    service.list_logs.return_value = [
-        make_log_api_response()
-    ]
+    service.list_archive_logs.return_value = (
+        [
+            AttendanceLogArchiveItemResponse(
+                attendance_log_id=ATTENDANCE_LOG_ID,
+                trip_id=TRIP_ID,
+                game_id="game_001",
+                plan_id=PLAN_ID,
+                log_title="부산 직관 여행",
+                summary_text="역전승 직관",
+                game_start_at=NOW,
+                stadium_name="사직야구장",
+                home_team_name="롯데 자이언츠",
+                away_team_name="두산 베어스",
+                home_score=3,
+                away_score=5,
+                home_side=AttendanceLogHomeSide.AWAY,
+                result=AttendanceLogGameResult.WIN,
+                cover_image_url=(
+                    "https://example.com/cover.jpg"
+                ),
+                log_status=AttendanceLogStatus.DRAFT,
+                visibility=(
+                    AttendanceLogVisibility.PRIVATE
+                ),
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        ],
+        "next-token",
+    )
 
     with patch(
         (
@@ -317,7 +352,10 @@ def test_list_attendance_logs_api(
         return_value=service,
     ):
         response = authenticated_client.get(
-            "/api/v1/attendance-logs"
+            (
+                "/api/v1/attendance-logs"
+                "?pageSize=5&pageToken=cursor123"
+            )
         )
 
     assert response.status_code == 200
@@ -325,16 +363,35 @@ def test_list_attendance_logs_api(
     body = response.json()
 
     assert body["success"] is True
-    assert body["meta"]["count"] == 1
+    assert body["meta"] == {
+        "count": 1,
+        "nextPageToken": "next-token",
+    }
+
+    item = body["data"][0]
+
     assert (
-        body["data"][0]["attendanceLogId"]
+        item["attendanceLogId"]
         == ATTENDANCE_LOG_ID
     )
-
-    service.list_logs.assert_called_once_with(
-        user_id=USER_ID
+    assert item["stadiumName"] == "사직야구장"
+    assert item["homeTeamName"] == "롯데 자이언츠"
+    assert item["awayTeamName"] == "두산 베어스"
+    assert item["homeScore"] == 3
+    assert item["awayScore"] == 5
+    assert item["homeSide"] == "AWAY"
+    assert item["result"] == "WIN"
+    assert item["summaryText"] == "역전승 직관"
+    assert (
+        item["coverImageUrl"]
+        == "https://example.com/cover.jpg"
     )
 
+    service.list_archive_logs.assert_called_once_with(
+        user_id=USER_ID,
+        page_size=5,
+        page_token="cursor123",
+    )
 
 def test_get_attendance_log_detail_api(
     authenticated_client: TestClient,
@@ -510,4 +567,52 @@ def test_delete_attendance_log_media_api(
         attendance_log_id=ATTENDANCE_LOG_ID,
         log_entry_id="entry_001",
         log_media_id="media_001",
+    )
+
+
+def test_update_attendance_log_seat_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    service.update_log.return_value = (
+        make_log_api_response().model_copy(
+            update={
+                "seat": "3루 내야 B블록 15열",
+            }
+        )
+    )
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            (
+                "/api/v1/attendance-logs/"
+                f"{ATTENDANCE_LOG_ID}"
+            ),
+            json={
+                "seat": "3루 내야 B블록 15열",
+            },
+        )
+
+    assert response.status_code == 200
+
+    assert (
+        response.json()["data"]["seat"]
+        == "3루 내야 B블록 15열"
+    )
+
+    request = (
+        service.update_log.call_args
+        .kwargs["request"]
+    )
+
+    assert (
+        request.seat
+        == "3루 내야 B블록 15열"
     )
