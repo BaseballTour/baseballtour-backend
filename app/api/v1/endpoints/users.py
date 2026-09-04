@@ -9,6 +9,9 @@ from app.api.dependencies.auth import (
     get_current_user,
     get_current_user_id,
 )
+from app.schemas.attendance_stats import (
+    AttendanceStatsResponse,
+)
 from app.schemas.response import SuccessResponse
 from app.schemas.term import (
     TermAgreementsRequest,
@@ -20,6 +23,9 @@ from app.schemas.user import (
     UserUpdateRequest,
 )
 from app.services.account_service import AccountService
+from app.services.attendance_stats_service import (
+    AttendanceStatsService,
+)
 from app.services.term_service import TermService
 from app.services.user_service import UserService
 
@@ -71,6 +77,33 @@ def get_my_profile(
     )
 
     return SuccessResponse(data=user)
+
+
+@router.get(
+    "/me/attendance-stats",
+    response_model=SuccessResponse[
+        AttendanceStatsResponse
+    ],
+    summary="내 직관 통계 조회",
+    description=(
+        "직관 로그와 경기 결과를 기반으로 "
+        "마이페이지용 직관 통계를 조회합니다."
+    ),
+)
+def get_my_attendance_stats(
+    active_user: Annotated[
+        ActiveUserContext,
+        Depends(get_current_active_user_context),
+    ],
+) -> SuccessResponse[AttendanceStatsResponse]:
+    data = AttendanceStatsService().get_stats(
+        user_id=active_user.user_id,
+        current_support_team_id=(
+            active_user.user.support_team_id
+        ),
+    )
+
+    return SuccessResponse(data=data)
 
 
 @router.patch(

@@ -14904,6 +14904,157 @@
         ]
       }
     },
+    "/api/v1/users/me/attendance-stats": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "내 직관 통계 조회",
+        "description": "직관 로그와 경기 결과를 기반으로 마이페이지용 직관 통계를 조회합니다.",
+        "operationId": "get_my_attendance_stats_api_v1_users_me_attendance_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceStatsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "awayTripCount": 4,
+                        "awayWinCount": 3,
+                        "homeAttendanceCount": 5,
+                        "homeWinRate": 60.0,
+                        "awayWinRate": 75.0,
+                        "recent10AttendanceCount": 9,
+                        "recent10WinRate": 66.67,
+                        "weekdayStats": [
+                          {
+                            "weekday": "MONDAY",
+                            "attendanceCount": 1,
+                            "winCount": 1,
+                            "lossCount": 0,
+                            "drawCount": 0,
+                            "winRate": 100.0
+                          },
+                          {
+                            "weekday": "TUESDAY",
+                            "attendanceCount": 2,
+                            "winCount": 1,
+                            "lossCount": 1,
+                            "drawCount": 0,
+                            "winRate": 50.0
+                          },
+                          {
+                            "weekday": "WEDNESDAY",
+                            "attendanceCount": 1,
+                            "winCount": 0,
+                            "lossCount": 1,
+                            "drawCount": 0,
+                            "winRate": 0.0
+                          },
+                          {
+                            "weekday": "THURSDAY",
+                            "attendanceCount": 2,
+                            "winCount": 1,
+                            "lossCount": 0,
+                            "drawCount": 1,
+                            "winRate": 50.0
+                          },
+                          {
+                            "weekday": "FRIDAY",
+                            "attendanceCount": 1,
+                            "winCount": 1,
+                            "lossCount": 0,
+                            "drawCount": 0,
+                            "winRate": 100.0
+                          },
+                          {
+                            "weekday": "SATURDAY",
+                            "attendanceCount": 1,
+                            "winCount": 1,
+                            "lossCount": 0,
+                            "drawCount": 0,
+                            "winRate": 100.0
+                          },
+                          {
+                            "weekday": "SUNDAY",
+                            "attendanceCount": 1,
+                            "winCount": 1,
+                            "lossCount": 0,
+                            "drawCount": 0,
+                            "winRate": 100.0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/term-agreements": {
       "post": {
         "tags": [
@@ -17527,6 +17678,160 @@
         "title": "AttendanceLogVisibility",
         "description": "직관 로그 공개 범위."
       },
+      "AttendanceStatsResponse": {
+        "properties": {
+          "awayTripCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Awaytripcount",
+            "description": "응원팀이 원정팀이었던 직관 횟수"
+          },
+          "awayWinCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Awaywincount",
+            "description": "원정 직관 승리 횟수"
+          },
+          "homeAttendanceCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Homeattendancecount",
+            "description": "응원팀이 홈팀이었던 직관 횟수"
+          },
+          "homeWinRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homewinrate",
+            "description": "홈 직관 승률(%)"
+          },
+          "awayWinRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awaywinrate",
+            "description": "원정 직관 승률(%)"
+          },
+          "recent10AttendanceCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Recent10Attendancecount",
+            "description": "최근 직관 통계에 포함된 경기 수. 최대 10"
+          },
+          "recent10WinRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent10Winrate",
+            "description": "최근 최대 10번 직관의 승률(%)"
+          },
+          "weekdayStats": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceWeekdayStatsResponse"
+            },
+            "type": "array",
+            "title": "Weekdaystats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "awayTripCount",
+          "awayWinCount",
+          "homeAttendanceCount",
+          "recent10AttendanceCount",
+          "weekdayStats"
+        ],
+        "title": "AttendanceStatsResponse",
+        "description": "마이페이지 직관 통계 응답."
+      },
+      "AttendanceWeekday": {
+        "type": "string",
+        "enum": [
+          "MONDAY",
+          "TUESDAY",
+          "WEDNESDAY",
+          "THURSDAY",
+          "FRIDAY",
+          "SATURDAY",
+          "SUNDAY"
+        ],
+        "title": "AttendanceWeekday",
+        "description": "경기 시작일 기준 요일."
+      },
+      "AttendanceWeekdayStatsResponse": {
+        "properties": {
+          "weekday": {
+            "$ref": "#/components/schemas/AttendanceWeekday"
+          },
+          "attendanceCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Attendancecount"
+          },
+          "winCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Wincount"
+          },
+          "lossCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Losscount"
+          },
+          "drawCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Drawcount"
+          },
+          "winRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winrate",
+            "description": "점수가 확인된 경기 기준 승률(%). 집계 가능한 경기가 없으면 null"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "weekday",
+          "attendanceCount",
+          "winCount",
+          "lossCount",
+          "drawCount"
+        ],
+        "title": "AttendanceWeekdayStatsResponse",
+        "description": "요일별 직관 통계."
+      },
       "BusinessHoursRule": {
         "properties": {
           "weekdays": {
@@ -19823,6 +20128,25 @@
           "data"
         ],
         "title": "SuccessResponse[AttendanceLogResponse]"
+      },
+      "SuccessResponse_AttendanceStatsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AttendanceStatsResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[AttendanceStatsResponse]"
       },
       "SuccessResponse_FavoriteCollectionItemResponse_": {
         "properties": {

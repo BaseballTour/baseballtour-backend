@@ -6,6 +6,8 @@ import pytest
 
 from app.core.exceptions import AppException
 from app.schemas.attendance_log import (
+    AttendanceLogGameResult,
+    AttendanceLogHomeSide,
     AttendanceLogRecord,
     AttendanceLogStatus,
     LogEntryType,
@@ -214,6 +216,13 @@ def make_service(
 
     log_entry_repository = Mock()
 
+    user_repository = Mock()
+    user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id="doosan",
+        )
+    )
+
     service = AttendanceLogService(
         trip_repository=trip_repository,
         game_repository=game_repository,
@@ -222,6 +231,7 @@ def make_service(
             attendance_log_repository
         ),
         log_entry_repository=log_entry_repository,
+        user_repository=user_repository,
     )
 
     return SimpleNamespace(
@@ -233,6 +243,7 @@ def make_service(
             attendance_log_repository
         ),
         log_entry_repository=log_entry_repository,
+        user_repository=user_repository,
     )
 
 
@@ -1485,4 +1496,145 @@ def test_archive_log_includes_seat() -> None:
     assert (
         data[0].seat
         == "3루 내야 B블록 15열"
+    )
+
+
+def test_create_draft_snapshots_support_team() -> None:
+    context = make_service()
+
+    result = context.service.create_draft(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    assert result.support_team_id == "doosan"
+
+    document = (
+        context.attendance_log_repository
+        .create.call_args.args[0]
+    )
+
+    assert document.support_team_id == "doosan"
+
+
+def test_archive_uses_log_support_team_snapshot() -> None:
+    record = make_archive_record().model_copy(
+        update={
+            "support_team_id": "away",
+        }
+    )
+
+    context = make_archive_service(
+        records=[record],
+    )
+
+    context.user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id="home",
+        )
+    )
+
+    context.game_service.get_game.return_value = (
+        SimpleNamespace(
+            game_start_at=NOW,
+            stadium=SimpleNamespace(name="테스트구장"),
+            home_team=SimpleNamespace(
+                team_id="home",
+                name="홈팀",
+            ),
+            away_team=SimpleNamespace(
+                team_id="away",
+                name="원정팀",
+            ),
+            home_score=1,
+            away_score=3,
+        )
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    assert (
+        data[0].home_side
+        == AttendanceLogHomeSide.AWAY
+    )
+    assert (
+        data[0].result
+        == AttendanceLogGameResult.WIN
+    )
+
+
+def test_archive_legacy_log_falls_back_to_current_support_team() -> None:
+    record = make_archive_record().model_copy(
+        update={
+            "support_team_id": None,
+        }
+    )
+
+    context = make_archive_service(
+        records=[record],
+    )
+
+    context.user_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            support_team_id="home",
+        )
+    )
+
+    context.game_service.get_game.return_value = (
+        SimpleNamespace(
+            game_start_at=NOW,
+            stadium=SimpleNamespace(name="테스트구장"),
+            home_team=SimpleNamespace(
+                team_id="home",
+                name="홈팀",
+            ),
+            away_team=SimpleNamespace(
+                team_id="away",
+                name="원정팀",
+            ),
+            home_score=3,
+            away_score=1,
+        )
+    )
+
+    data, _ = context.service.list_archive_logs(
+        user_id=USER_ID,
+    )
+
+    assert (
+        data[0].home_side
+        == AttendanceLogHomeSide.HOME
+    )
+    assert (
+        data[0].result
+        == AttendanceLogGameResult.WIN
+    )
+
+
+@pytest.mark.parametrize(
+    "page_token",
+    [
+        "a",
+        "한글",
+    ],
+)
+def test_archive_rejects_malformed_page_token(
+    page_token: str,
+) -> None:
+    context = make_archive_service(
+        records=[],
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.list_archive_logs(
+            user_id=USER_ID,
+            page_token=page_token,
+        )
+
+    assert captured.value.status_code == 400
+    assert (
+        captured.value.code
+        == "INVALID_PAGE_TOKEN"
     )

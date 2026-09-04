@@ -1,4 +1,5 @@
 import base64
+import binascii
 import json
 from datetime import datetime, timezone
 
@@ -44,6 +45,10 @@ from app.schemas.itinerary_plan import (
     ItineraryPlanStatus,
 )
 from app.schemas.trip import TripRecord
+from app.services.attendance_result import (
+    resolve_game_result,
+    resolve_home_side,
+)
 from app.services.game_service import GameService
 from app.services.storage_service import StorageService
 
@@ -140,6 +145,17 @@ class AttendanceLogService:
             game_id=trip.game_id,
         )
 
+        user = self._get_user_repository().get_by_id(
+            user_id
+        )
+
+        if user is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="USER_NOT_FOUND",
+                message="사용자 정보를 찾을 수 없습니다.",
+            )
+
         now = datetime.now(timezone.utc)
 
         log_document = AttendanceLogDocument(
@@ -147,6 +163,7 @@ class AttendanceLogService:
             trip_id=trip.trip_id,
             game_id=trip.game_id,
             plan_id=plan.plan_id,
+            support_team_id=user.support_team_id,
             log_title=(
                 log_title
                 if log_title is not None
@@ -330,7 +347,11 @@ class AttendanceLogService:
         data = [
             self._to_archive_response(
                 record=record,
-                support_team_id=user.support_team_id,
+                support_team_id=(
+                    record.support_team_id
+                    if record.support_team_id is not None
+                    else user.support_team_id
+                ),
             )
             for record in page_records
         ]
@@ -918,6 +939,8 @@ class AttendanceLogService:
             KeyError,
             TypeError,
             json.JSONDecodeError,
+            binascii.Error,
+            UnicodeError,
         ) as exc:
             raise AppException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -948,7 +971,7 @@ class AttendanceLogService:
         self,
         *,
         record: AttendanceLogRecord,
-        support_team_id: str,
+        support_team_id: str | None,
     ) -> AttendanceLogArchiveItemResponse:
         game = self._get_game_service().get_game(
             record.game_id
@@ -1000,17 +1023,15 @@ class AttendanceLogService:
     @staticmethod
     def _resolve_home_side(
         *,
-        support_team_id: str,
+        support_team_id: str | None,
         home_team_id: str,
         away_team_id: str,
     ) -> AttendanceLogHomeSide:
-        if support_team_id == home_team_id:
-            return AttendanceLogHomeSide.HOME
-
-        if support_team_id == away_team_id:
-            return AttendanceLogHomeSide.AWAY
-
-        return AttendanceLogHomeSide.OTHER
+        return resolve_home_side(
+            support_team_id=support_team_id,
+            home_team_id=home_team_id,
+            away_team_id=away_team_id,
+        )
 
     @staticmethod
     def _resolve_game_result(
@@ -1019,29 +1040,10 @@ class AttendanceLogService:
         home_score: int | None,
         away_score: int | None,
     ) -> AttendanceLogGameResult | None:
-        if (
-            home_side == AttendanceLogHomeSide.OTHER
-            or home_score is None
-            or away_score is None
-        ):
-            return None
-
-        if home_score == away_score:
-            return AttendanceLogGameResult.DRAW
-
-        home_won = home_score > away_score
-
-        if home_side == AttendanceLogHomeSide.HOME:
-            return (
-                AttendanceLogGameResult.WIN
-                if home_won
-                else AttendanceLogGameResult.LOSS
-            )
-
-        return (
-            AttendanceLogGameResult.LOSS
-            if home_won
-            else AttendanceLogGameResult.WIN
+        return resolve_game_result(
+            home_side=home_side,
+            home_score=home_score,
+            away_score=away_score,
         )
 
     def _find_cover_image_url(

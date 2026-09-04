@@ -164,6 +164,14 @@ class AttendanceLogDocument(ApiModel):
         description="로그 생성 시점의 확정 일정 ID",
     )
 
+    support_team_id: str | None = Field(
+        default=None,
+        description=(
+            "직관 로그 생성 당시 사용자의 응원팀 ID. "
+            "기존 로그 호환을 위해 null을 허용합니다."
+        ),
+    )
+
     log_title: str = Field(
         min_length=1,
         max_length=150,
