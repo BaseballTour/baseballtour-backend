@@ -4,11 +4,10 @@ from typing import Any
 from pydantic import (
     BaseModel,
     ConfigDict,
-    field_serializer,
     field_validator,
 )
 
-from app.core.time import to_korea_datetime, to_korea_isoformat
+from app.core.time import to_korea_datetime
 
 
 def to_camel(value: str) -> str:
@@ -34,10 +33,4 @@ class ApiModel(BaseModel):
         """요청·Firestore 입력의 datetime을 한국시간으로 정규화한다."""
         if isinstance(value, datetime):
             return to_korea_datetime(value)
-        return value
-
-    @field_serializer("*", when_used="json", check_fields=False)
-    def serialize_datetime_as_korea(self, value: Any) -> Any:
-        if isinstance(value, datetime):
-            return to_korea_isoformat(value)
         return value

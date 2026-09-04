@@ -29,7 +29,17 @@ def initialize_firebase() -> firebase_admin.App:
             str(credentials_path)
         )
 
-        return firebase_admin.initialize_app(firebase_credentials)
+        firebase_options = {}
+
+        if settings.firebase_storage_bucket:
+            firebase_options["storageBucket"] = (
+                settings.firebase_storage_bucket
+            )
+
+        return firebase_admin.initialize_app(
+            firebase_credentials,
+            firebase_options,
+        )
 
 
 def get_firestore_client() -> Client:

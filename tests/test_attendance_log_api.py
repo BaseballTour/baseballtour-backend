@@ -182,3 +182,332 @@ def test_attendance_log_itinerary_is_get_only() -> None:
     }
 
     assert methods == {"get"}
+
+
+def make_log_api_response():
+    from app.schemas.attendance_log import (
+        AttendanceLogResponse,
+        AttendanceLogStatus,
+    )
+
+    return AttendanceLogResponse(
+        attendance_log_id=ATTENDANCE_LOG_ID,
+        trip_id=TRIP_ID,
+        game_id="game_001",
+        plan_id=PLAN_ID,
+        log_title="부산 직관 여행",
+        summary_text=None,
+        log_status=AttendanceLogStatus.DRAFT,
+        visibility="PRIVATE",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def make_log_detail_api_response():
+    from app.schemas.attendance_log import (
+        AttendanceLogDetailResponse,
+        AttendanceLogStatus,
+    )
+
+    return AttendanceLogDetailResponse(
+        attendance_log_id=ATTENDANCE_LOG_ID,
+        trip_id=TRIP_ID,
+        game_id="game_001",
+        plan_id=PLAN_ID,
+        log_title="부산 직관 여행",
+        summary_text=None,
+        log_status=AttendanceLogStatus.DRAFT,
+        visibility="PRIVATE",
+        created_at=NOW,
+        updated_at=NOW,
+        entries=[],
+    )
+
+
+def make_entry_api_response():
+    from app.schemas.attendance_log import (
+        LogEntryResponse,
+        LogEntryType,
+    )
+
+    return LogEntryResponse(
+        log_entry_id="entry_001",
+        plan_item_id="place_001",
+        place_id="tour_001",
+        sequence_no=1,
+        entry_type=LogEntryType.PLACE,
+        entry_title="광안리해수욕장",
+        review_text="좋았습니다.",
+        occurred_at=NOW,
+        media=[],
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def test_create_attendance_log_api(
+    authenticated_client: TestClient,
+) -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogRecord,
+        AttendanceLogStatus,
+    )
+
+    service = Mock()
+
+    record = AttendanceLogRecord(
+        attendance_log_id=ATTENDANCE_LOG_ID,
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        game_id="game_001",
+        plan_id=PLAN_ID,
+        log_title="직관 기록",
+        summary_text=None,
+        log_status=AttendanceLogStatus.DRAFT,
+        visibility="PRIVATE",
+        created_at=NOW,
+        updated_at=NOW,
+        deleted_at=None,
+    )
+
+    service.create_draft.return_value = record
+    service.to_response.return_value = (
+        make_log_api_response()
+    )
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.post(
+            "/api/v1/attendance-logs",
+            json={
+                "tripId": TRIP_ID,
+                "logTitle": "직관 기록",
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.json()["success"] is True
+
+    service.create_draft.assert_called_once_with(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        log_title="직관 기록",
+    )
+
+
+def test_list_attendance_logs_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.list_logs.return_value = [
+        make_log_api_response()
+    ]
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            "/api/v1/attendance-logs"
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["meta"]["count"] == 1
+    assert (
+        body["data"][0]["attendanceLogId"]
+        == ATTENDANCE_LOG_ID
+    )
+
+    service.list_logs.assert_called_once_with(
+        user_id=USER_ID
+    )
+
+
+def test_get_attendance_log_detail_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_detail.return_value = (
+        make_log_detail_api_response()
+    )
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            (
+                "/api/v1/attendance-logs/"
+                f"{ATTENDANCE_LOG_ID}"
+            )
+        )
+
+    assert response.status_code == 200
+
+    assert (
+        response.json()["data"]["attendanceLogId"]
+        == ATTENDANCE_LOG_ID
+    )
+
+    service.get_detail.assert_called_once_with(
+        user_id=USER_ID,
+        attendance_log_id=ATTENDANCE_LOG_ID,
+    )
+
+
+def test_update_attendance_log_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.update_log.return_value = (
+        make_log_api_response()
+    )
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            (
+                "/api/v1/attendance-logs/"
+                f"{ATTENDANCE_LOG_ID}"
+            ),
+            json={
+                "summaryText": "역전승 직관",
+            },
+        )
+
+    assert response.status_code == 200
+
+    kwargs = (
+        service.update_log.call_args.kwargs
+    )
+
+    assert kwargs["user_id"] == USER_ID
+    assert (
+        kwargs["attendance_log_id"]
+        == ATTENDANCE_LOG_ID
+    )
+    assert (
+        kwargs["request"].summary_text
+        == "역전승 직관"
+    )
+
+
+def test_update_attendance_log_entry_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.update_entry.return_value = (
+        make_entry_api_response()
+    )
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            (
+                "/api/v1/attendance-logs/"
+                f"{ATTENDANCE_LOG_ID}/"
+                "entries/entry_001"
+            ),
+            json={
+                "reviewText": "정말 좋았습니다.",
+            },
+        )
+
+    assert response.status_code == 200
+
+    kwargs = (
+        service.update_entry.call_args.kwargs
+    )
+
+    assert kwargs["user_id"] == USER_ID
+    assert kwargs["log_entry_id"] == "entry_001"
+
+
+def test_delete_attendance_log_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.delete(
+            (
+                "/api/v1/attendance-logs/"
+                f"{ATTENDANCE_LOG_ID}"
+            )
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "deleted": True
+    }
+
+    service.delete_log.assert_called_once_with(
+        user_id=USER_ID,
+        attendance_log_id=ATTENDANCE_LOG_ID,
+    )
+
+
+def test_delete_attendance_log_media_api(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    with patch(
+        (
+            "app.api.v1.endpoints.attendance_logs."
+            "AttendanceLogService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.delete(
+            (
+                "/api/v1/attendance-logs/"
+                f"{ATTENDANCE_LOG_ID}/"
+                "entries/entry_001/"
+                "media/media_001"
+            )
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "deleted": True
+    }
+
+    service.delete_media.assert_called_once_with(
+        user_id=USER_ID,
+        attendance_log_id=ATTENDANCE_LOG_ID,
+        log_entry_id="entry_001",
+        log_media_id="media_001",
+    )

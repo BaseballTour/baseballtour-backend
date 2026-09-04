@@ -275,3 +275,94 @@ def test_withdraw_my_account_returns_no_content(
     service.withdraw_user.assert_called_once_with(
         user_id="firebase-user-123"
     )
+
+
+def test_update_my_profile_changes_profile_fields(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    updated = make_user_response().model_copy(
+        update={
+            "nickname": "새닉네임",
+            "name": "서민준",
+            "phone_number": "01012345678",
+            "profile_image_url": (
+                "https://example.com/profile.jpg"
+            ),
+        }
+    )
+
+    service.update_user.return_value = updated
+
+    with patch(
+        "app.api.v1.endpoints.users.UserService",
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            "/api/v1/users/me",
+            json={
+                "nickname": "새닉네임",
+                "name": "서민준",
+                "phoneNumber": "01012345678",
+                "profileImageUrl": (
+                    "https://example.com/profile.jpg"
+                ),
+            },
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["data"]["nickname"] == "새닉네임"
+    assert body["data"]["name"] == "서민준"
+    assert body["data"]["phoneNumber"] == "01012345678"
+    assert (
+        body["data"]["profileImageUrl"]
+        == "https://example.com/profile.jpg"
+    )
+
+    request = service.update_user.call_args.kwargs[
+        "request"
+    ]
+
+    assert request.name == "서민준"
+    assert request.phone_number == "01012345678"
+    assert (
+        request.profile_image_url
+        == "https://example.com/profile.jpg"
+    )
+
+
+def test_update_my_profile_can_clear_optional_profile_fields(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+
+    service.update_user.return_value = (
+        make_user_response()
+    )
+
+    with patch(
+        "app.api.v1.endpoints.users.UserService",
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            "/api/v1/users/me",
+            json={
+                "name": None,
+                "phoneNumber": None,
+                "profileImageUrl": None,
+            },
+        )
+
+    assert response.status_code == 200
+
+    request = service.update_user.call_args.kwargs[
+        "request"
+    ]
+
+    assert "name" in request.model_fields_set
+    assert "phone_number" in request.model_fields_set
+    assert "profile_image_url" in request.model_fields_set

@@ -631,3 +631,429 @@ def test_get_itinerary_rejects_plan_mismatch() -> None:
 
     assert captured.value.status_code == 409
     assert captured.value.code == "ATTENDANCE_LOG_PLAN_MISMATCH"
+
+
+def make_crud_service(
+    *,
+    log_user_id: str = USER_ID,
+):
+    from types import SimpleNamespace
+
+    attendance_repository = Mock()
+    attendance_repository.get_by_id.return_value = (
+        make_attendance_log(
+            user_id=log_user_id,
+        )
+    )
+
+    log_entry_repository = Mock()
+    log_media_repository = Mock()
+    storage_service = Mock()
+
+    service = AttendanceLogService(
+        trip_repository=Mock(),
+        game_repository=Mock(),
+        itinerary_plan_repository=Mock(),
+        attendance_log_repository=(
+            attendance_repository
+        ),
+        log_entry_repository=(
+            log_entry_repository
+        ),
+        log_media_repository=(
+            log_media_repository
+        ),
+        storage_service=storage_service,
+    )
+
+    return SimpleNamespace(
+        service=service,
+        attendance_repository=(
+            attendance_repository
+        ),
+        log_entry_repository=(
+            log_entry_repository
+        ),
+        log_media_repository=(
+            log_media_repository
+        ),
+        storage_service=storage_service,
+    )
+
+
+def test_update_log_checks_owner_and_updates_fields() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    context = make_crud_service()
+
+    updated = make_attendance_log().model_copy(
+        update={
+            "log_title": "수정한 직관 로그",
+        }
+    )
+
+    context.attendance_repository.update.return_value = (
+        updated
+    )
+
+    result = context.service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=AttendanceLogUpdateRequest(
+            log_title="수정한 직관 로그",
+        ),
+    )
+
+    assert result.log_title == "수정한 직관 로그"
+
+    context.attendance_repository.get_by_id.assert_called_once_with(
+        "log_001"
+    )
+
+    args = (
+        context.attendance_repository
+        .update.call_args.args
+    )
+
+    assert args[0] == "log_001"
+    assert args[1]["logTitle"] == (
+        "수정한 직관 로그"
+    )
+    assert "updatedAt" in args[1]
+
+
+def test_update_log_rejects_other_owner() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+    )
+
+    context = make_crud_service(
+        log_user_id="another-user",
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.update_log(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            request=AttendanceLogUpdateRequest(
+                log_title="수정",
+            ),
+        )
+
+    assert captured.value.status_code == 403
+    assert (
+        captured.value.code
+        == "ATTENDANCE_LOG_ACCESS_DENIED"
+    )
+
+    context.attendance_repository.update.assert_not_called()
+
+
+def test_update_log_rejects_archived_status() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogStatus,
+        AttendanceLogUpdateRequest,
+    )
+
+    context = make_crud_service()
+
+    with pytest.raises(AppException) as captured:
+        context.service.update_log(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+            request=AttendanceLogUpdateRequest(
+                log_status=(
+                    AttendanceLogStatus.ARCHIVED
+                ),
+            ),
+        )
+
+    assert captured.value.status_code == 400
+    assert (
+        captured.value.code
+        == "ATTENDANCE_LOG_STATUS_INVALID"
+    )
+
+
+def test_delete_media_removes_storage_first() -> None:
+    context = make_crud_service()
+
+    context.log_entry_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        )
+    )
+
+    context.log_media_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            log_media_id="media_001",
+            storage_path=(
+                "users/firebase-user-123/"
+                "attendance-logs/log_001/"
+                "entry_001/media_001.jpg"
+            ),
+        )
+    )
+
+    context.log_media_repository.delete.return_value = True
+
+    context.service.delete_media(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        log_entry_id="entry_001",
+        log_media_id="media_001",
+    )
+
+    context.storage_service.delete_storage_path.assert_called_once_with(
+        (
+            "users/firebase-user-123/"
+            "attendance-logs/log_001/"
+            "entry_001/media_001.jpg"
+        )
+    )
+
+    context.log_media_repository.delete.assert_called_once_with(
+        "log_001",
+        "entry_001",
+        "media_001",
+    )
+
+
+def test_delete_entry_cleans_media_and_entry() -> None:
+    context = make_crud_service()
+
+    context.log_entry_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        )
+    )
+
+    context.log_media_repository.get_all.return_value = [
+        SimpleNamespace(
+            log_media_id="media_001",
+            storage_path=(
+                "users/firebase-user-123/"
+                "attendance-logs/log_001/"
+                "entry_001/media_001.jpg"
+            ),
+        ),
+        SimpleNamespace(
+            log_media_id="media_legacy",
+            storage_path=None,
+        ),
+    ]
+
+    context.log_entry_repository.delete.return_value = True
+    context.log_media_repository.delete.return_value = True
+
+    context.service.delete_entry(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        log_entry_id="entry_001",
+    )
+
+    context.storage_service.delete_storage_path.assert_called_once()
+
+    assert (
+        context.log_media_repository.delete.call_count
+        == 2
+    )
+
+    context.log_entry_repository.delete.assert_called_once_with(
+        "log_001",
+        "entry_001",
+    )
+
+
+def test_delete_log_cleans_entries_before_soft_delete() -> None:
+    context = make_crud_service()
+
+    context.log_entry_repository.get_all.return_value = [
+        SimpleNamespace(
+            log_entry_id="entry_001",
+        ),
+        SimpleNamespace(
+            log_entry_id="entry_002",
+        ),
+    ]
+
+    context.log_media_repository.get_all.return_value = []
+    context.log_entry_repository.delete.return_value = True
+    context.attendance_repository.soft_delete.return_value = True
+
+    context.service.delete_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+    )
+
+    assert (
+        context.log_entry_repository.delete.call_count
+        == 2
+    )
+
+    context.attendance_repository.soft_delete.assert_called_once()
+
+    args = (
+        context.attendance_repository
+        .soft_delete.call_args
+    )
+
+    assert args.args[0] == "log_001"
+    assert "deleted_at" in args.kwargs
+
+
+def test_get_detail_allows_public_log_for_other_user() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogVisibility,
+    )
+
+    context = make_crud_service(
+        log_user_id="another-user",
+    )
+
+    public_log = make_attendance_log(
+        user_id="another-user",
+    ).model_copy(
+        update={
+            "visibility": (
+                AttendanceLogVisibility.PUBLIC
+            ),
+        }
+    )
+
+    context.attendance_repository.get_by_id.return_value = (
+        public_log
+    )
+
+    context.log_entry_repository.get_all.return_value = []
+
+    result = context.service.get_detail(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+    )
+
+    assert (
+        result.visibility
+        == AttendanceLogVisibility.PUBLIC
+    )
+
+
+def test_get_detail_rejects_private_log_for_other_user() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogVisibility,
+    )
+
+    context = make_crud_service(
+        log_user_id="another-user",
+    )
+
+    private_log = make_attendance_log(
+        user_id="another-user",
+    ).model_copy(
+        update={
+            "visibility": (
+                AttendanceLogVisibility.PRIVATE
+            ),
+        }
+    )
+
+    context.attendance_repository.get_by_id.return_value = (
+        private_log
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_detail(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 403
+
+    assert (
+        captured.value.code
+        == "ATTENDANCE_LOG_ACCESS_DENIED"
+    )
+
+    context.log_entry_repository.get_all.assert_not_called()
+
+
+def test_update_log_changes_visibility() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogUpdateRequest,
+        AttendanceLogVisibility,
+    )
+
+    context = make_crud_service()
+
+    updated = make_attendance_log().model_copy(
+        update={
+            "visibility": (
+                AttendanceLogVisibility.PUBLIC
+            ),
+        }
+    )
+
+    context.attendance_repository.update.return_value = (
+        updated
+    )
+
+    result = context.service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=AttendanceLogUpdateRequest(
+            visibility=(
+                AttendanceLogVisibility.PUBLIC
+            ),
+        ),
+    )
+
+    assert (
+        result.visibility
+        == AttendanceLogVisibility.PUBLIC
+    )
+
+    updates = (
+        context.attendance_repository
+        .update.call_args.args[1]
+    )
+
+    assert updates["visibility"] == "PUBLIC"
+
+
+def test_public_log_itinerary_still_rejects_other_user() -> None:
+    from app.schemas.attendance_log import (
+        AttendanceLogVisibility,
+    )
+
+    context = make_service()
+
+    public_log = make_attendance_log(
+        user_id="another-user",
+    ).model_copy(
+        update={
+            "visibility": (
+                AttendanceLogVisibility.PUBLIC
+            ),
+        }
+    )
+
+    context.attendance_log_repository.get_by_id.return_value = (
+        public_log
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.get_itinerary(
+            user_id=USER_ID,
+            attendance_log_id="log_001",
+        )
+
+    assert captured.value.status_code == 403
+
+    assert (
+        captured.value.code
+        == "ATTENDANCE_LOG_ACCESS_DENIED"
+    )
+
+    context.plan_repository.get_by_id.assert_not_called()

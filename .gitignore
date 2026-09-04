@@ -36,3 +36,9 @@ artifacts/
 
 # Firebase Admin SDK service account keys
 *firebase-adminsdk*.json
+
+# KBO team logo source assets
+# Official BI assets are uploaded to Firebase Storage,
+# not committed to Git.
+assets/team-logos/*
+!assets/team-logos/.gitkeep

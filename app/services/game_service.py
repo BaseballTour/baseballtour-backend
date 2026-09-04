@@ -7,6 +7,7 @@ from app.core.exceptions import AppException
 from app.repositories.game_repository import GameRepository
 from app.repositories.stadium_repository import StadiumRepository
 from app.repositories.team_repository import TeamRepository
+from app.services.team_service import resolve_team_logo_url
 from app.schemas.game import (
     GameRecord,
     GameResponse,
@@ -145,12 +146,12 @@ class GameService:
             home_team=GameTeamSummaryResponse(
                 team_id=home_team.team_id,
                 name=home_team.name,
-                logo_url=home_team.logo_url,
+                logo_url=resolve_team_logo_url(home_team),
             ),
             away_team=GameTeamSummaryResponse(
                 team_id=away_team.team_id,
                 name=away_team.name,
-                logo_url=away_team.logo_url,
+                logo_url=resolve_team_logo_url(away_team),
             ),
             stadium=StadiumSummaryResponse(
                 stadium_id=stadium.stadium_id,

@@ -74,3 +74,41 @@ def test_datetime_examples_use_korea_timezone() -> None:
     schema_text = str(app.openapi())
     assert "2026-08-16T12:00:00+09:00" in schema_text
     assert "2026-08-17T14:00:00+09:00" in schema_text
+
+
+def test_openapi_component_properties_are_not_empty() -> None:
+    schema = app.openapi()
+
+    empty_properties = []
+
+    for schema_name, definition in (
+        schema.get(
+            "components",
+            {},
+        )
+        .get(
+            "schemas",
+            {},
+        )
+        .items()
+    ):
+        for field_name, field_schema in (
+            definition
+            .get(
+                "properties",
+                {},
+            )
+            .items()
+        ):
+            if field_schema == {}:
+                empty_properties.append(
+                    (
+                        schema_name,
+                        field_name,
+                    )
+                )
+
+    assert not empty_properties, (
+        "OpenAPI에 빈 component property schema가 "
+        f"있습니다: {empty_properties}"
+    )

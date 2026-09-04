@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     firebase_credentials_path: str = (
         "secrets/firebase-service-account.json"
     )
+    firebase_storage_bucket: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

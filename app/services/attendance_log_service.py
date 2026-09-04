@@ -14,19 +14,30 @@ from app.repositories.itinerary_plan_repository import (
 from app.repositories.log_entry_repository import (
     LogEntryRepository,
 )
+from app.repositories.log_media_repository import (
+    LogMediaRepository,
+)
 from app.repositories.trip_repository import TripRepository
 from app.schemas.attendance_log import (
+    AttendanceLogDetailResponse,
     AttendanceLogDocument,
     AttendanceLogRecord,
+    AttendanceLogResponse,
     AttendanceLogStatus,
+    AttendanceLogUpdateRequest,
+    AttendanceLogVisibility,
     LogEntryDocument,
+    LogEntryResponse,
     LogEntryType,
+    LogEntryUpdateRequest,
+    LogMediaResponse,
 )
 from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
     ItineraryPlanStatus,
 )
 from app.schemas.trip import TripRecord
+from app.services.storage_service import StorageService
 
 
 class AttendanceLogService:
@@ -44,6 +55,12 @@ class AttendanceLogService:
         ) = None,
         log_entry_repository: (
             LogEntryRepository | None
+        ) = None,
+        log_media_repository: (
+            LogMediaRepository | None
+        ) = None,
+        storage_service: (
+            StorageService | None
         ) = None,
     ) -> None:
         self._trip_repository = (
@@ -67,11 +84,22 @@ class AttendanceLogService:
             or LogEntryRepository()
         )
 
+        # 기존 create_draft/get_itinerary 테스트에서
+        # Firestore/Storage를 불필요하게 초기화하지 않도록
+        # 실제 필요 시 생성합니다.
+        self._log_media_repository = (
+            log_media_repository
+        )
+        self._storage_service = (
+            storage_service
+        )
+
     def create_draft(
         self,
         *,
         user_id: str,
         trip_id: str,
+        log_title: str | None = None,
     ) -> AttendanceLogRecord:
         """여행의 현재 확정 일정을 기반으로 DRAFT 로그를 생성합니다."""
 
@@ -99,9 +127,14 @@ class AttendanceLogService:
             trip_id=trip.trip_id,
             game_id=trip.game_id,
             plan_id=plan.plan_id,
-            log_title=trip.title,
+            log_title=(
+                log_title
+                if log_title is not None
+                else trip.title
+            ),
             summary_text=None,
             log_status=AttendanceLogStatus.DRAFT,
+            visibility=AttendanceLogVisibility.PRIVATE,
             created_at=now,
             updated_at=now,
             deleted_at=None,
@@ -192,6 +225,614 @@ class AttendanceLogService:
             )
 
         return plan
+
+    def to_response(
+        self,
+        record: AttendanceLogRecord,
+    ) -> AttendanceLogResponse:
+        """직관 로그 Record를 API 응답으로 변환합니다."""
+
+        return self._to_log_response(
+            record
+        )
+
+    def list_logs(
+        self,
+        *,
+        user_id: str,
+    ) -> list[AttendanceLogResponse]:
+        """사용자 자신의 직관 로그 목록을 조회합니다."""
+
+        records = (
+            self._attendance_log_repository
+            .get_by_user_id(user_id)
+        )
+
+        return [
+            self._to_log_response(record)
+            for record in records
+        ]
+
+    def get_detail(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+    ) -> AttendanceLogDetailResponse:
+        """직관 로그 상세와 Entry/Media를 조회합니다."""
+
+        attendance_log = (
+            self._get_readable_log_or_raise(
+                user_id=user_id,
+                attendance_log_id=attendance_log_id,
+            )
+        )
+
+        entries = (
+            self._log_entry_repository.get_all(
+                attendance_log_id
+            )
+        )
+
+        return AttendanceLogDetailResponse(
+            attendance_log_id=(
+                attendance_log.attendance_log_id
+            ),
+            trip_id=attendance_log.trip_id,
+            game_id=attendance_log.game_id,
+            plan_id=attendance_log.plan_id,
+            log_title=attendance_log.log_title,
+            summary_text=attendance_log.summary_text,
+            log_status=attendance_log.log_status,
+            visibility=attendance_log.visibility,
+            created_at=attendance_log.created_at,
+            updated_at=attendance_log.updated_at,
+            entries=[
+                self._to_entry_response(
+                    attendance_log_id=(
+                        attendance_log_id
+                    ),
+                    entry=entry,
+                )
+                for entry in entries
+            ],
+        )
+
+    def update_log(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+        request: AttendanceLogUpdateRequest,
+    ) -> AttendanceLogResponse:
+        """소유자의 직관 로그 기본 정보를 수정합니다."""
+
+        self._get_owned_log_or_raise(
+            user_id=user_id,
+            attendance_log_id=attendance_log_id,
+        )
+
+        if (
+            "log_status"
+            in request.model_fields_set
+            and request.log_status
+            == AttendanceLogStatus.ARCHIVED
+        ):
+            raise AppException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="ATTENDANCE_LOG_STATUS_INVALID",
+                message=(
+                    "ARCHIVED 상태 변경은 "
+                    "직관 로그 삭제 API를 사용해야 합니다."
+                ),
+            )
+
+        updates = {}
+
+        if "log_title" in request.model_fields_set:
+            updates["logTitle"] = (
+                request.log_title
+            )
+
+        if (
+            "summary_text"
+            in request.model_fields_set
+        ):
+            updates["summaryText"] = (
+                request.summary_text
+            )
+
+        if (
+            "log_status"
+            in request.model_fields_set
+        ):
+            updates["logStatus"] = (
+                request.log_status.value
+                if request.log_status is not None
+                else None
+            )
+
+        if (
+            "visibility"
+            in request.model_fields_set
+        ):
+            updates["visibility"] = (
+                request.visibility.value
+                if request.visibility is not None
+                else None
+            )
+
+        updates["updatedAt"] = datetime.now(
+            timezone.utc
+        )
+
+        updated = (
+            self._attendance_log_repository.update(
+                attendance_log_id,
+                updates,
+            )
+        )
+
+        if updated is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ATTENDANCE_LOG_NOT_FOUND",
+                message=(
+                    "직관 로그를 찾을 수 없습니다."
+                ),
+            )
+
+        return self._to_log_response(
+            updated
+        )
+
+    def update_entry(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+        log_entry_id: str,
+        request: LogEntryUpdateRequest,
+    ) -> LogEntryResponse:
+        """직관 로그 Entry를 수정합니다."""
+
+        self._get_owned_log_or_raise(
+            user_id=user_id,
+            attendance_log_id=attendance_log_id,
+        )
+
+        updates = {}
+
+        if (
+            "entry_title"
+            in request.model_fields_set
+        ):
+            updates["entryTitle"] = (
+                request.entry_title
+            )
+
+        if (
+            "review_text"
+            in request.model_fields_set
+        ):
+            updates["reviewText"] = (
+                request.review_text
+            )
+
+        if (
+            "occurred_at"
+            in request.model_fields_set
+        ):
+            updates["occurredAt"] = (
+                request.occurred_at
+            )
+
+        updates["updatedAt"] = datetime.now(
+            timezone.utc
+        )
+
+        updated = (
+            self._log_entry_repository.update(
+                attendance_log_id,
+                log_entry_id,
+                updates,
+            )
+        )
+
+        if updated is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="LOG_ENTRY_NOT_FOUND",
+                message=(
+                    "직관 로그 항목을 찾을 수 없습니다."
+                ),
+            )
+
+        return self._to_entry_response(
+            attendance_log_id=attendance_log_id,
+            entry=updated,
+        )
+
+    def delete_media(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+        log_entry_id: str,
+        log_media_id: str,
+    ) -> None:
+        """로그 미디어와 Storage 객체를 삭제합니다."""
+
+        self._get_owned_log_or_raise(
+            user_id=user_id,
+            attendance_log_id=attendance_log_id,
+        )
+
+        entry = (
+            self._log_entry_repository.get_by_id(
+                attendance_log_id,
+                log_entry_id,
+            )
+        )
+
+        if entry is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="LOG_ENTRY_NOT_FOUND",
+                message=(
+                    "직관 로그 항목을 찾을 수 없습니다."
+                ),
+            )
+
+        repository = (
+            self._get_log_media_repository()
+        )
+
+        media = repository.get_by_id(
+            attendance_log_id,
+            log_entry_id,
+            log_media_id,
+        )
+
+        if media is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="LOG_MEDIA_NOT_FOUND",
+                message=(
+                    "직관 로그 미디어를 찾을 수 없습니다."
+                ),
+            )
+
+        if media.storage_path:
+            self._get_storage_service().delete_storage_path(
+                media.storage_path
+            )
+
+        deleted = repository.delete(
+            attendance_log_id,
+            log_entry_id,
+            log_media_id,
+        )
+
+        if not deleted:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="LOG_MEDIA_NOT_FOUND",
+                message=(
+                    "직관 로그 미디어를 찾을 수 없습니다."
+                ),
+            )
+
+    def delete_entry(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+        log_entry_id: str,
+    ) -> None:
+        """Entry와 연결 미디어를 모두 삭제합니다."""
+
+        self._get_owned_log_or_raise(
+            user_id=user_id,
+            attendance_log_id=attendance_log_id,
+        )
+
+        entry = (
+            self._log_entry_repository.get_by_id(
+                attendance_log_id,
+                log_entry_id,
+            )
+        )
+
+        if entry is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="LOG_ENTRY_NOT_FOUND",
+                message=(
+                    "직관 로그 항목을 찾을 수 없습니다."
+                ),
+            )
+
+        self._delete_entry_contents(
+            attendance_log_id=attendance_log_id,
+            log_entry_id=log_entry_id,
+        )
+
+    def delete_log(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+    ) -> None:
+        """직관 로그 하위 데이터를 정리하고 soft delete합니다."""
+
+        self._get_owned_log_or_raise(
+            user_id=user_id,
+            attendance_log_id=attendance_log_id,
+        )
+
+        entries = (
+            self._log_entry_repository.get_all(
+                attendance_log_id
+            )
+        )
+
+        for entry in entries:
+            self._delete_entry_contents(
+                attendance_log_id=(
+                    attendance_log_id
+                ),
+                log_entry_id=(
+                    entry.log_entry_id
+                ),
+            )
+
+        deleted_at = datetime.now(
+            timezone.utc
+        )
+
+        deleted = (
+            self._attendance_log_repository
+            .soft_delete(
+                attendance_log_id,
+                deleted_at=deleted_at,
+            )
+        )
+
+        if not deleted:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ATTENDANCE_LOG_NOT_FOUND",
+                message=(
+                    "직관 로그를 찾을 수 없습니다."
+                ),
+            )
+
+    def _delete_entry_contents(
+        self,
+        *,
+        attendance_log_id: str,
+        log_entry_id: str,
+    ) -> None:
+        repository = (
+            self._get_log_media_repository()
+        )
+
+        media_items = repository.get_all(
+            attendance_log_id,
+            log_entry_id,
+        )
+
+        for media in media_items:
+            if media.storage_path:
+                self._get_storage_service().delete_storage_path(
+                    media.storage_path
+                )
+
+            repository.delete(
+                attendance_log_id,
+                log_entry_id,
+                media.log_media_id,
+            )
+
+        deleted = (
+            self._log_entry_repository.delete(
+                attendance_log_id,
+                log_entry_id,
+            )
+        )
+
+        if not deleted:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="LOG_ENTRY_NOT_FOUND",
+                message=(
+                    "직관 로그 항목을 찾을 수 없습니다."
+                ),
+            )
+
+    def _get_readable_log_or_raise(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+    ) -> AttendanceLogRecord:
+        """
+        소유자 또는 PUBLIC 로그에 대해 상세 조회를 허용합니다.
+
+        수정·삭제·itinerary는 이 메서드를 사용하지 않고
+        반드시 _get_owned_log_or_raise를 사용합니다.
+        """
+
+        attendance_log = (
+            self._attendance_log_repository
+            .get_by_id(attendance_log_id)
+        )
+
+        if attendance_log is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ATTENDANCE_LOG_NOT_FOUND",
+                message=(
+                    "직관 로그를 찾을 수 없습니다."
+                ),
+            )
+
+        if attendance_log.user_id == user_id:
+            return attendance_log
+
+        if (
+            attendance_log.visibility
+            == AttendanceLogVisibility.PUBLIC
+        ):
+            return attendance_log
+
+        raise AppException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="ATTENDANCE_LOG_ACCESS_DENIED",
+            message=(
+                "해당 직관 로그에 접근할 "
+                "권한이 없습니다."
+            ),
+        )
+
+    def _get_owned_log_or_raise(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+    ) -> AttendanceLogRecord:
+        attendance_log = (
+            self._attendance_log_repository
+            .get_by_id(attendance_log_id)
+        )
+
+        if attendance_log is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ATTENDANCE_LOG_NOT_FOUND",
+                message=(
+                    "직관 로그를 찾을 수 없습니다."
+                ),
+            )
+
+        if attendance_log.user_id != user_id:
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="ATTENDANCE_LOG_ACCESS_DENIED",
+                message=(
+                    "해당 직관 로그에 접근할 "
+                    "권한이 없습니다."
+                ),
+            )
+
+        return attendance_log
+
+    def _get_log_media_repository(
+        self,
+    ) -> LogMediaRepository:
+        if self._log_media_repository is None:
+            self._log_media_repository = (
+                LogMediaRepository()
+            )
+
+        return self._log_media_repository
+
+    def _get_storage_service(
+        self,
+    ) -> StorageService:
+        if self._storage_service is None:
+            self._storage_service = (
+                StorageService()
+            )
+
+        return self._storage_service
+
+    def _to_entry_response(
+        self,
+        *,
+        attendance_log_id: str,
+        entry,
+    ) -> LogEntryResponse:
+        media_records = (
+            self._get_log_media_repository()
+            .get_all(
+                attendance_log_id,
+                entry.log_entry_id,
+            )
+        )
+
+        media_responses = []
+
+        for media in media_records:
+            if media.storage_path:
+                media_url = (
+                    self._get_storage_service()
+                    .create_download_url(
+                        media.storage_path
+                    )
+                )
+            elif media.media_url:
+                media_url = media.media_url
+            else:
+                raise AppException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="LOG_MEDIA_SOURCE_MISSING",
+                    message=(
+                        "직관 로그 미디어의 "
+                        "파일 정보를 찾을 수 없습니다."
+                    ),
+                )
+
+            media_responses.append(
+                LogMediaResponse(
+                    log_media_id=(
+                        media.log_media_id
+                    ),
+                    media_type=media.media_type,
+                    media_url=media_url,
+                    thumbnail_url=(
+                        media.thumbnail_url
+                    ),
+                    sequence_no=(
+                        media.sequence_no
+                    ),
+                    created_at=media.created_at,
+                )
+            )
+
+        return LogEntryResponse(
+            log_entry_id=entry.log_entry_id,
+            plan_item_id=entry.plan_item_id,
+            place_id=entry.place_id,
+            sequence_no=entry.sequence_no,
+            entry_type=entry.entry_type,
+            entry_title=entry.entry_title,
+            review_text=entry.review_text,
+            occurred_at=entry.occurred_at,
+            media=media_responses,
+            created_at=entry.created_at,
+            updated_at=entry.updated_at,
+        )
+
+    @staticmethod
+    def _to_log_response(
+        record: AttendanceLogRecord,
+    ) -> AttendanceLogResponse:
+        return AttendanceLogResponse(
+            attendance_log_id=(
+                record.attendance_log_id
+            ),
+            trip_id=record.trip_id,
+            game_id=record.game_id,
+            plan_id=record.plan_id,
+            log_title=record.log_title,
+            summary_text=record.summary_text,
+            log_status=record.log_status,
+            visibility=record.visibility,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
 
     def _get_owned_trip_or_raise(
         self,

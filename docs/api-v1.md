@@ -10,10 +10,20 @@
 | GET | `/` | API 기본 정보 |
 | GET | `/accommodations/reverse-geocode` | 지도에서 숙소 검색 |
 | GET | `/accommodations/search` | Kakao 숙소 검색 |
+| GET | `/attendance-logs` | 내 직관 로그 목록 조회 |
+| POST | `/attendance-logs` | 직관 로그 초안 생성 |
+| GET | `/attendance-logs/{attendanceLogId}` | 직관 로그 상세 조회 |
+| PATCH | `/attendance-logs/{attendanceLogId}` | 직관 로그 수정 |
+| DELETE | `/attendance-logs/{attendanceLogId}` | 직관 로그 삭제 |
+| PATCH | `/attendance-logs/{attendanceLogId}/entries/{entryId}` | 직관 로그 Entry 수정 |
+| DELETE | `/attendance-logs/{attendanceLogId}/entries/{entryId}` | 직관 로그 Entry 삭제 |
+| DELETE | `/attendance-logs/{attendanceLogId}/entries/{entryId}/media/{mediaId}` | 직관 로그 미디어 삭제 |
 | GET | `/attendance-logs/{attendanceLogId}/itinerary` | 직관 로그 일정 조회 |
 | GET | `/games` | KBO 경기 목록 조회 |
 | GET | `/games/{gameId}` | KBO 경기 상세 조회 |
 | GET | `/health` | 서버 상태 확인 |
+| POST | `/media/complete` | 미디어 업로드 완료 |
+| POST | `/media/upload-urls` | 미디어 업로드 URL 발급 |
 | GET | `/teams` | KBO 구단 목록 조회 |
 | GET | `/terms` | 활성 약관 목록 조회 |
 | GET | `/tour/classifications` | TourAPI 신분류 코드 목록 조회 |
@@ -57,9 +67,130 @@
 
 ### 사용자 프로필 통합 수정
 
-`PATCH /api/v1/users/me`에서 사용자 프로필을 수정한다.
-닉네임(`nickname`) 수정도 이 API를 사용한다. 프론트는 별도 닉네임
-수정 API를 호출하지 않는다.
+`PATCH /api/v1/users/me`에서 사용자 프로필을 통합 수정한다.
+닉네임 수정도 별도 API 없이 이 API를 사용한다.
+
+수정 가능한 필드는 다음과 같다.
+
+- `nickname`: 닉네임
+- `name`: 사용자 이름
+- `phoneNumber`: 휴대폰 번호
+- `profileImageUrl`: 프로필 이미지 URL
+- `supportTeamId`: 응원팀 ID
+
+`nickname`, `supportTeamId`는 명시적으로 `null`을 전달할 수 없다.
+`name`, `phoneNumber`, `profileImageUrl`은 `null`을 전달하면 해당 값을
+삭제한다.
+
+프로필 이미지는 신규 구현에서는 미디어 업로드 API를 사용하는 것을 기본으로 한다.
+기존 `profileImageUrl` 직접 수정 방식은 호환성을 위해 유지한다.
+`profileImageUrl`을 명시적으로 변경하거나 `null`로 삭제하면 기존
+`profileImageStoragePath` 연결도 해제하여 이전 Storage 이미지가 다시
+fallback되지 않도록 한다.
+
+Storage에 저장된 프로필 이미지가 있는 경우 사용자 응답의
+`profileImageUrl`에는 임시 signed GET URL을 반환한다.
+Storage 내부 경로는 사용자 응답에 노출하지 않으며, signed URL은 영구 URL로
+저장하거나 캐시하지 않는다.
+
+### 미디어 업로드 계약
+
+미디어 업로드는 다음 3단계로 수행한다.
+
+1. `POST /api/v1/media/upload-urls`로 V4 signed PUT URL을 발급받는다.
+2. 클라이언트가 반환된 URL에 지정된 `Content-Type`으로 파일을 직접 PUT한다.
+3. 업로드가 끝나면 `POST /api/v1/media/complete`를 호출해 실제 Storage
+   객체 검증과 서비스 데이터 연결을 완료한다.
+
+미디어 목적은 다음 두 가지다.
+
+- `PROFILE_IMAGE`: 사용자 프로필 이미지
+- `ATTENDANCE_LOG`: 직관 로그 이미지 또는 동영상
+
+지원 형식과 최대 크기는 다음과 같다.
+
+| 용도 | 형식 | 최대 크기 |
+| --- | --- | ---: |
+| 프로필 이미지 | JPEG, PNG, WebP, HEIC, HEIF | 10 MB |
+| 직관 로그 이미지 | JPEG, PNG, WebP, HEIC, HEIF | 15 MB |
+| 직관 로그 동영상 | MP4, QuickTime, WebM | 200 MB |
+
+업로드 signed URL은 15분 동안 유효하고 조회 signed URL은 1시간 동안
+유효하다.
+
+`complete`에서는 클라이언트가 처음 전달한 파일 정보만 신뢰하지 않고 실제
+Storage 객체를 다시 조회해 다음 항목을 검증한다.
+
+- 사용자 소유 Storage 경로인지 여부
+- 실제 `Content-Type`
+- 실제 파일 크기
+- Storage 경로 확장자
+- 직관 로그 및 Entry 소유권
+
+실제 업로드 객체가 형식 또는 크기 정책을 위반하거나 불완전한 경우 해당
+Storage 객체를 best-effort로 삭제하여 orphan 파일이 남지 않도록 한다.
+
+프로필 이미지 업로드가 완료되면 `profileImageStoragePath`를 기준 데이터로
+사용하고 기존 외부 `profileImageUrl` 값은 제거한다. 이전 Storage 프로필
+이미지가 있으면 새 이미지 연결 성공 후 이전 객체를 정리한다.
+
+### 직관 로그 공개 범위와 소유권
+
+직관 로그의 `visibility`는 다음 값을 사용한다.
+
+- `PRIVATE`: 비공개
+- `PUBLIC`: 공개
+
+새 직관 로그 초안의 기본값은 `PRIVATE`이다.
+`visibility` 필드가 없는 기존 Firestore 문서도 `PRIVATE`로 취급한다.
+
+조회 권한은 다음과 같다.
+
+- `GET /api/v1/attendance-logs`: 자신의 직관 로그 목록만 조회
+- `GET /api/v1/attendance-logs/{attendanceLogId}`:
+  소유자는 항상 조회할 수 있고, 다른 인증 사용자는 `PUBLIC` 로그만 조회 가능
+- 비로그인 공개 조회 및 공개 로그 feed API는 제공하지 않는다.
+
+수정 권한은 공개 여부와 관계없이 소유자에게만 있다.
+
+- 직관 로그 수정·삭제
+- Entry 수정·삭제
+- 미디어 삭제
+
+`GET /api/v1/attendance-logs/{attendanceLogId}/itinerary`도
+직관 로그가 `PUBLIC`이어도 소유자 전용이다. 공개 로그를 조회한 다른 사용자가
+연결된 여행 일정 전체를 조회할 수는 없다.
+
+`PATCH /api/v1/attendance-logs/{attendanceLogId}`에서
+`visibility`를 변경할 수 있으며 명시적인 `null`은 허용하지 않는다.
+
+### 약관 마스터와 동의
+
+활성 약관은 `GET /api/v1/terms`로 조회하고 사용자 동의는
+`POST /api/v1/users/me/term-agreements`로 저장한다.
+
+현재 개발·staging seed의 약관 종류는 다음과 같다.
+
+- `TERMS_OF_SERVICE`: 필수
+- `PRIVACY_POLICY`: 필수
+- `LOCATION_BASED_SERVICE`: 필수
+- `MARKETING`: 선택
+
+현재 seed 버전은 `1.0`, 시행일은 `2026-08-01` KST 기준이다.
+개발·staging의 약관 본문은 출시 전 교체해야 하는 placeholder이며,
+placeholder seed는 production 환경에서 실행하지 않는다.
+
+### 팀 로고 응답 계약
+
+클라이언트에는 기존과 동일하게 `logoUrl`만 제공하며 내부
+`logoStoragePath`는 노출하지 않는다.
+
+팀 문서에 `logoStoragePath`가 있으면 Firebase Storage signed GET URL을
+`logoUrl`로 반환하고, 아직 Storage 로고가 없는 기존 데이터는 legacy
+`logoUrl`을 fallback으로 사용할 수 있다.
+
+사용자 응답의 `supportTeam.logoUrl`과 경기 응답의 홈·원정팀 `logoUrl`도
+동일한 규칙을 사용한다.
 
 ### 여행 subtitle 계약
 
