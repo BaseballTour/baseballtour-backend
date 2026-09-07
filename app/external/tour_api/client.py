@@ -62,9 +62,8 @@ def _extract_root_error(data: dict[str, Any]) -> tuple[str, str] | None:
     )
 
 
-def _common_params() -> dict[str, Any]:
-    service_key = get_settings().tour_api_key.strip()
-
+def _common_params(service_key: str | None = None) -> dict[str, Any]:
+    service_key = service_key or get_settings().tour_api_key.strip()
     if not service_key:
         raise AppException(
             status_code=503,
@@ -175,10 +174,12 @@ def _validate_tour_api_response(data: Any) -> dict[str, Any]:
     return data
 
 
-async def _request_tour_api(
+async def _request_tour_api_with_key(
     endpoint: str,
     params: dict[str, Any],
     *,
+    service_key: str,
+    key_slot: str,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     settings = get_settings()
@@ -200,7 +201,7 @@ async def _request_tour_api(
     retry_backoff = getattr(
         settings, "tour_api_retry_backoff_seconds", 0.25
     )
-    request_params = _common_params()
+    request_params = _common_params(service_key)
     request_params.update(params)
     cache_params = dict(params)
     persistent_cache_enabled = getattr(
@@ -258,9 +259,10 @@ async def _request_tour_api(
                 )
                 response.raise_for_status()
                 logger.info(
-                    "TourAPI request completed: endpoint=%s attempt=%s "
-                    "status=%s elapsed_ms=%s",
+                    "TourAPI request completed: endpoint=%s key_slot=%s "
+                    "attempt=%s status=%s elapsed_ms=%s",
                     endpoint,
+                    key_slot,
                     attempt,
                     response.status_code,
                     round((monotonic() - attempt_started_at) * 1000),
@@ -399,6 +401,65 @@ async def _request_tour_api(
                 cache_ttl_seconds,
             )
     return validated
+
+
+async def _request_tour_api(
+    endpoint: str,
+    params: dict[str, Any],
+    *,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    settings = get_settings()
+    primary_key = settings.tour_api_key.strip()
+    fallback_key = getattr(
+        settings, "tour_api_fallback_key", ""
+    ).strip()
+
+    keys = [("primary", primary_key)]
+    if fallback_key and fallback_key != primary_key:
+        keys.append(("fallback", fallback_key))
+
+    last_rate_limit_error: AppException | None = None
+    for key_index, (key_slot, service_key) in enumerate(keys):
+        try:
+            return await _request_tour_api_with_key(
+                endpoint,
+                params,
+                service_key=service_key,
+                key_slot=key_slot,
+                client=client,
+            )
+        except AppException as exc:
+            if exc.code != "EXTERNAL_API_RATE_LIMITED":
+                raise
+            last_rate_limit_error = exc
+            logger.warning(
+                "TourAPI key rate limited: endpoint=%s key_slot=%s",
+                endpoint,
+                key_slot,
+            )
+            if key_index + 1 < len(keys):
+                logger.info(
+                    "TourAPI key failover: endpoint=%s from=%s to=%s",
+                    endpoint,
+                    key_slot,
+                    keys[key_index + 1][0],
+                )
+
+    if last_rate_limit_error is not None and len(keys) > 1:
+        raise AppException(
+            status_code=429,
+            code="EXTERNAL_API_RATE_LIMITED",
+            message="사용 가능한 TourAPI 키의 호출 한도를 모두 초과했습니다.",
+            details={"endpoint": endpoint, "attemptedKeyCount": len(keys)},
+        ) from last_rate_limit_error
+    if last_rate_limit_error is not None:
+        raise last_rate_limit_error
+    raise AppException(
+        status_code=503,
+        code="EXTERNAL_API_UNAVAILABLE",
+        message="TourAPI 서비스 키가 설정되지 않았습니다.",
+    )
 
 
 def extract_items(data: dict[str, Any]) -> list[dict[str, Any]]:
