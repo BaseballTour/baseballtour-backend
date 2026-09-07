@@ -1,12 +1,18 @@
 from datetime import datetime, timezone
 
+import logging
+
 from fastapi import status
+from google.api_core.exceptions import GoogleAPICallError, RetryError
 
 from app.api.dependencies.auth import AuthenticatedUser
 from app.core.exceptions import AppException
 from app.repositories.team_repository import TeamRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.team import SupportTeamResponse, TeamResponse
+from app.services.favorite_collection_service import (
+    FavoriteCollectionService,
+)
 from app.services.storage_service import StorageService
 from app.services.team_service import resolve_team_logo_url
 from app.schemas.user import (
@@ -17,6 +23,8 @@ from app.schemas.user import (
 )
 
 
+logger = logging.getLogger(__name__)
+
 class UserService:
     """사용자 프로필 관련 비즈니스 로직을 담당합니다."""
 
@@ -24,9 +32,15 @@ class UserService:
         self,
         user_repository: UserRepository | None = None,
         team_repository: TeamRepository | None = None,
+        favorite_collection_service: (
+            FavoriteCollectionService | None
+        ) = None,
     ) -> None:
         self._user_repository = user_repository or UserRepository()
         self._team_repository = team_repository or TeamRepository()
+        self._favorite_collection_service = (
+            favorite_collection_service
+        )
 
     def bootstrap_user(
         self,
@@ -78,6 +92,23 @@ class UserService:
                 status_code=status.HTTP_409_CONFLICT,
                 code="USER_ALREADY_EXISTS",
                 message="이미 생성된 사용자 프로필입니다.",
+            )
+
+        try:
+            (
+                self._get_favorite_collection_service()
+                .ensure_default_collection(
+                    user_id=authenticated_user.uid,
+                )
+            )
+        except (GoogleAPICallError, RetryError) as error:
+            # 사용자 문서는 이미 생성되었으므로
+            # 부가 리소스 생성 실패로 가입 전체를 실패시키지 않습니다.
+            # 컬렉션 목록 조회 시 ensure 로직이 다시 복구합니다.
+            logger.warning(
+                "기본 찜 컬렉션 생성 실패: user_id=%s error_type=%s",
+                authenticated_user.uid,
+                type(error).__name__,
             )
 
         return self._build_user_response(
@@ -234,6 +265,15 @@ class UserService:
             user=updated_user,
             team=team,
         )
+
+    def _get_favorite_collection_service(
+        self,
+    ) -> FavoriteCollectionService:
+        if self._favorite_collection_service is None:
+            self._favorite_collection_service = (
+                FavoriteCollectionService()
+            )
+        return self._favorite_collection_service
 
     def _get_team_or_raise(self, team_id: str) -> TeamResponse:
         team = self._team_repository.get_by_id(team_id)

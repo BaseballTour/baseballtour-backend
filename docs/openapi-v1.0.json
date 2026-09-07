@@ -1567,6 +1567,7 @@
                         {
                           "collectionId": "collection_001",
                           "name": "고척 원정 후보",
+                          "isDefault": false,
                           "thumbnailUrl": "https://example.com/asia-park.jpg",
                           "createdAt": "2026-08-15T10:00:00+09:00",
                           "updatedAt": "2026-08-15T10:00:00+09:00"
@@ -1853,6 +1854,7 @@
                       "data": {
                         "collectionId": "collection_001",
                         "name": "고척 원정 후보",
+                        "isDefault": false,
                         "thumbnailUrl": "https://example.com/asia-park.jpg",
                         "createdAt": "2026-08-15T10:00:00+09:00",
                         "updatedAt": "2026-08-15T10:00:00+09:00"
@@ -2466,6 +2468,7 @@
                       "data": {
                         "collectionId": "collection_001",
                         "name": "고척 원정 후보",
+                        "isDefault": false,
                         "thumbnailUrl": "https://example.com/asia-park.jpg",
                         "createdAt": "2026-08-15T10:00:00+09:00",
                         "updatedAt": "2026-08-15T10:00:00+09:00"
@@ -2694,6 +2697,16 @@
                     }
                   }
                 },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "기본 찜 컬렉션 이름 변경 불가",
+            "content": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
@@ -2949,6 +2962,16 @@
                     }
                   }
                 },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "기본 찜 컬렉션 삭제 불가",
+            "content": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
@@ -18056,6 +18079,12 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "title": "Isdefault",
+            "description": "시스템 기본 찜 컬렉션 여부",
+            "default": false
           },
           "thumbnailUrl": {
             "anyOf": [

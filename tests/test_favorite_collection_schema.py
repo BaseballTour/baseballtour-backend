@@ -16,6 +16,7 @@ def test_personal_collection_does_not_store_team_or_region_metadata() -> None:
 
     assert collection.model_dump() == {
         "name": "가보고 싶은 장소",
+        "isDefault": False,
         "createdAt": now,
         "updatedAt": now,
     }

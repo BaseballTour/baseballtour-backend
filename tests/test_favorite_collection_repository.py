@@ -719,3 +719,66 @@ def test_delete_all_by_user_id_removes_collections_and_items() -> None:
         ]
         == {}
     )
+
+
+def test_create_if_absent_uses_fixed_id_and_is_idempotent() -> None:
+    client = FakeFirestoreClient()
+    repository = FavoriteCollectionRepository(
+        client=client,
+    )
+
+    first_time = datetime(
+        2026,
+        9,
+        5,
+        1,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    first = repository.create_if_absent(
+        user_id="user_001",
+        collection_id="collection_saved",
+        collection=FavoriteCollectionDocument(
+            name="저장됨",
+            is_default=True,
+            created_at=first_time,
+            updated_at=first_time,
+        ),
+    )
+
+    second_time = datetime(
+        2026,
+        9,
+        5,
+        2,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    second = repository.create_if_absent(
+        user_id="user_001",
+        collection_id="collection_saved",
+        collection=FavoriteCollectionDocument(
+            name="저장됨",
+            is_default=True,
+            created_at=second_time,
+            updated_at=second_time,
+        ),
+    )
+
+    assert first.collection_id == "collection_saved"
+    assert second.collection_id == "collection_saved"
+
+    # 두 번째 호출에서 기존 문서를 덮어쓰지 않습니다.
+    assert second.created_at == first_time
+    assert second.updated_at == first_time
+    assert second.is_default is True
+
+    stored = client.subcollections[
+        ("user_001", "favoriteCollections")
+    ]
+
+    assert list(stored) == ["collection_saved"]
+    assert stored["collection_saved"]["name"] == "저장됨"
+    assert stored["collection_saved"]["isDefault"] is True

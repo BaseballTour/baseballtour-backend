@@ -587,3 +587,39 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 `wins / (wins + losses + draws) * 100`
 
 <!-- attendance-stats:end -->
+
+### 기본 찜 컬렉션
+
+모든 사용자는 시스템 기본 찜 컬렉션 `"저장됨"`을 가진다.
+
+기본 컬렉션의 계약은 다음과 같다.
+
+- 컬렉션 ID: `collection_saved`
+- 이름: `저장됨`
+- `isDefault`: `true`
+- 이름 변경 불가
+- 삭제 불가
+
+일반 사용자가 `"저장됨"`이라는 이름으로 별도의 컬렉션을 생성할 수는 있으며,
+이 컬렉션은 `isDefault=false`이므로 시스템 기본 컬렉션과 구분된다.
+
+신규 사용자 프로필 생성 시 기본 컬렉션 생성을 시도한다.
+기본 컬렉션 생성 중 일시적인 Firestore 오류가 발생하더라도 사용자 프로필
+생성 자체는 성공 상태를 유지한다.
+
+`GET /api/v1/users/me/favorite-collections`를 호출하면 기본 컬렉션 존재를
+다시 보장하므로, 기존 사용자나 이전 생성 실패 사용자도 별도 마이그레이션 없이
+기본 `"저장됨"` 컬렉션이 생성된다.
+
+기본 컬렉션 생성은 고정 ID와 Firestore `create`를 사용하여 멱등하게 처리하며,
+반복 호출해도 중복 기본 컬렉션을 생성하지 않는다.
+
+`FavoriteCollectionResponse`에는 다음 필드가 추가된다.
+
+- `isDefault`: 시스템 기본 찜 컬렉션 여부
+
+기본 컬렉션에 대해 이름 변경 또는 삭제를 시도하면
+`409 DEFAULT_FAVORITE_COLLECTION_IMMUTABLE`을 반환한다.
+
+기존 Firestore 컬렉션 문서에 `isDefault` 필드가 없는 경우에는
+`false`로 취급한다.

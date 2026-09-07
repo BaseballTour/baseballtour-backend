@@ -75,6 +75,39 @@ class FavoriteCollectionRepository:
             **collection.model_dump(),
         )
 
+    def create_if_absent(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        collection: FavoriteCollectionDocument,
+    ) -> FavoriteCollectionRecord:
+        """고정 ID 컬렉션을 중복 없이 생성합니다."""
+        document_reference = (
+            self._get_collection(user_id)
+            .document(collection_id)
+        )
+
+        payload = collection.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+
+        try:
+            document_reference.create(payload)
+            return FavoriteCollectionRecord(
+                collection_id=collection_id,
+                **collection.model_dump(),
+            )
+        except AlreadyExists:
+            snapshot = document_reference.get()
+            data = snapshot.to_dict() or {}
+
+            return FavoriteCollectionRecord(
+                collection_id=collection_id,
+                **data,
+            )
+
     def get_all(
         self,
         *,
