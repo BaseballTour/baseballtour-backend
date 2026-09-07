@@ -73,9 +73,14 @@ def test_bootstrap_user_creates_profile(
     user_repository.create.return_value = True
     team_repository.get_by_id.return_value = make_team()
 
+    favorite_collection_service = Mock()
+
     service = UserService(
         user_repository=user_repository,
         team_repository=team_repository,
+        favorite_collection_service=(
+            favorite_collection_service
+        ),
     )
 
     result = service.bootstrap_user(
@@ -101,6 +106,14 @@ def test_bootstrap_user_creates_profile(
 
     created_user = user_repository.create.call_args.args[1]
     assert created_user.birth_year == 2002
+
+    (
+        favorite_collection_service
+        .ensure_default_collection
+        .assert_called_once_with(
+            user_id="firebase-user-123"
+        )
+    )
 
 
 def test_bootstrap_user_rejects_existing_user(
@@ -551,3 +564,54 @@ def test_update_user_can_clear_birth_date_and_gender(
     assert fields["birthDate"] is None
     assert fields["gender"] is None
     assert "birthYear" not in fields
+
+
+def test_bootstrap_user_tolerates_default_collection_storage_failure(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    from google.api_core.exceptions import GoogleAPICallError
+
+    user_repository, team_repository = repositories
+
+    user_repository.exists.return_value = False
+    user_repository.create.return_value = True
+    team_repository.get_by_id.return_value = make_team()
+
+    favorite_collection_service = Mock()
+    favorite_collection_service.ensure_default_collection.side_effect = (
+        GoogleAPICallError(
+            "temporary firestore failure"
+        )
+    )
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+        favorite_collection_service=(
+            favorite_collection_service
+        ),
+    )
+
+    result = service.bootstrap_user(
+        authenticated_user=AuthenticatedUser(
+            uid="firebase-user-123",
+            email="fan@example.com",
+        ),
+        request=UserBootstrapRequest(
+            nickname="테스트사용자",
+            birth_year=2002,
+            support_team_id="doosan",
+        ),
+    )
+
+    # 사용자 프로필 생성은 성공한 상태를 유지합니다.
+    assert result.user_id == "firebase-user-123"
+    user_repository.create.assert_called_once()
+
+    (
+        favorite_collection_service
+        .ensure_default_collection
+        .assert_called_once_with(
+            user_id="firebase-user-123"
+        )
+    )

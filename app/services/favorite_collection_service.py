@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 class FavoriteCollectionService:
     """개인 찜 컬렉션 비즈니스 로직을 담당합니다."""
 
+    DEFAULT_COLLECTION_ID = "collection_saved"
+    DEFAULT_COLLECTION_NAME = "저장됨"
+
     def __init__(
         self,
         repository: FavoriteCollectionRepository | None = None,
@@ -55,11 +58,35 @@ class FavoriteCollectionService:
             collection=document,
         )
 
+    def ensure_default_collection(
+        self,
+        *,
+        user_id: str,
+    ) -> FavoriteCollectionRecord:
+        """사용자의 기본 '저장됨' 컬렉션을 보장합니다."""
+        now = datetime.now(timezone.utc)
+
+        document = FavoriteCollectionDocument(
+            name=self.DEFAULT_COLLECTION_NAME,
+            is_default=True,
+            created_at=now,
+            updated_at=now,
+        )
+
+        return self._repository.create_if_absent(
+            user_id=user_id,
+            collection_id=self.DEFAULT_COLLECTION_ID,
+            collection=document,
+        )
+
     def get_collections(
         self,
         *,
         user_id: str,
     ) -> list[FavoriteCollectionRecord]:
+        self.ensure_default_collection(
+            user_id=user_id,
+        )
         return self._repository.get_all(
             user_id=user_id,
         )
@@ -154,6 +181,12 @@ class FavoriteCollectionService:
             collection_id=collection_id,
         )
 
+        if (
+            existing.is_default
+            or collection_id == self.DEFAULT_COLLECTION_ID
+        ):
+            self._raise_default_collection_immutable()
+
         updated_at = datetime.now(timezone.utc)
 
         updated = self._repository.update_name(
@@ -179,10 +212,16 @@ class FavoriteCollectionService:
         user_id: str,
         collection_id: str,
     ) -> None:
-        self._get_collection_or_raise(
+        existing = self._get_collection_or_raise(
             user_id=user_id,
             collection_id=collection_id,
         )
+
+        if (
+            existing.is_default
+            or collection_id == self.DEFAULT_COLLECTION_ID
+        ):
+            self._raise_default_collection_immutable()
 
         self._repository.delete(
             user_id=user_id,
@@ -268,6 +307,17 @@ class FavoriteCollectionService:
             self._raise_not_found()
 
         return collection
+
+    @staticmethod
+    def _raise_default_collection_immutable() -> None:
+        raise AppException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DEFAULT_FAVORITE_COLLECTION_IMMUTABLE",
+            message=(
+                "기본 찜 컬렉션은 이름을 변경하거나 "
+                "삭제할 수 없습니다."
+            ),
+        )
 
     @staticmethod
     def _raise_not_found() -> None:

@@ -148,7 +148,7 @@ REQUEST_EXAMPLES = {
         {"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True},
         {"termCode": "PRIVACY_POLICY", "version": "1.0", "agreed": True}]},
 }
-COLLECTION = {"collectionId": "collection_001", "name": "고척 원정 후보",
+COLLECTION = {"collectionId": "collection_001", "name": "고척 원정 후보", "isDefault": False,
               "thumbnailUrl": PLACE["thumbnailUrl"],
               "createdAt": "2026-08-15T10:00:00+09:00",
               "updatedAt": "2026-08-15T10:00:00+09:00"}

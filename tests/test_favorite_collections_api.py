@@ -82,6 +82,7 @@ def test_create_favorite_collection_returns_created(
     assert body["data"] == {
         "collectionId": COLLECTION_ID,
         "name": "가보고 싶은 장소",
+        "isDefault": False,
         "thumbnailUrl": None,
         "createdAt": "2026-08-20T19:00:00+09:00",
         "updatedAt": "2026-08-20T19:00:00+09:00",
@@ -134,6 +135,7 @@ def test_get_favorite_collections_returns_list(
     assert body["success"] is True
     assert len(body["data"]) == 2
     assert body["data"][0]["name"] == "맛집"
+    assert body["data"][0]["isDefault"] is False
     assert body["data"][0]["thumbnailUrl"] == "https://example.com/food.jpg"
     assert body["data"][1]["name"] == "관광지"
 
@@ -349,3 +351,14 @@ def test_delete_favorite_collection_item_returns_no_content(
         collection_id=COLLECTION_ID,
         place_id="tour_123456",
     )
+
+
+def test_default_collection_conflict_is_documented_in_openapi() -> None:
+    schema = app.openapi()
+
+    path = schema["paths"][
+        "/api/v1/users/me/favorite-collections/{collectionId}"
+    ]
+
+    assert "409" in path["patch"]["responses"]
+    assert "409" in path["delete"]["responses"]

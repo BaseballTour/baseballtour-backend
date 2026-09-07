@@ -61,6 +61,26 @@ class StubFavoriteCollectionRepository:
 
         return record
 
+    def create_if_absent(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        collection: FavoriteCollectionDocument,
+    ) -> FavoriteCollectionRecord:
+        key = (user_id, collection_id)
+
+        existing = self.collections.get(key)
+        if existing is not None:
+            return existing
+
+        record = FavoriteCollectionRecord(
+            collection_id=collection_id,
+            **collection.model_dump(),
+        )
+        self.collections[key] = record
+        return record
+
     def get_all(
         self,
         *,
@@ -262,8 +282,14 @@ def test_get_collections_returns_user_collections() -> None:
         user_id=USER_ID
     )
 
-    assert len(collections) == 1
-    assert collections[0].collection_id == COLLECTION_ID
+    assert len(collections) == 2
+    assert {
+        collection.collection_id
+        for collection in collections
+    } == {
+        COLLECTION_ID,
+        FavoriteCollectionService.DEFAULT_COLLECTION_ID,
+    }
 
 
 def test_update_collection_changes_name() -> None:
@@ -510,3 +536,139 @@ async def test_legacy_collection_item_failure_does_not_fail_whole_request() -> N
     )
 
     assert places == []
+
+
+def test_ensure_default_collection_creates_saved_collection() -> None:
+    service, repository = create_service()
+
+    created = service.ensure_default_collection(
+        user_id=USER_ID,
+    )
+
+    assert (
+        created.collection_id
+        == FavoriteCollectionService.DEFAULT_COLLECTION_ID
+    )
+    assert created.name == "저장됨"
+    assert created.is_default is True
+
+    stored = repository.get_by_id(
+        user_id=USER_ID,
+        collection_id=(
+            FavoriteCollectionService.DEFAULT_COLLECTION_ID
+        ),
+    )
+
+    assert stored is not None
+    assert stored.name == "저장됨"
+    assert stored.is_default is True
+
+
+def test_get_collections_repairs_missing_default_idempotently() -> None:
+    service, repository = create_service()
+
+    first = service.get_collections(
+        user_id=USER_ID,
+    )
+    second = service.get_collections(
+        user_id=USER_ID,
+    )
+
+    assert len(first) == 1
+    assert len(second) == 1
+
+    assert (
+        first[0].collection_id
+        == FavoriteCollectionService.DEFAULT_COLLECTION_ID
+    )
+    assert first[0].name == "저장됨"
+    assert first[0].is_default is True
+
+    defaults = [
+        collection
+        for (stored_user_id, _), collection
+        in repository.collections.items()
+        if stored_user_id == USER_ID
+        and collection.is_default
+    ]
+
+    assert len(defaults) == 1
+
+
+def test_user_collection_named_saved_is_distinct_from_default() -> None:
+    service, _ = create_service()
+
+    personal = service.create_collection(
+        user_id=USER_ID,
+        request=FavoriteCollectionCreateRequest(
+            name="저장됨",
+        ),
+    )
+
+    collections = service.get_collections(
+        user_id=USER_ID,
+    )
+
+    assert len(collections) == 2
+    assert personal.is_default is False
+
+    default = next(
+        collection
+        for collection in collections
+        if collection.is_default
+    )
+
+    assert (
+        default.collection_id
+        == FavoriteCollectionService.DEFAULT_COLLECTION_ID
+    )
+    assert default.name == "저장됨"
+    assert default.collection_id != personal.collection_id
+
+
+def test_update_default_collection_is_rejected() -> None:
+    service, _ = create_service()
+
+    default = service.ensure_default_collection(
+        user_id=USER_ID,
+    )
+
+    with pytest.raises(AppException) as exc_info:
+        service.update_collection(
+            user_id=USER_ID,
+            collection_id=default.collection_id,
+            request=FavoriteCollectionUpdateRequest(
+                name="다른 이름",
+            ),
+        )
+
+    assert exc_info.value.status_code == 409
+    assert (
+        exc_info.value.code
+        == "DEFAULT_FAVORITE_COLLECTION_IMMUTABLE"
+    )
+
+
+def test_delete_default_collection_is_rejected() -> None:
+    service, repository = create_service()
+
+    default = service.ensure_default_collection(
+        user_id=USER_ID,
+    )
+
+    with pytest.raises(AppException) as exc_info:
+        service.delete_collection(
+            user_id=USER_ID,
+            collection_id=default.collection_id,
+        )
+
+    assert exc_info.value.status_code == 409
+    assert (
+        exc_info.value.code
+        == "DEFAULT_FAVORITE_COLLECTION_IMMUTABLE"
+    )
+
+    assert repository.get_by_id(
+        user_id=USER_ID,
+        collection_id=default.collection_id,
+    ) is not None

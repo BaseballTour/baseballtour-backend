@@ -26,6 +26,10 @@ class FavoriteCollectionDocument(ApiModel):
     """구단 구분 없이 사용하는 사용자 개인 찜 컬렉션 문서."""
 
     name: str = Field(min_length=1)
+    is_default: bool = Field(
+        default=False,
+        description="시스템 기본 찜 컬렉션 여부",
+    )
     created_at: AwareDatetime
     updated_at: AwareDatetime
 
@@ -41,6 +45,10 @@ class FavoriteCollectionResponse(ApiModel):
 
     collection_id: str
     name: str
+    is_default: bool = Field(
+        default=False,
+        description="시스템 기본 찜 컬렉션 여부",
+    )
     thumbnail_url: str | None = Field(
         default=None,
         description="컬렉션 첫 장소의 대표 이미지",

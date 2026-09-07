@@ -14,6 +14,7 @@ from app.schemas.favorite_collection import (
     FavoriteCollectionUpdateRequest,
 )
 from app.schemas.response import (
+    ErrorResponse,
     ListMeta,
     ListSuccessResponse,
     SuccessResponse,
@@ -38,6 +39,7 @@ def to_favorite_collection_response(
     return FavoriteCollectionResponse(
         collection_id=collection.collection_id,
         name=collection.name,
+        is_default=collection.is_default,
         thumbnail_url=thumbnail_url,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
@@ -144,6 +146,14 @@ async def get_favorite_collection_places(
     "/{collectionId}",
     response_model=SuccessResponse[FavoriteCollectionResponse],
     summary="개인 찜 컬렉션 이름 변경",
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "기본 찜 컬렉션 이름 변경 불가"
+            ),
+        },
+    },
 )
 def update_favorite_collection(
     collection_id: Annotated[
@@ -179,6 +189,14 @@ def update_favorite_collection(
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     summary="개인 찜 컬렉션 삭제",
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "기본 찜 컬렉션 삭제 불가"
+            ),
+        },
+    },
 )
 def delete_favorite_collection(
     collection_id: Annotated[
