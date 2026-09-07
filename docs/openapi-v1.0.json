@@ -4118,6 +4118,199 @@
         ]
       }
     },
+    "/api/v1/notices": {
+      "get": {
+        "tags": [
+          "Notices"
+        ],
+        "summary": "공지사항 목록 조회",
+        "description": "공개된 공지사항을 최신 게시일순으로 조회합니다.",
+        "operationId": "get_notices_api_v1_notices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_NoticeSummaryResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "noticeId": "notice_001",
+                          "title": "서비스 점검 안내",
+                          "publishedAt": "2026-08-15T19:00:00+09:00"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notices/{noticeId}": {
+      "get": {
+        "tags": [
+          "Notices"
+        ],
+        "summary": "공지사항 상세 조회",
+        "description": "공지사항 ID로 공개된 공지사항의 본문을 조회합니다.",
+        "operationId": "get_notice_api_v1_notices__noticeId__get",
+        "parameters": [
+          {
+            "name": "noticeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "공지사항 ID",
+              "title": "Noticeid"
+            },
+            "description": "공지사항 ID",
+            "examples": {
+              "default": {
+                "value": "notice_001"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NoticeDetailResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "noticeId": "notice_001",
+                        "title": "서비스 점검 안내",
+                        "publishedAt": "2026-08-15T19:00:00+09:00",
+                        "content": "서비스 점검이 진행됩니다."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/notification-settings": {
       "get": {
         "tags": [
@@ -19177,6 +19370,33 @@
         ],
         "title": "ListSuccessResponse[GameResponse]"
       },
+      "ListSuccessResponse_NoticeSummaryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/NoticeSummaryResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[NoticeSummaryResponse]"
+      },
       "ListSuccessResponse_NotificationConsentHistoryResponse_": {
         "properties": {
           "success": {
@@ -19868,6 +20088,61 @@
         ],
         "title": "MediaUploadUrlResponse",
         "description": "Firebase Storage 업로드 URL 응답."
+      },
+      "NoticeDetailResponse": {
+        "properties": {
+          "noticeId": {
+            "type": "string",
+            "title": "Noticeid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Publishedat"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "noticeId",
+          "title",
+          "publishedAt",
+          "content"
+        ],
+        "title": "NoticeDetailResponse"
+      },
+      "NoticeSummaryResponse": {
+        "properties": {
+          "noticeId": {
+            "type": "string",
+            "title": "Noticeid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Publishedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "noticeId",
+          "title",
+          "publishedAt"
+        ],
+        "title": "NoticeSummaryResponse"
       },
       "NotificationConsentHistoryResponse": {
         "properties": {
@@ -20836,6 +21111,25 @@
           "data"
         ],
         "title": "SuccessResponse[MediaUploadUrlResponse]"
+      },
+      "SuccessResponse_NoticeDetailResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NoticeDetailResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[NoticeDetailResponse]"
       },
       "SuccessResponse_NotificationSettingsResponse_": {
         "properties": {

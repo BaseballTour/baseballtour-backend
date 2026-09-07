@@ -158,6 +158,13 @@ COLLECTION = {"collectionId": "collection_001", "name": "고척 원정 후보", 
 SELECTION = {"placeId": PLACE["placeId"], "isRequired": True,
              "createdAt": "2026-08-15T10:10:00+09:00"}
 
+NOTICE = {
+    "noticeId": "notice_001",
+    "title": "서비스 점검 안내",
+    "publishedAt": "2026-08-15T19:00:00+09:00",
+    "content": "서비스 점검이 진행됩니다.",
+}
+
 NOTIFICATION_SETTINGS = {
     "gameReminderEnabled": True,
     "tripReminderEnabled": True,
@@ -189,6 +196,10 @@ SUCCESS_EXAMPLES = {
         "/api/v1/users/me/notification-consent-history",
         "200",
     ): _list([NOTIFICATION_CONSENT_HISTORY]),
+    ("get", "/api/v1/notices", "200"): _list([
+        {key: value for key, value in NOTICE.items() if key != "content"}
+    ]),
+    ("get", "/api/v1/notices/{noticeId}", "200"): _success(NOTICE),
     ("get", "/api/v1/accommodations/search", "200"): _list([
         ACCOMMODATION_CANDIDATE
     ]),

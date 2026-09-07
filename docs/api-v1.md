@@ -638,6 +638,40 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 - 날짜 조건이 있으면 한국시간 날짜 범위를 UTC로 변환하여 Firestore `gameStartAt` 범위 쿼리로 조회합니다.
 - 응답은 기존 `ListSuccessResponse[GameResponse]` 형식을 유지합니다.
 
+### 공지사항 조회
+
+#### GET /api/v1/notices
+
+공개된 공지사항 목록을 최신 게시일순으로 조회합니다.
+
+- 인증 없이 조회할 수 있습니다.
+- Firestore `notices` 컬렉션에서 `isPublished=true`인 문서만 반환합니다.
+- 목록에는 `noticeId`, `title`, `publishedAt`을 반환하며 본문은 포함하지 않습니다.
+- `publishedAt` 내림차순으로 정렬하고, 같은 게시일이면 `noticeId` 내림차순으로 정렬합니다.
+- 응답은 `ListSuccessResponse[NoticeSummaryResponse]` 형식입니다.
+- 현재 페이지네이션은 지원하지 않으며 `nextPageToken`은 `null`입니다.
+
+#### GET /api/v1/notices/{noticeId}
+
+공지사항 ID로 공개된 공지사항의 상세정보를 조회합니다.
+
+- 응답에는 `noticeId`, `title`, `publishedAt`, `content`를 반환합니다.
+- 존재하지 않거나 비공개인 공지는 `404 NOTICE_NOT_FOUND`를 반환합니다.
+- 응답은 `SuccessResponse[NoticeDetailResponse]` 형식입니다.
+
+#### Firestore notices 문서
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| title | string | 공지 제목 |
+| content | string | 공지 본문 |
+| isPublished | boolean | 공개 여부 |
+| publishedAt | timestamp \| null | 게시일 |
+| createdAt | timestamp | 생성일 |
+| updatedAt | timestamp | 수정일 |
+
+공개된 문서는 `publishedAt`이 반드시 있어야 합니다. 이번 구현은 조회 전용이며 관리자 작성·수정·삭제 API는 포함하지 않습니다.
+
 ### 알림 설정 및 동의 변경 이력
 
 이번 구현은 알림 수신 설정과 변경 이력 관리만 지원합니다. 실제 푸시 알림 발송은 포함하지 않습니다.

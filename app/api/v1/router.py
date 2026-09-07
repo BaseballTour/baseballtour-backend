@@ -7,6 +7,7 @@ from app.api.v1.endpoints.accommodations import router as accommodations_router
 from app.api.v1.endpoints.games import router as games_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.media import router as media_router
+from app.api.v1.endpoints.notices import router as notices_router
 from app.api.v1.endpoints.notification_settings import router as notification_settings_router
 from app.api.v1.endpoints.teams import router as teams_router
 from app.api.v1.endpoints.terms import router as terms_router
@@ -49,9 +50,15 @@ api_router.include_router(
 )
 
 api_router.include_router(
+    notices_router,
+    tags=["Notices"],
+)
+
+api_router.include_router(
     notification_settings_router,
     tags=["Notification Settings"],
 )
+
 
 api_router.include_router(
     teams_router,
