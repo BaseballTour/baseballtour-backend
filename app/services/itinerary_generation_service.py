@@ -133,26 +133,33 @@ class ItineraryGenerationService:
             trip_id=trip_id,
         )
         centers = self._recommendation_centers(trip=trip, stadium=stadium)
-        tour_candidates = await self._recommendation_service.get_candidates(
-            centers=centers,
-            selected_place_ids={
-                selection.place_id for selection in selections
-            },
-            excluded_places=[
-                ExcludedRecommendationPlace(
-                    name=stadium.name,
-                    latitude=stadium.latitude,
-                    longitude=stadium.longitude,
-                )
-            ],
-            travel_start_date=trip.trip_start_at.date(),
-            travel_end_date=trip.trip_end_at.date(),
-        )
+        tour_error: AppException | None = None
+        try:
+            tour_candidates = await self._recommendation_service.get_candidates(
+                centers=centers,
+                selected_place_ids={
+                    selection.place_id for selection in selections
+                },
+                excluded_places=[
+                    ExcludedRecommendationPlace(
+                        name=stadium.name,
+                        latitude=stadium.latitude,
+                        longitude=stadium.longitude,
+                    )
+                ],
+                travel_start_date=trip.trip_start_at.date(),
+                travel_end_date=trip.trip_end_at.date(),
+            )
+        except AppException as exc:
+            tour_error = exc
+            tour_candidates = []
         player_picks = await self._load_player_pick_candidates(
             stadium_id=stadium.stadium_id,
             centers=centers,
             excluded_ids={selection.place_id for selection in selections},
         )
+        if tour_error is not None and not player_picks:
+            raise tour_error
         return self._merge_player_pick_candidates(tour_candidates, player_picks)
 
     async def generate(
