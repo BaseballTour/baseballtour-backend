@@ -52,8 +52,19 @@ class PlayerPickRepository:
             **(snapshot.to_dict() or {}),
         )
 
+    def get_missing_snapshot_ids(self) -> list[str]:
+        """운영 조회에 사용할 장소 snapshot이 없는 문서 ID를 반환합니다."""
+        return sorted(
+            snapshot.id
+            for snapshot in self._collection.stream()
+            if not (snapshot.to_dict() or {}).get("placeSnapshot")
+        )
+
     def upsert(self, document: PlayerPickDocument) -> PlayerPickRecord:
         """구장·선수·장소 조합을 중복 없이 저장합니다."""
+
+        if document.place_snapshot is None:
+            raise ValueError("선수 추천 장소에는 placeSnapshot이 필요합니다.")
 
         identity = ":".join(
             (

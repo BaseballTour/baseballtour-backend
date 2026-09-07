@@ -46,21 +46,12 @@ class PlayerPickService:
     ) -> Place | None:
         if record.place_snapshot is not None:
             return record.place_snapshot
-        if not record.place_id.startswith("tour_"):
-            return None
-        try:
-            return await self._place_adapter.get_place_detail(
-                record.place_id.removeprefix("tour_")
-            )
-        except Exception as exc:
-            logger.warning(
-                "선수추천 장소 상세 조회 실패: player_pick_id=%s "
-                "place_id=%s reason=%s",
-                record.player_pick_id,
-                record.place_id,
-                type(exc).__name__,
-            )
-            return None
+        logger.error(
+            "선수추천 장소 snapshot 누락: player_pick_id=%s place_id=%s",
+            record.player_pick_id,
+            record.place_id,
+        )
+        return None
 
     @staticmethod
     def _tag_place(record: PlayerPickRecord, place: Place) -> Place:
