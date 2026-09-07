@@ -671,3 +671,48 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 | updatedAt | timestamp | 수정일 |
 
 공개된 문서는 `publishedAt`이 반드시 있어야 합니다. 이번 구현은 조회 전용이며 관리자 작성·수정·삭제 API는 포함하지 않습니다.
+
+### 알림 설정 및 동의 변경 이력
+
+이번 구현은 알림 수신 설정과 변경 이력 관리만 지원합니다. 실제 푸시 알림 발송은 포함하지 않습니다.
+
+#### GET /api/v1/users/me/notification-settings
+
+인증된 사용자의 현재 알림 설정을 조회합니다. 설정 문서가 없으면 기본값을 생성합니다.
+
+| 필드 | 기본값 | 설명 |
+|---|---|---|
+| gameReminderEnabled | true | 경기 알림 |
+| tripReminderEnabled | true | 여행 일정 알림 |
+| marketingEnabled | false | 마케팅 알림 |
+| updatedAt | 현재 시각 | 설정 수정 시각 |
+
+응답은 `SuccessResponse[NotificationSettingsResponse]` 형식입니다.
+
+#### PATCH /api/v1/users/me/notification-settings
+
+알림 설정을 부분 수정합니다.
+
+요청 예시: `{"marketingEnabled": true}`
+
+- 하나 이상의 설정을 입력해야 합니다.
+- 입력하지 않은 설정은 기존 값을 유지합니다.
+- 설정 값에 `null`을 사용할 수 없습니다.
+- 실제 값이 변경된 항목만 변경 이력을 생성합니다.
+- 설정과 변경 이력은 Firestore batch로 함께 저장합니다.
+- 응답은 `SuccessResponse[NotificationSettingsResponse]` 형식입니다.
+
+#### GET /api/v1/users/me/notification-consent-history
+
+인증된 사용자의 알림 설정 변경 이력을 최신순으로 조회합니다.
+
+이력에는 `historyId`, `consentType`, `previousEnabled`, `enabled`, `changedAt`을 반환합니다. `consentType`은 `GAME_REMINDER`, `TRIP_REMINDER`, `MARKETING` 중 하나입니다.
+
+응답은 `ListSuccessResponse[NotificationConsentHistoryResponse]` 형식이며, 현재 페이지네이션은 지원하지 않습니다.
+
+#### Firestore 저장 구조
+
+- `users/{userId}/settings/notifications`: 현재 알림 설정
+- `users/{userId}/notificationConsentHistory/{historyId}`: 설정 변경 이력
+
+기본 설정은 경기·여행 알림을 켜고 마케팅 알림을 끈 상태로 생성합니다.

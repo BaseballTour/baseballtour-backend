@@ -4311,6 +4311,299 @@
         }
       }
     },
+    "/api/v1/users/me/notification-settings": {
+      "get": {
+        "tags": [
+          "Notification Settings"
+        ],
+        "summary": "내 알림 설정 조회",
+        "description": "인증된 사용자의 현재 알림 수신 설정을 조회합니다.",
+        "operationId": "get_my_notification_settings_api_v1_users_me_notification_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NotificationSettingsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "gameReminderEnabled": true,
+                        "tripReminderEnabled": true,
+                        "marketingEnabled": false,
+                        "updatedAt": "2026-09-07T17:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Notification Settings"
+        ],
+        "summary": "내 알림 설정 수정",
+        "description": "인증된 사용자의 알림 수신 설정을 부분 수정하고 실제 변경된 항목의 이력을 저장합니다.",
+        "operationId": "update_my_notification_settings_api_v1_users_me_notification_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettingsUpdateRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "marketingEnabled": true
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NotificationSettingsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "gameReminderEnabled": true,
+                        "tripReminderEnabled": true,
+                        "marketingEnabled": false,
+                        "updatedAt": "2026-09-07T17:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/notification-consent-history": {
+      "get": {
+        "tags": [
+          "Notification Settings"
+        ],
+        "summary": "내 알림 동의 변경 이력 조회",
+        "description": "인증된 사용자의 알림 수신 설정 변경 이력을 최신순으로 조회합니다.",
+        "operationId": "get_my_notification_consent_history_api_v1_users_me_notification_consent_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_NotificationConsentHistoryResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "historyId": "history_001",
+                          "consentType": "MARKETING",
+                          "previousEnabled": false,
+                          "enabled": true,
+                          "changedAt": "2026-09-07T17:00:00+09:00"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/teams": {
       "get": {
         "tags": [
@@ -19104,6 +19397,33 @@
         ],
         "title": "ListSuccessResponse[NoticeSummaryResponse]"
       },
+      "ListSuccessResponse_NotificationConsentHistoryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationConsentHistoryResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[NotificationConsentHistoryResponse]"
+      },
       "ListSuccessResponse_PlaceSelectionResponse_": {
         "properties": {
           "success": {
@@ -19823,6 +20143,129 @@
           "publishedAt"
         ],
         "title": "NoticeSummaryResponse"
+      },
+      "NotificationConsentHistoryResponse": {
+        "properties": {
+          "historyId": {
+            "type": "string",
+            "title": "Historyid"
+          },
+          "consentType": {
+            "$ref": "#/components/schemas/NotificationConsentType"
+          },
+          "previousEnabled": {
+            "type": "boolean",
+            "title": "Previousenabled"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "historyId",
+          "consentType",
+          "previousEnabled",
+          "enabled",
+          "changedAt"
+        ],
+        "title": "NotificationConsentHistoryResponse",
+        "description": "알림 수신 설정 변경 이력 API 응답."
+      },
+      "NotificationConsentType": {
+        "type": "string",
+        "enum": [
+          "GAME_REMINDER",
+          "TRIP_REMINDER",
+          "MARKETING"
+        ],
+        "title": "NotificationConsentType"
+      },
+      "NotificationSettingsResponse": {
+        "properties": {
+          "gameReminderEnabled": {
+            "type": "boolean",
+            "title": "Gamereminderenabled"
+          },
+          "tripReminderEnabled": {
+            "type": "boolean",
+            "title": "Tripreminderenabled"
+          },
+          "marketingEnabled": {
+            "type": "boolean",
+            "title": "Marketingenabled"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gameReminderEnabled",
+          "tripReminderEnabled",
+          "marketingEnabled",
+          "updatedAt"
+        ],
+        "title": "NotificationSettingsResponse",
+        "description": "사용자 알림 설정 API 응답."
+      },
+      "NotificationSettingsUpdateRequest": {
+        "properties": {
+          "gameReminderEnabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gamereminderenabled"
+          },
+          "tripReminderEnabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tripreminderenabled"
+          },
+          "marketingEnabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marketingenabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotificationSettingsUpdateRequest",
+        "description": "알림 설정 부분 수정 요청.",
+        "examples": [
+          {
+            "gameReminderEnabled": true,
+            "marketingEnabled": false,
+            "tripReminderEnabled": true
+          }
+        ]
       },
       "Place": {
         "properties": {
@@ -20687,6 +21130,25 @@
           "data"
         ],
         "title": "SuccessResponse[NoticeDetailResponse]"
+      },
+      "SuccessResponse_NotificationSettingsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationSettingsResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[NotificationSettingsResponse]"
       },
       "SuccessResponse_PlaceSelectionResponse_": {
         "properties": {

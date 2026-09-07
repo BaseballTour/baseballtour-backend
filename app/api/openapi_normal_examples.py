@@ -116,6 +116,9 @@ def _list(data: list[Any]) -> dict[str, Any]:
 
 
 REQUEST_EXAMPLES = {
+    ("patch", "/api/v1/users/me/notification-settings"): {
+        "marketingEnabled": True,
+    },
     ("post", "/api/v1/users/me/favorite-collections"): {"name": "고척 원정 후보"},
     ("patch", "/api/v1/users/me/favorite-collections/{collectionId}"): {"name": "서울 원정 맛집"},
     ("post", "/api/v1/trips"): {"gameId": GAME["gameId"], "title": "고척 원정 1박 2일",
@@ -162,7 +165,37 @@ NOTICE = {
     "content": "서비스 점검이 진행됩니다.",
 }
 
+NOTIFICATION_SETTINGS = {
+    "gameReminderEnabled": True,
+    "tripReminderEnabled": True,
+    "marketingEnabled": False,
+    "updatedAt": "2026-09-07T17:00:00+09:00",
+}
+
+NOTIFICATION_CONSENT_HISTORY = {
+    "historyId": "history_001",
+    "consentType": "MARKETING",
+    "previousEnabled": False,
+    "enabled": True,
+    "changedAt": "2026-09-07T17:00:00+09:00",
+}
+
 SUCCESS_EXAMPLES = {
+    (
+        "get",
+        "/api/v1/users/me/notification-settings",
+        "200",
+    ): _success(NOTIFICATION_SETTINGS),
+    (
+        "patch",
+        "/api/v1/users/me/notification-settings",
+        "200",
+    ): _success(NOTIFICATION_SETTINGS),
+    (
+        "get",
+        "/api/v1/users/me/notification-consent-history",
+        "200",
+    ): _list([NOTIFICATION_CONSENT_HISTORY]),
     ("get", "/api/v1/notices", "200"): _list([
         {key: value for key, value in NOTICE.items() if key != "content"}
     ]),
