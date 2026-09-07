@@ -102,6 +102,8 @@ def test_get_games_forwards_query_filters() -> None:
 
     get_games.assert_called_once_with(
         game_date=date(2026, 8, 15),
+        date_from=None,
+        date_to=None,
         team_id="doosan",
         stadium_id="sajik",
         game_status=GameStatus.SCHEDULED,
@@ -160,3 +162,93 @@ def test_get_games_rejects_invalid_status() -> None:
 
     assert body["success"] is False
     assert body["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_get_games_forwards_date_range_filters() -> None:
+    with patch(
+        "app.api.v1.endpoints.games.GameService"
+    ) as service_class:
+        get_games = service_class.return_value.get_games
+        get_games.return_value = []
+
+        response = client.get(
+            "/api/v1/games",
+            params={
+                "from": "2026-08-15",
+                "to": "2026-08-16",
+                "teamId": "doosan",
+            },
+        )
+
+    assert response.status_code == 200
+
+    get_games.assert_called_once_with(
+        game_date=None,
+        date_from=date(2026, 8, 15),
+        date_to=date(2026, 8, 16),
+        team_id="doosan",
+        stadium_id=None,
+        game_status=None,
+    )
+
+
+def test_get_games_rejects_mixed_date_and_range() -> None:
+    response = client.get(
+        "/api/v1/games",
+        params={
+            "date": "2026-08-15",
+            "from": "2026-08-15",
+            "to": "2026-08-16",
+        },
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["error"]["code"]
+        == "INVALID_GAME_DATE_RANGE"
+    )
+
+
+def test_get_games_rejects_incomplete_range() -> None:
+    response = client.get(
+        "/api/v1/games",
+        params={"from": "2026-08-15"},
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["error"]["code"]
+        == "INVALID_GAME_DATE_RANGE"
+    )
+
+
+def test_get_games_rejects_reversed_range() -> None:
+    response = client.get(
+        "/api/v1/games",
+        params={
+            "from": "2026-08-16",
+            "to": "2026-08-15",
+        },
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["error"]["code"]
+        == "INVALID_GAME_DATE_RANGE"
+    )
+
+
+def test_get_games_rejects_invalid_range_date() -> None:
+    response = client.get(
+        "/api/v1/games",
+        params={
+            "from": "2026-02-30",
+            "to": "2026-03-01",
+        },
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["error"]["code"]
+        == "VALIDATION_ERROR"
+    )

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import status
@@ -50,13 +50,69 @@ class GameService:
         self,
         *,
         game_date: date | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
         team_id: str | None = None,
         stadium_id: str | None = None,
         game_status: GameStatus | None = None,
     ) -> list[GameResponse]:
         """조건에 맞는 경기 목록을 반환합니다."""
+        if game_date is not None and (
+            date_from is not None or date_to is not None
+        ):
+            raise AppException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code="INVALID_GAME_DATE_RANGE",
+                message="date와 from/to는 함께 사용할 수 없습니다.",
+            )
 
-        games = self._game_repository.get_all()
+        if (date_from is None) != (date_to is None):
+            raise AppException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code="INVALID_GAME_DATE_RANGE",
+                message="from과 to는 함께 입력해야 합니다.",
+            )
+
+        if (
+            date_from is not None
+            and date_to is not None
+            and date_from > date_to
+        ):
+            raise AppException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code="INVALID_GAME_DATE_RANGE",
+                message="from은 to보다 늦을 수 없습니다.",
+            )
+
+        if game_date is not None:
+            start_date = end_date = game_date
+        else:
+            start_date, end_date = date_from, date_to
+
+        if start_date is None or end_date is None:
+            games = self._game_repository.get_all()
+        else:
+            start_at = datetime.combine(
+                start_date,
+                time.min,
+                tzinfo=KOREA_TIMEZONE,
+            ).astimezone(timezone.utc)
+
+            if end_date == date.max:
+                end_at = datetime.max.replace(
+                    tzinfo=timezone.utc,
+                )
+            else:
+                end_at = datetime.combine(
+                    end_date + timedelta(days=1),
+                    time.min,
+                    tzinfo=KOREA_TIMEZONE,
+                ).astimezone(timezone.utc)
+
+            games = self._game_repository.get_by_date_range(
+                start_at=start_at,
+                end_at=end_at,
+            )
 
         filtered_games = [
             game

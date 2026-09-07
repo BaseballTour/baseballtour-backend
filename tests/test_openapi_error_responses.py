@@ -65,7 +65,10 @@ def test_all_parameters_have_description_and_example() -> None:
                 assert parameter.get("description"), (
                     f"missing parameter description: {method} {path} {parameter['name']}"
                 )
-                assert "example" in parameter, (
+                assert (
+                "example" in parameter
+                or "examples" in parameter
+            ), (
                     f"missing parameter example: {method} {path} {parameter['name']}"
                 )
 
