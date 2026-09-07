@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
 
     tour_api_key: str = ""
+    tour_api_fallback_key: str = ""
     tour_api_connect_timeout_seconds: float = 5.0
     tour_api_read_timeout_seconds: float = 10.0
     tour_api_write_timeout_seconds: float = 5.0

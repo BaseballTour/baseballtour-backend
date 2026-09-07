@@ -195,6 +195,114 @@ async def test_http_rate_limit_is_mapped(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
+async def test_rate_limit_fails_over_to_secondary_key(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="primary-key",
+            tour_api_fallback_key="fallback-key",
+            tour_api_max_attempts=1,
+        ),
+    )
+    used_keys = []
+
+    def limited_then_success(request: httpx.Request) -> httpx.Response:
+        used_keys.append(request.url.params["serviceKey"])
+        if request.url.params["serviceKey"] == "primary-key":
+            return httpx.Response(
+                200,
+                request=request,
+                json={
+                    "response": {
+                        "header": {
+                            "resultCode": "22",
+                            "resultMsg": (
+                                "LIMITED NUMBER OF SERVICE REQUESTS EXCEEDS"
+                            ),
+                        }
+                    }
+                },
+            )
+        return httpx.Response(
+            200, request=request, json=_success_response()
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(limited_then_success)
+    ) as client:
+        result = await client_module._request_tour_api(
+            "locationBasedList2", {}, client=client
+        )
+
+    assert used_keys == ["primary-key", "fallback-key"]
+    assert result["response"]["header"]["resultCode"] == "0000"
+
+
+@pytest.mark.anyio
+async def test_timeout_does_not_fail_over_to_secondary_key(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="primary-key",
+            tour_api_fallback_key="fallback-key",
+            tour_api_max_attempts=1,
+        ),
+    )
+    used_keys = []
+
+    def timeout(request: httpx.Request) -> httpx.Response:
+        used_keys.append(request.url.params["serviceKey"])
+        raise httpx.ReadTimeout("slow", request=request)
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(timeout)
+    ) as client:
+        with pytest.raises(AppException) as exc_info:
+            await client_module._request_tour_api(
+                "locationBasedList2", {}, client=client
+            )
+
+    assert exc_info.value.code == "EXTERNAL_API_TIMEOUT"
+    assert used_keys == ["primary-key"]
+
+
+@pytest.mark.anyio
+async def test_all_keys_rate_limited_returns_combined_error(monkeypatch) -> None:
+    from app.external.tour_api import client as client_module
+
+    monkeypatch.setattr(
+        client_module,
+        "get_settings",
+        lambda: SimpleNamespace(
+            tour_api_key="primary-key",
+            tour_api_fallback_key="fallback-key",
+            tour_api_max_attempts=1,
+        ),
+    )
+
+    def limited(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, request=request)
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(limited)
+    ) as client:
+        with pytest.raises(AppException) as exc_info:
+            await client_module._request_tour_api(
+                "locationBasedList2", {}, client=client
+            )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
+    assert exc_info.value.details["attemptedKeyCount"] == 2
+
+
+@pytest.mark.anyio
 async def test_empty_provider_response_remains_successful(monkeypatch) -> None:
     from app.external.tour_api import client as client_module
 
