@@ -230,6 +230,26 @@ class Place(BaseModel):
         description="정보 보충에 사용된 카카오 장소 ID"
     )
 
+    is_player_pick: bool = Field(
+        default=False,
+        description="선수 추천 장소 여부",
+    )
+
+    player_pick_id: str | None = Field(
+        default=None,
+        description="선수 추천 장소 문서 ID",
+    )
+
+    recommended_by_players: list[str] = Field(
+        default_factory=list,
+        description="이 장소를 추천한 선수 이름 목록",
+    )
+
+    recommendation_note: str | None = Field(
+        default=None,
+        description="선수 추천에 대한 관리자 설명",
+    )
+
     enriched_by: list[PlaceSource] = Field(
         default_factory=list,
         description="기본 출처 외에 장소 정보를 보충한 데이터 출처"

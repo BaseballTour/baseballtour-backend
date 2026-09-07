@@ -43,6 +43,15 @@ class PlayerPickRepository:
             key=lambda record: (record.player_name, record.created_at),
         )
 
+    def get_by_id(self, player_pick_id: str) -> PlayerPickRecord | None:
+        snapshot = self._collection.document(player_pick_id).get()
+        if not snapshot.exists:
+            return None
+        return PlayerPickRecord(
+            player_pick_id=snapshot.id,
+            **(snapshot.to_dict() or {}),
+        )
+
     def upsert(self, document: PlayerPickDocument) -> PlayerPickRecord:
         """구장·선수·장소 조합을 중복 없이 저장합니다."""
 

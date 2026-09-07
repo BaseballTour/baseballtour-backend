@@ -12,6 +12,7 @@ from app.repositories.game_repository import GameRepository
 from app.repositories.place_selection_repository import (
     PlaceSelectionRepository,
 )
+from app.repositories.player_pick_repository import PlayerPickRepository
 from app.repositories.stadium_repository import StadiumRepository
 from app.repositories.trip_repository import TripRepository
 from app.schemas.place_selection import (
@@ -46,6 +47,7 @@ class PlaceSelectionService:
         ) = None,
         game_repository: GameRepository | None = None,
         stadium_repository: StadiumRepository | None = None,
+        player_pick_repository: PlayerPickRepository | None = None,
         place_adapter=None,
     ) -> None:
         self._place_selection_repository = (
@@ -59,6 +61,7 @@ class PlaceSelectionService:
         self._favorite_collection_repository = favorite_collection_repository
         self._game_repository = game_repository
         self._stadium_repository = stadium_repository
+        self._player_pick_repository = player_pick_repository
         self._place_adapter = (
             place_adapter
             or tour_api_adapter
@@ -246,22 +249,14 @@ class PlaceSelectionService:
             if place_id in existing_place_ids:
                 return None
 
-            if (
-                not place_id.startswith("tour_")
-                or not place_id.removeprefix("tour_")
-            ):
-                return None
-
-            content_id = place_id.removeprefix(
-                "tour_"
-            )
-
-            try:
-                async with semaphore:
-                    place = await self._place_adapter.get_place_detail(
-                        content_id
-                    )
-            except (ValueError, AppException):
+            place = item.place_snapshot
+            if place is None:
+                try:
+                    async with semaphore:
+                        place = await self._resolve_place(place_id)
+                except (ValueError, AppException):
+                    return None
+            if place is None:
                 return None
 
             if not self._matches_stadium_region(
@@ -302,6 +297,17 @@ class PlaceSelectionService:
             existing_place_ids.add(place_id)
 
         return imported
+
+    async def _resolve_place(self, place_id: str):
+        if place_id.startswith("tour_") and place_id.removeprefix("tour_"):
+            return await self._place_adapter.get_place_detail(
+                place_id.removeprefix("tour_")
+            )
+        if place_id.startswith("player_pick_"):
+            record = self._get_player_pick_repository().get_by_id(place_id)
+            if record is not None:
+                return record.place_snapshot
+        return None
 
     @staticmethod
     def _matches_stadium_region(
@@ -380,3 +386,8 @@ class PlaceSelectionService:
         if self._stadium_repository is None:
             self._stadium_repository = StadiumRepository()
         return self._stadium_repository
+
+    def _get_player_pick_repository(self) -> PlayerPickRepository:
+        if self._player_pick_repository is None:
+            self._player_pick_repository = PlayerPickRepository()
+        return self._player_pick_repository

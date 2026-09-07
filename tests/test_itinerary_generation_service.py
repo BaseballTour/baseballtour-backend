@@ -57,6 +57,42 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+def test_player_pick_replaces_same_tour_candidate_and_gets_small_bonus() -> None:
+    tour = Place(
+        place_id="tour_123",
+        name="추천 식당",
+        category=PlaceCategory.RESTAURANT,
+        latitude=37.5,
+        longitude=126.8,
+        source=PlaceSource.TOUR_API,
+        source_content_id="123",
+        distance_meters=100,
+    )
+    ordinary = tour.model_copy(
+        update={
+            "place_id": "tour_456",
+            "source_content_id": "456",
+            "distance_meters": 50,
+        }
+    )
+    player_pick = tour.model_copy(
+        update={
+            "place_id": "player_pick_001",
+            "is_player_pick": True,
+            "player_pick_id": "player_pick_001",
+        }
+    )
+
+    merged = ItineraryGenerationService._merge_player_pick_candidates(
+        [tour, ordinary], [player_pick]
+    )
+
+    assert [place.place_id for place in merged] == [
+        "player_pick_001",
+        "tour_456",
+    ]
+
+
 def make_trip(
     *,
     user_id: str = USER_ID,

@@ -354,9 +354,11 @@ class StubFavoriteCollectionImportRepository:
         *,
         exists: bool = True,
         place_ids: list[str] | None = None,
+        snapshots: dict[str, Place] | None = None,
     ) -> None:
         self.exists = exists
         self.place_ids = place_ids or []
+        self.snapshots = snapshots or {}
 
     def get_by_id(
         self,
@@ -387,6 +389,7 @@ class StubFavoriteCollectionImportRepository:
         return [
             FavoriteCollectionItemDocument(
                 place_id=place_id,
+                place_snapshot=self.snapshots.get(place_id),
                 created_at=now,
             )
             for place_id in self.place_ids
@@ -528,6 +531,7 @@ def create_import_service(
     trip_user_id: str = USER_ID,
     game: GameRecord | None = None,
     stadium: StadiumResponse | None = None,
+    snapshots: dict[str, Place] | None = None,
 ) -> tuple[
     PlaceSelectionService,
     StubPlaceSelectionRepository,
@@ -552,6 +556,7 @@ def create_import_service(
             StubFavoriteCollectionImportRepository(
                 exists=collection_exists,
                 place_ids=place_ids,
+                snapshots=snapshots,
             )
         ),
         game_repository=StubGameImportRepository(
@@ -608,6 +613,37 @@ async def test_import_favorite_collection_adds_same_region_place() -> None:
 
     assert len(stored) == 1
     assert stored[0].place_id == "tour_100"
+
+
+@pytest.mark.anyio
+async def test_import_favorite_collection_adds_player_pick_snapshot() -> None:
+    snapshot = make_import_place(
+        content_id="100",
+        address="부산광역시 수영구 광안해변로",
+    ).model_copy(
+        update={
+            "place_id": "player_pick_001",
+            "is_player_pick": True,
+            "player_pick_id": "player_pick_001",
+        }
+    )
+    service, repository, adapter = create_import_service(
+        place_ids=["player_pick_001"],
+        places={},
+        snapshots={"player_pick_001": snapshot},
+    )
+
+    imported = await service.import_from_favorite_collection(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        collection_id="collection_001",
+    )
+
+    assert [item.place_id for item in imported] == ["player_pick_001"]
+    assert [item.place_id for item in repository.get_all(trip_id=TRIP_ID)] == [
+        "player_pick_001"
+    ]
+    assert adapter.requested_content_ids == []
 
 
 @pytest.mark.anyio

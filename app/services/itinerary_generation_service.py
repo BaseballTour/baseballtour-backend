@@ -55,6 +55,7 @@ from app.services.recommendation import (
     RecommendationCenter,
     RecommendationService,
 )
+from app.services.player_pick_service import PlayerPickService
 
 
 ItineraryGenerator = Callable[..., ItineraryResult]
@@ -77,6 +78,7 @@ class ItineraryGenerationService:
         itinerary_plan_repository: ItineraryPlanRepository | None = None,
         place_adapter: TourApiAdapter | None = None,
         recommendation_service: RecommendationService | None = None,
+        player_pick_service: PlayerPickService | None = None,
         travel_time_provider: TravelTimeProvider = get_cached_fastest_route,
         generator: ItineraryGenerator = generate_itinerary,
     ) -> None:
@@ -108,6 +110,7 @@ class ItineraryGenerationService:
             recommendation_service
             or RecommendationService(self._place_adapter)
         )
+        self._player_pick_service = player_pick_service
         self._travel_time_provider = travel_time_provider
         self._generator = generator
 
@@ -129,11 +132,9 @@ class ItineraryGenerationService:
         selections = self._place_selection_repository.get_all(
             trip_id=trip_id,
         )
-        return await self._recommendation_service.get_candidates(
-            centers=self._recommendation_centers(
-                trip=trip,
-                stadium=stadium,
-            ),
+        centers = self._recommendation_centers(trip=trip, stadium=stadium)
+        tour_candidates = await self._recommendation_service.get_candidates(
+            centers=centers,
             selected_place_ids={
                 selection.place_id for selection in selections
             },
@@ -147,6 +148,12 @@ class ItineraryGenerationService:
             travel_start_date=trip.trip_start_at.date(),
             travel_end_date=trip.trip_end_at.date(),
         )
+        player_picks = await self._load_player_pick_candidates(
+            stadium_id=stadium.stadium_id,
+            centers=centers,
+            excluded_ids={selection.place_id for selection in selections},
+        )
+        return self._merge_player_pick_candidates(tour_candidates, player_picks)
 
     async def generate(
         self,
@@ -253,6 +260,7 @@ class ItineraryGenerationService:
                 recommendation_diagnostics["filteredCounts"] = {
                     "RECOMMENDATION_TIMEOUT": 1,
                 }
+
             except AppException as error:
                 logger.warning(
                     "추천 외부 API 실패, 선택 장소와 Anchor로 축소 "
@@ -264,6 +272,18 @@ class ItineraryGenerationService:
                 recommendation_diagnostics["filteredCounts"] = {
                     "RECOMMENDATION_EXTERNAL_API_FAILED": 1,
                 }
+
+            player_pick_places = await self._load_player_pick_candidates(
+                stadium_id=stadium.stadium_id,
+                centers=self._recommendation_centers(
+                    trip=trip, stadium=stadium
+                ),
+                excluded_ids=recommendation_excluded_ids,
+            )
+            recommended_places = self._merge_player_pick_candidates(
+                recommended_places,
+                player_pick_places,
+            )
 
             matrix_places = list(
                 {
@@ -951,20 +971,20 @@ class ItineraryGenerationService:
         for selection in selections:
             place_id = selection.place_id
 
-            prefix = "tour_"
-
-            if not place_id.startswith(prefix):
-                continue
-
-            content_id = place_id[len(prefix):]
-
-            if not content_id:
-                continue
-
             try:
-                place = await self._place_adapter.get_place_detail(
-                    content_id
-                )
+                if place_id.startswith("tour_"):
+                    content_id = place_id.removeprefix("tour_")
+                    if not content_id:
+                        continue
+                    place = await self._place_adapter.get_place_detail(content_id)
+                elif place_id.startswith("player_pick_"):
+                    place = await self._get_player_pick_service().resolve_place(
+                        place_id
+                    )
+                    if place is None:
+                        continue
+                else:
+                    continue
             except ValueError:
                 # 실제 장소 상세가 존재하지 않으면 알고리즘에서
                 # INVALID_PLACE 제외 사유를 만들 수 있도록 생략합니다.
@@ -973,6 +993,94 @@ class ItineraryGenerationService:
             places.append(place)
 
         return places
+
+    def _get_player_pick_service(self) -> PlayerPickService:
+        if self._player_pick_service is None:
+            self._player_pick_service = PlayerPickService(
+                place_adapter=self._place_adapter
+            )
+        return self._player_pick_service
+
+    async def _load_player_pick_candidates(
+        self,
+        *,
+        stadium_id: str,
+        centers: list[RecommendationCenter],
+        excluded_ids: set[str],
+    ) -> list[Place]:
+        try:
+            places = await self._get_player_pick_service().get_places_for_stadium(
+                stadium_id
+            )
+        except Exception as exc:
+            logger.warning(
+                "선수 추천 후보 조회를 건너뜁니다: stadium_id=%s reason=%s",
+                stadium_id,
+                type(exc).__name__,
+            )
+            return []
+
+        result: list[Place] = []
+        for place in places:
+            if place.place_id in excluded_ids:
+                continue
+            distances = [
+                self._straight_distance_meters(
+                    center.latitude,
+                    center.longitude,
+                    place.latitude,
+                    place.longitude,
+                )
+                for center in centers
+            ]
+            result.append(
+                place.model_copy(
+                    update={"distance_meters": min(distances) if distances else None}
+                )
+            )
+        return result
+
+    @staticmethod
+    def _merge_player_pick_candidates(
+        tour_places: list[Place], player_picks: list[Place]
+    ) -> list[Place]:
+        if not player_picks:
+            return tour_places
+        player_source_ids = {
+            place.source_content_id
+            for place in player_picks
+            if place.source_content_id is not None
+        }
+        merged = [
+            place
+            for place in tour_places
+            if place.source_content_id not in player_source_ids
+        ]
+        merged.extend(player_picks)
+        return sorted(
+            merged,
+            key=lambda place: (
+                (place.distance_meters or float("inf"))
+                - (1000 if place.is_player_pick else 0),
+                place.place_id,
+            ),
+        )
+
+    @staticmethod
+    def _straight_distance_meters(
+        lat1: float, lon1: float, lat2: float, lon2: float
+    ) -> float:
+        from math import asin, cos, radians, sin, sqrt
+
+        lat_delta = radians(lat2 - lat1)
+        lon_delta = radians(lon2 - lon1)
+        value = (
+            sin(lat_delta / 2) ** 2
+            + cos(radians(lat1))
+            * cos(radians(lat2))
+            * sin(lon_delta / 2) ** 2
+        )
+        return 6_371_000 * 2 * asin(sqrt(value))
 
     def _claim_generation_or_raise(
         self,

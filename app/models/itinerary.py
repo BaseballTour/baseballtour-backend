@@ -189,6 +189,18 @@ class ItineraryItem(AlgorithmModel):
         default=None,
         description="장소 한 줄 소개 또는 원문 소개",
     )
+    is_player_pick: bool = Field(
+        default=False,
+        description="선수 추천 장소 여부",
+    )
+    recommended_by_players: list[str] = Field(
+        default_factory=list,
+        description="이 장소를 추천한 선수 이름 목록",
+    )
+    recommendation_note: str | None = Field(
+        default=None,
+        description="선수 추천 설명",
+    )
     name: str
     address: str = Field(min_length=1)
     latitude: float = Field(ge=-90, le=90)
