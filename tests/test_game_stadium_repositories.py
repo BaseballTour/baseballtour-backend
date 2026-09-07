@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Any
+from unittest.mock import Mock
 
 from google.cloud.exceptions import Conflict
 
@@ -303,3 +304,78 @@ def test_game_repository_uses_camel_case_fields() -> None:
     assert "home_team_id" not in stored
     assert "game_start_at" not in stored
     assert isinstance(stored["gameStartAt"], datetime)
+
+
+def test_game_repository_get_by_date_range_queries_firestore() -> None:
+    client = Mock()
+    collection = Mock()
+    first_query = Mock()
+    second_query = Mock()
+
+    client.collection.return_value = collection
+    collection.where.return_value = first_query
+    first_query.where.return_value = second_query
+
+    late = FakeDocumentSnapshot(
+        "game_late",
+        create_game_document(
+            home_team_id="lg",
+            away_team_id="doosan",
+            hour=18,
+        ).model_dump(
+            by_alias=True,
+            exclude_none=False,
+        ),
+    )
+    early = FakeDocumentSnapshot(
+        "game_early",
+        create_game_document(
+            home_team_id="nc",
+            away_team_id="lotte",
+            hour=14,
+        ).model_dump(
+            by_alias=True,
+            exclude_none=False,
+        ),
+    )
+
+    second_query.stream.return_value = [
+        late,
+        early,
+    ]
+
+    repository = GameRepository(client=client)
+
+    start_at = datetime(
+        2026,
+        8,
+        15,
+        0,
+        0,
+        tzinfo=timezone.utc,
+    )
+    end_at = datetime(
+        2026,
+        8,
+        17,
+        0,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    games = repository.get_by_date_range(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert collection.where.call_count == 1
+    assert first_query.where.call_count == 1
+    assert second_query.stream.call_count == 1
+
+    assert [
+        game.game_id
+        for game in games
+    ] == [
+        "game_early",
+        "game_late",
+    ]

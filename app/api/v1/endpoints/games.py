@@ -25,8 +25,10 @@ router = APIRouter(
     response_model=ListSuccessResponse[GameResponse],
     summary="KBO 경기 목록 조회",
     description=(
-        "날짜, 구단, 구장, 경기 상태 조건으로 "
-        "KBO 경기 목록을 조회합니다."
+        "날짜 또는 기간, 구단, 구장, 경기 상태 조건으로 "
+        "KBO 경기 목록을 조회합니다. "
+        "from과 to는 함께 사용하며 양 끝 날짜를 포함합니다. "
+        "date와 from/to는 함께 사용할 수 없습니다."
     ),
 )
 def get_games(
@@ -34,6 +36,18 @@ def get_games(
         default=None,
         alias="date",
         description="한국시간 기준 경기 날짜",
+    ),
+    date_from: date | None = Query(
+        default=None,
+        alias="from",
+        description="한국시간 기준 조회 시작 날짜",
+        openapi_examples={"default": {"value": "2026-08-01"}},
+    ),
+    date_to: date | None = Query(
+        default=None,
+        alias="to",
+        description="한국시간 기준 조회 종료 날짜",
+        openapi_examples={"default": {"value": "2026-08-31"}},
     ),
     team_id: str | None = Query(
         default=None,
@@ -55,6 +69,8 @@ def get_games(
 
     games = service.get_games(
         game_date=game_date,
+        date_from=date_from,
+        date_to=date_to,
         team_id=team_id,
         stadium_id=stadium_id,
         game_status=game_status,

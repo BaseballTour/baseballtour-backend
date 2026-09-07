@@ -623,3 +623,17 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 
 기존 Firestore 컬렉션 문서에 `isDefault` 필드가 없는 경우에는
 `false`로 취급한다.
+
+### 경기 목록 기간 조회
+
+`GET /api/v1/games`는 기존 단일 날짜 조회와 함께 기간 조회를 지원합니다.
+
+- `date=2026-08-15`: 한국시간 기준 해당 날짜의 경기 조회
+- `from=2026-08-01&to=2026-08-31`: 시작일과 종료일을 모두 포함한 기간 조회
+- `from`과 `to`는 함께 입력해야 합니다.
+- `date`와 `from/to`는 동시에 사용할 수 없습니다.
+- 시작일이 종료일보다 늦으면 `422 INVALID_GAME_DATE_RANGE`를 반환합니다.
+- 기존 `teamId`, `stadiumId`, `status` 필터와 함께 사용할 수 있습니다.
+- 날짜 조건이 없으면 기존 전체 조회 동작을 유지합니다.
+- 날짜 조건이 있으면 한국시간 날짜 범위를 UTC로 변환하여 Firestore `gameStartAt` 범위 쿼리로 조회합니다.
+- 응답은 기존 `ListSuccessResponse[GameResponse]` 형식을 유지합니다.
