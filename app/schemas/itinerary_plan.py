@@ -131,7 +131,7 @@ class ItineraryPlanFixedRequest(ApiModel):
 
 
 class ItineraryPlanTimeUpdateRequest(ApiModel):
-    """일정 PLACE 항목의 시작시간 변경 요청."""
+    """일정 PLACE 항목의 시작시간 또는 날짜 변경 요청."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -145,4 +145,9 @@ class ItineraryPlanTimeUpdateRequest(ApiModel):
         }
     )
 
-    scheduled_start_at: AwareDatetime
+    scheduled_start_at: AwareDatetime = Field(
+        description=(
+            "변경할 시작시각. 기존 일정과 다른 날짜를 지정하면 "
+            "해당 PLACE 항목을 그 날짜의 일정으로 이동합니다."
+        ),
+    )

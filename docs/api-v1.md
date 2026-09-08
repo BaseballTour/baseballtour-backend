@@ -48,7 +48,7 @@
 | PATCH | `/trips/{tripId}/plan/items/order` | 여행 일정 장소 순서 변경 |
 | DELETE | `/trips/{tripId}/plan/items/{itemId}` | 여행 일정 장소 삭제 |
 | PATCH | `/trips/{tripId}/plan/items/{itemId}/fixed` | 여행 일정 장소 고정 여부 변경 |
-| PATCH | `/trips/{tripId}/plan/items/{itemId}/time` | 여행 일정 장소 시작시간 변경 |
+| PATCH | `/trips/{tripId}/plan/items/{itemId}/time` | 여행 일정 장소 시작시간·날짜 변경 |
 | GET | `/trips/{tripId}/recommendation-candidates` | 일정 생성 전 추천 후보 조회 |
 | GET | `/users/me` | 내 사용자 정보 조회 |
 | PATCH | `/users/me` | 내 사용자 정보 수정 |
@@ -763,3 +763,23 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 - TourAPI 장소 ID가 아니면 422 `INVALID_FAVORITE_PLACE`를 반환합니다.
 - 별도 역조회 인덱스는 저장하지 않고 현재 컬렉션의 Item 존재 여부를 조회합니다.
 - 실제 TourAPI 호출이나 Firestore E2E는 이번 단위 테스트에서 검증하지 않았습니다.
+
+### 여행 일정 장소의 날짜 이동
+
+`PATCH /api/v1/trips/{tripId}/plan/items/{itemId}/time`은 PLACE 항목의
+시작시간 변경뿐 아니라 다른 날짜로의 이동에도 사용한다.
+
+요청 예시:
+
+    {
+      "scheduledStartAt": "2026-08-16T14:00:00+09:00"
+    }
+
+- `scheduledStartAt`의 날짜가 기존 날짜와 같으면 해당 PLACE의 시작시간을 변경한다.
+- 날짜가 다르면 해당 PLACE를 대상 날짜의 일정으로 이동한다.
+- 이동한 PLACE의 기존 방문시간 길이는 유지한다.
+- 이동 후 출발 날짜와 대상 날짜의 이동정보 및 sequence를 다시 계산한다.
+- 변경된 PLACE는 `isFixed=true`가 된다.
+- 대상 날짜가 현재 Plan에 없으면 `404 ITINERARY_DAY_NOT_FOUND`를 반환한다.
+- 대상 날짜에 동일한 장소가 이미 있으면 `400 ITINERARY_EDIT_INVALID`를 반환한다.
+- ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION Anchor는 이동할 수 없다.
