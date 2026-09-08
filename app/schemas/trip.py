@@ -265,6 +265,7 @@ class TripDocument(ApiModel):
         default=None,
         description="사용자가 지정한 원정 여행 부제목",
     )
+    cover_image_storage_path: str | None = None
     trip_start_at: AwareDatetime
     trip_end_at: AwareDatetime
 
@@ -313,6 +314,7 @@ class TripSummaryResponse(ApiModel):
     game_id: str
     title: str
     subtitle: str
+    cover_image_url: str | None = None
     status: TripStatus
     trip_start_at: AwareDatetime
     trip_end_at: AwareDatetime

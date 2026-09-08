@@ -21,6 +21,12 @@ from app.repositories.log_entry_repository import (
 from app.repositories.log_media_repository import (
     LogMediaRepository,
 )
+from app.repositories.media_upload_session_repository import MediaUploadSessionRepository
+from app.repositories.trip_repository import (
+    TripCoverImageAccessDeniedError,
+    TripCoverImageConflictError,
+    TripRepository,
+)
 from app.repositories.user_repository import (
     UserRepository,
 )
@@ -39,6 +45,7 @@ from app.schemas.media import (
 
 UPLOAD_URL_EXPIRATION_SECONDS = 15 * 60
 DOWNLOAD_URL_EXPIRATION_SECONDS = 60 * 60
+MEDIA_UPLOAD_SESSION_EXPIRATION_SECONDS = 60 * 60
 
 PROFILE_IMAGE_MAX_BYTES = 10 * 1024 * 1024
 ATTENDANCE_IMAGE_MAX_BYTES = 15 * 1024 * 1024
@@ -97,6 +104,8 @@ class StorageService:
         user_repository: (
             UserRepository | None
         ) = None,
+        trip_repository: TripRepository | None = None,
+        media_upload_session_repository: MediaUploadSessionRepository | None = None,
     ) -> None:
         self._bucket = (
             bucket
@@ -124,6 +133,22 @@ class StorageService:
         self._user_repository = (
             user_repository
         )
+        self._trip_repository = trip_repository
+        self._media_upload_session_repository = media_upload_session_repository
+
+    def _get_media_upload_session_repository(
+        self,
+    ) -> MediaUploadSessionRepository:
+        if self._media_upload_session_repository is None:
+            self._media_upload_session_repository = (
+                MediaUploadSessionRepository()
+            )
+        return self._media_upload_session_repository
+
+    def _get_trip_repository(self) -> TripRepository:
+        if self._trip_repository is None:
+            self._trip_repository = TripRepository()
+        return self._trip_repository
 
     def _get_log_media_repository(
         self,
@@ -144,6 +169,29 @@ class StorageService:
             )
 
         return self._user_repository
+
+    def _validate_trip_target(
+        self,
+        *,
+        user_id: str,
+        trip_id: str | None,
+    ) -> None:
+        if trip_id is None:
+            raise RuntimeError("여행 ID가 없습니다.")
+
+        trip = self._get_trip_repository().get_by_id(trip_id)
+        if trip is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="TRIP_NOT_FOUND",
+                message="여행 정보를 찾을 수 없습니다.",
+            )
+        if trip.user_id != user_id:
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="TRIP_ACCESS_DENIED",
+                message="해당 여행에 접근할 권한이 없습니다.",
+            )
 
     def create_upload_url(
         self,
@@ -171,6 +219,19 @@ class StorageService:
                 log_entry_id=(
                     request.log_entry_id
                 ),
+            )
+
+        expected_cover_image_storage_path = None
+        if request.purpose == MediaPurpose.TRIP_COVER_IMAGE:
+            self._validate_trip_target(
+                user_id=user_id,
+                trip_id=request.trip_id,
+            )
+            trip = self._get_trip_repository().get_by_id(
+                request.trip_id
+            )
+            expected_cover_image_storage_path = (
+                trip.cover_image_storage_path
             )
 
         storage_path = self._build_storage_path(
@@ -206,6 +267,23 @@ class StorageService:
                 ),
             ) from exc
 
+        if request.purpose == MediaPurpose.TRIP_COVER_IMAGE:
+            session_created_at = datetime.now(timezone.utc)
+            self._get_media_upload_session_repository().create(
+                user_id=user_id,
+                trip_id=request.trip_id,
+                storage_path=storage_path,
+                expected_storage_path=expected_cover_image_storage_path,
+                content_type=request.content_type,
+                created_at=session_created_at,
+                expires_at=(
+                    session_created_at
+                    + timedelta(
+                        seconds=MEDIA_UPLOAD_SESSION_EXPIRATION_SECONDS
+                    )
+                ),
+            )
+
         return MediaUploadUrlResponse(
             upload_url=upload_url,
             storage_path=storage_path,
@@ -216,6 +294,9 @@ class StorageService:
             required_headers={
                 "Content-Type": request.content_type,
             },
+            expected_cover_image_storage_path=(
+                expected_cover_image_storage_path
+            ),
         )
 
     def complete_upload(
@@ -243,6 +324,12 @@ class StorageService:
                 log_entry_id=(
                     request.log_entry_id
                 ),
+            )
+
+        if request.purpose == MediaPurpose.TRIP_COVER_IMAGE:
+            self._validate_trip_target(
+                user_id=user_id,
+                trip_id=request.trip_id,
             )
 
         blob = self._bucket.blob(
@@ -366,6 +453,11 @@ class StorageService:
                 storage_path=request.storage_path,
             )
 
+        elif request.purpose == MediaPurpose.TRIP_COVER_IMAGE:
+            self._complete_trip_cover_image(
+                user_id=user_id,
+                request=request,
+            )
         else:
             media_record = (
                 self._complete_attendance_media(
@@ -556,6 +648,123 @@ class StorageService:
                 old_blob
             )
 
+    def _get_trip_cover_upload_session(
+        self,
+        *,
+        user_id: str,
+        request: MediaCompleteRequest,
+    ) -> dict:
+        session = (
+            self._get_media_upload_session_repository()
+            .get_by_storage_path(request.storage_path)
+        )
+        if session is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="MEDIA_UPLOAD_SESSION_NOT_FOUND",
+                message="업로드 발급 기록을 찾을 수 없습니다.",
+            )
+
+        if (
+            session.get("userId") != user_id
+            or session.get("tripId") != request.trip_id
+            or session.get("storagePath") != request.storage_path
+        ):
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="MEDIA_UPLOAD_SESSION_ACCESS_DENIED",
+                message="해당 업로드 기록에 접근할 권한이 없습니다.",
+            )
+
+        if session.get("contentType") != request.content_type:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="MEDIA_UPLOAD_SESSION_MISMATCH",
+                message="업로드 발급 정보와 완료 요청이 일치하지 않습니다.",
+            )
+
+        expected = session.get(
+            "expectedCoverImageStoragePath"
+        )
+        if expected != request.expected_cover_image_storage_path:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="MEDIA_UPLOAD_SESSION_MISMATCH",
+                message="업로드 발급 정보와 완료 요청이 일치하지 않습니다.",
+            )
+
+        expires_at = session.get("expiresAt")
+        if (
+            not isinstance(expires_at, datetime)
+            or expires_at.tzinfo is None
+            or expires_at.utcoffset() is None
+        ):
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="MEDIA_UPLOAD_SESSION_MISMATCH",
+                message="업로드 발급 정보가 올바르지 않습니다.",
+            )
+
+        if expires_at <= datetime.now(timezone.utc):
+            raise AppException(
+                status_code=status.HTTP_410_GONE,
+                code="MEDIA_UPLOAD_SESSION_EXPIRED",
+                message="업로드 완료 가능 시간이 만료되었습니다.",
+            )
+
+        return session
+
+    def _complete_trip_cover_image(
+        self,
+        *,
+        user_id: str,
+        request: MediaCompleteRequest,
+    ) -> None:
+        session = self._get_trip_cover_upload_session(
+            user_id=user_id,
+            request=request,
+        )
+        trip_id = request.trip_id
+        if trip_id is None:
+            raise RuntimeError("여행 ID가 없습니다.")
+
+        try:
+            result = self._get_trip_repository().replace_cover_image(
+                trip_id=trip_id,
+                user_id=user_id,
+                expected_storage_path=session.get(
+                    "expectedCoverImageStoragePath"
+                ),
+                storage_path=request.storage_path,
+                updated_at=datetime.now(timezone.utc),
+            )
+        except TripCoverImageConflictError as exc:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="TRIP_COVER_IMAGE_CONFLICT",
+                message="여행 커버이미지가 변경되었습니다. 다시 시도해 주세요.",
+            ) from exc
+        except TripCoverImageAccessDeniedError as exc:
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="TRIP_ACCESS_DENIED",
+                message="해당 여행에 접근할 권한이 없습니다.",
+            ) from exc
+
+        if result is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="TRIP_NOT_FOUND",
+                message="여행 정보를 찾을 수 없습니다.",
+            )
+
+        # 이전 blob은 즉시 삭제하지 않습니다.
+
+
+        # 이전 blob은 즉시 삭제하지 않습니다.
+        # 동시 요청과 오래된 재시도로 인한 참조 파일 삭제를 방지합니다.
+
+
     def _complete_attendance_media(
         self,
         *,
@@ -691,6 +900,11 @@ class StorageService:
                 f"users/{user_id}/profile/"
             )
 
+        elif request.purpose == MediaPurpose.TRIP_COVER_IMAGE:
+            expected_prefix = (
+                f"users/{user_id}/trips/"
+                f"{request.trip_id}/cover/"
+            )
         else:
             expected_prefix = (
                 f"users/{user_id}/attendance-logs/"
@@ -729,9 +943,9 @@ class StorageService:
                 ),
             )
 
-        if (
-            purpose
-            == MediaPurpose.PROFILE_IMAGE
+        if purpose in (
+            MediaPurpose.PROFILE_IMAGE,
+            MediaPurpose.TRIP_COVER_IMAGE,
         ):
             if (
                 content_type
@@ -825,6 +1039,13 @@ class StorageService:
         ):
             return (
                 f"users/{user_id}/profile/"
+                f"{media_id}{extension}"
+            )
+
+        if request.purpose == MediaPurpose.TRIP_COVER_IMAGE:
+            return (
+                f"users/{user_id}/trips/"
+                f"{request.trip_id}/cover/"
                 f"{media_id}{extension}"
             )
 

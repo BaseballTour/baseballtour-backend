@@ -143,6 +143,36 @@ Storage 객체를 best-effort로 삭제하여 orphan 파일이 남지 않도록 
 사용하고 기존 외부 `profileImageUrl` 값은 제거한다. 이전 Storage 프로필
 이미지가 있으면 새 이미지 연결 성공 후 이전 객체를 정리한다.
 
+### 여행 커버이미지 업로드 계약
+
+여행 커버이미지는 기존 미디어 업로드 API를 재사용한다.
+여행을 먼저 생성한 뒤 반환된 `tripId`로 업로드한다.
+
+1. `POST /api/v1/media/upload-urls`에 `purpose: "TRIP_COVER_IMAGE"`,
+   `tripId`, 파일 정보를 전달한다.
+2. 응답의 `uploadUrl`에 `requiredHeaders`를 사용해 파일을 PUT한다.
+3. `POST /api/v1/media/complete`에 `purpose`, `tripId`,
+   `storagePath`, `contentType`, `expectedCoverImageStoragePath`를 전달한다.
+4. 완료 성공 후 여행 목록·상세를 다시 조회하면 `coverImageUrl`을 받을 수 있다.
+
+커버이미지는 JPEG, PNG, WebP, HEIC, HEIF만 허용하며 최대 크기는 10 MB다.
+업로드 signed PUT URL은 15분, 서버 업로드 세션은 1시간 동안 유효하다.
+
+`expectedCoverImageStoragePath`는 업로드 발급 당시 서버가 기록한
+커버 경로다. 최초 커버가 없으면 `null`이며, 완료 요청에서는 필드 자체를
+반드시 포함해야 한다. 클라이언트는 발급 응답의 값을 그대로 전달한다.
+서버는 저장된 세션 값과 요청값을 비교하고, 실제 CAS 조건에는 서버 값을 사용한다.
+
+현재 커버 경로가 발급 당시 값과 달라졌으면
+`TRIP_COVER_IMAGE_CONFLICT`(409)를 반환한다. 동일 경로의 완료 재시도는
+멱등 처리한다. 세션이 만료되면 `MEDIA_UPLOAD_SESSION_EXPIRED`(410)를
+반환하며 새 업로드 URL을 발급받아야 한다.
+
+여행 문서에는 `coverImageStoragePath`를 저장하고, 목록·상세 응답에는
+임시 signed GET URL인 `coverImageUrl`을 반환한다. 커버가 없는 기존 여행은
+`coverImageUrl: null`이다. 이전 커버 blob은 교체 즉시 삭제하지 않으며,
+별도의 참조 확인·정리 정책이 마련되기 전까지 Storage에 남을 수 있다.
+
 ### 직관 로그 공개 범위와 소유권
 
 직관 로그의 `visibility`는 다음 값을 사용한다.

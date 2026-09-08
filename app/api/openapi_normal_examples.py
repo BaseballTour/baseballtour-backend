@@ -416,6 +416,7 @@ MEDIA_UPLOAD_URL_EXAMPLE = {
     "requiredHeaders": {
         "Content-Type": "image/jpeg",
     },
+    "expectedCoverImageStoragePath": None,
 }
 
 MEDIA_COMPLETE_EXAMPLE = {
@@ -428,6 +429,54 @@ MEDIA_COMPLETE_EXAMPLE = {
     "mediaUrl": "https://storage.example/signed-read",
     "logMediaId": None,
     "sequenceNo": None,
+}
+
+
+
+TRIP_COVER_UPLOAD_URL_EXAMPLE = {
+    **MEDIA_UPLOAD_URL_EXAMPLE,
+    "storagePath": (
+        "users/firebase_uid_example/trips/"
+        "trip_001/cover/media_example.jpg"
+    ),
+    "expectedCoverImageStoragePath": None,
+}
+
+TRIP_COVER_COMPLETE_EXAMPLE = {
+    "purpose": "TRIP_COVER_IMAGE",
+    "tripId": "trip_001",
+    "storagePath": (
+        "users/firebase_uid_example/trips/"
+        "trip_001/cover/media_example.jpg"
+    ),
+    "expectedCoverImageStoragePath": None,
+    "contentType": "image/jpeg",
+}
+
+
+
+
+TRIP_COVER_UPLOAD_REQUEST_EXAMPLE = {
+    "purpose": "TRIP_COVER_IMAGE",
+    "tripId": "trip_001",
+    "fileName": "cover.jpg",
+    "contentType": "image/jpeg",
+    "fileSizeBytes": 1048576,
+}
+
+MEDIA_NAMED_EXAMPLES = {
+    ("post", "/api/v1/media/upload-urls"): {
+        "request": TRIP_COVER_UPLOAD_REQUEST_EXAMPLE,
+        "response": TRIP_COVER_UPLOAD_URL_EXAMPLE,
+    },
+    ("post", "/api/v1/media/complete"): {
+        "request": TRIP_COVER_COMPLETE_EXAMPLE,
+        "response": {
+            **MEDIA_COMPLETE_EXAMPLE,
+            "purpose": "TRIP_COVER_IMAGE",
+            "storagePath": TRIP_COVER_COMPLETE_EXAMPLE["storagePath"],
+        },
+    },
 }
 
 
@@ -643,6 +692,19 @@ def apply_normal_examples(schema: dict[str, Any]) -> dict[str, Any]:
                 ) or PARAMETER_DOCS.get(parameter_name)
                 if doc is not None:
                     parameter["description"], parameter["example"] = doc
+    for (method, path), examples in MEDIA_NAMED_EXAMPLES.items():
+        operation = result["paths"][path][method]
+        request_media = operation["requestBody"]["content"]["application/json"]
+        request_media.setdefault("examples", {})["tripCover"] = {
+            "summary": "여행 커버이미지",
+            "value": examples["request"],
+        }
+        response_media = operation["responses"]["200"]["content"]["application/json"]
+        response_media.setdefault("examples", {})["tripCover"] = {
+            "summary": "여행 커버이미지",
+            "value": _success(examples["response"]),
+        }
+
     return result
 
 

@@ -4205,6 +4205,16 @@
                     "contentType": "image/jpeg",
                     "fileSizeBytes": 1048576
                   }
+                },
+                "tripCover": {
+                  "summary": "여행 커버이미지",
+                  "value": {
+                    "purpose": "TRIP_COVER_IMAGE",
+                    "tripId": "trip_001",
+                    "fileName": "cover.jpg",
+                    "contentType": "image/jpeg",
+                    "fileSizeBytes": 1048576
+                  }
                 }
               }
             }
@@ -4231,7 +4241,24 @@
                         "expiresInSeconds": 900,
                         "requiredHeaders": {
                           "Content-Type": "image/jpeg"
-                        }
+                        },
+                        "expectedCoverImageStoragePath": null
+                      }
+                    }
+                  },
+                  "tripCover": {
+                    "summary": "여행 커버이미지",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "uploadUrl": "https://storage.googleapis.com/signed-upload",
+                        "storagePath": "users/firebase_uid_example/trips/trip_001/cover/media_example.jpg",
+                        "contentType": "image/jpeg",
+                        "expiresInSeconds": 900,
+                        "requiredHeaders": {
+                          "Content-Type": "image/jpeg"
+                        },
+                        "expectedCoverImageStoragePath": null
                       }
                     }
                   }
@@ -4318,6 +4345,16 @@
                     "storagePath": "users/firebase_uid_example/profile/media_example.jpg",
                     "contentType": "image/jpeg"
                   }
+                },
+                "tripCover": {
+                  "summary": "여행 커버이미지",
+                  "value": {
+                    "purpose": "TRIP_COVER_IMAGE",
+                    "tripId": "trip_001",
+                    "storagePath": "users/firebase_uid_example/trips/trip_001/cover/media_example.jpg",
+                    "expectedCoverImageStoragePath": null,
+                    "contentType": "image/jpeg"
+                  }
                 }
               }
             }
@@ -4340,6 +4377,20 @@
                       "data": {
                         "purpose": "PROFILE_IMAGE",
                         "storagePath": "users/firebase_uid_example/profile/media_example.jpg",
+                        "contentType": "image/jpeg",
+                        "mediaUrl": "https://storage.example/signed-read",
+                        "logMediaId": null,
+                        "sequenceNo": null
+                      }
+                    }
+                  },
+                  "tripCover": {
+                    "summary": "여행 커버이미지",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "purpose": "TRIP_COVER_IMAGE",
+                        "storagePath": "users/firebase_uid_example/trips/trip_001/cover/media_example.jpg",
                         "contentType": "image/jpeg",
                         "mediaUrl": "https://storage.example/signed-read",
                         "logMediaId": null,
@@ -20265,11 +20316,35 @@
             "minLength": 1,
             "title": "Storagepath"
           },
+          "expectedCoverImageStoragePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedcoverimagestoragepath"
+          },
           "contentType": {
             "type": "string",
             "maxLength": 100,
             "minLength": 1,
             "title": "Contenttype"
+          },
+          "tripId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tripid",
+            "description": "여행 커버이미지를 연결할 여행 ID"
           },
           "attendanceLogId": {
             "anyOf": [
@@ -20383,6 +20458,7 @@
         "type": "string",
         "enum": [
           "PROFILE_IMAGE",
+          "TRIP_COVER_IMAGE",
           "ATTENDANCE_LOG"
         ],
         "title": "MediaPurpose",
@@ -20410,6 +20486,19 @@
             "exclusiveMinimum": 0.0,
             "title": "Filesizebytes",
             "description": "업로드할 파일 크기(bytes)"
+          },
+          "tripId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tripid",
+            "description": "여행 커버이미지를 연결할 여행 ID"
           },
           "attendanceLogId": {
             "anyOf": [
@@ -20464,6 +20553,17 @@
           "storagePath": {
             "type": "string",
             "title": "Storagepath"
+          },
+          "expectedCoverImageStoragePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedcoverimagestoragepath"
           },
           "contentType": {
             "type": "string",
@@ -22357,6 +22457,17 @@
             "type": "string",
             "title": "Subtitle"
           },
+          "coverImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageurl"
+          },
           "status": {
             "$ref": "#/components/schemas/TripStatus"
           },
@@ -22508,6 +22619,17 @@
           "subtitle": {
             "type": "string",
             "title": "Subtitle"
+          },
+          "coverImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageurl"
           },
           "status": {
             "$ref": "#/components/schemas/TripStatus"

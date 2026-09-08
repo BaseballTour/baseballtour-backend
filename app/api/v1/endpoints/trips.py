@@ -50,6 +50,7 @@ from app.services.place_selection_service import (
     PlaceSelectionService,
 )
 from app.services.trip_service import TripService
+from app.services.storage_service import StorageService
 
 
 router = APIRouter(
@@ -83,6 +84,15 @@ def resolve_trip_subtitle(
     return f"{start_text} ~ {end_text}"
 
 
+def resolve_trip_cover_image_url(
+    trip: TripRecord,
+) -> str | None:
+    path = trip.cover_image_storage_path
+    if not path:
+        return None
+    return StorageService().create_download_url(path)
+
+
 def to_summary_response(
     trip: TripRecord,
 ) -> TripSummaryResponse:
@@ -93,6 +103,7 @@ def to_summary_response(
         game_id=trip.game_id,
         title=trip.title,
         subtitle=resolve_trip_subtitle(trip),
+        cover_image_url=resolve_trip_cover_image_url(trip),
         status=trip.status,
         trip_start_at=trip.trip_start_at,
         trip_end_at=trip.trip_end_at,
@@ -142,6 +153,7 @@ def to_detail_response(
         game_id=trip.game_id,
         title=trip.title,
         subtitle=resolve_trip_subtitle(trip),
+        cover_image_url=resolve_trip_cover_image_url(trip),
         status=trip.status,
         trip_start_at=trip.trip_start_at,
         trip_end_at=trip.trip_end_at,

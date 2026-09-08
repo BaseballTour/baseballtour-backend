@@ -21,6 +21,8 @@ USER_ID = "firebase-user-123"
 def make_service(
     *,
     log_user_id: str = USER_ID,
+    trip_user_id: str = USER_ID,
+    trip_cover_image_storage_path: str | None = None,
 ):
     bucket = Mock()
     blob = Mock()
@@ -44,12 +46,25 @@ def make_service(
         )
     )
 
+    trip_repository = Mock()
+    trip_repository.get_by_id.return_value = (
+        SimpleNamespace(
+            user_id=trip_user_id,
+            cover_image_storage_path=trip_cover_image_storage_path,
+        )
+    )
+    trip_repository.update.return_value = SimpleNamespace()
+
+    session_repository = Mock()
+
     service = StorageService(
         bucket=bucket,
         attendance_log_repository=(
             attendance_repository
         ),
         log_entry_repository=entry_repository,
+        trip_repository=trip_repository,
+        media_upload_session_repository=session_repository,
     )
 
     return SimpleNamespace(
@@ -60,6 +75,8 @@ def make_service(
             attendance_repository
         ),
         entry_repository=entry_repository,
+        trip_repository=trip_repository,
+        session_repository=session_repository,
     )
 
 
@@ -586,3 +603,73 @@ def test_complete_upload_deletes_actual_oversized_blob() -> None:
     )
 
     context.blob.delete.assert_called_once_with()
+
+def test_create_trip_cover_upload_url_checks_owner_and_path() -> None:
+    context = make_service()
+
+    result = context.service.create_upload_url(
+        user_id=USER_ID,
+        request=MediaUploadUrlRequest(
+            purpose=MediaPurpose.TRIP_COVER_IMAGE,
+            file_name="cover.webp",
+            content_type="image/webp",
+            file_size_bytes=2048,
+            trip_id="trip_001",
+        ),
+    )
+
+    assert result.storage_path.startswith(
+        f"users/{USER_ID}/trips/trip_001/cover/media_"
+    )
+    assert result.storage_path.endswith(".webp")
+
+    assert context.trip_repository.get_by_id.call_count == 2
+    context.trip_repository.get_by_id.assert_any_call("trip_001")
+    context.attendance_repository.get_by_id.assert_not_called()
+    context.entry_repository.get_by_id.assert_not_called()
+
+
+def test_create_trip_cover_upload_url_rejects_other_owner() -> None:
+    context = make_service(
+        trip_user_id="another-user",
+    )
+
+    with pytest.raises(AppException) as captured:
+        context.service.create_upload_url(
+            user_id=USER_ID,
+            request=MediaUploadUrlRequest(
+                purpose=MediaPurpose.TRIP_COVER_IMAGE,
+                file_name="cover.jpg",
+                content_type="image/jpeg",
+                file_size_bytes=1024,
+                trip_id="trip_001",
+            ),
+        )
+
+    assert (
+        captured.value.status_code
+        == status.HTTP_403_FORBIDDEN
+    )
+    assert captured.value.code == "TRIP_ACCESS_DENIED"
+
+
+def test_trip_cover_upload_rejects_video() -> None:
+    context = make_service()
+
+    with pytest.raises(AppException) as captured:
+        context.service.create_upload_url(
+            user_id=USER_ID,
+            request=MediaUploadUrlRequest(
+                purpose=MediaPurpose.TRIP_COVER_IMAGE,
+                file_name="cover.mp4",
+                content_type="video/mp4",
+                file_size_bytes=1024,
+                trip_id="trip_001",
+            ),
+        )
+
+    assert (
+        captured.value.code
+        == "MEDIA_CONTENT_TYPE_UNSUPPORTED"
+    )
+    context.trip_repository.get_by_id.assert_not_called()
