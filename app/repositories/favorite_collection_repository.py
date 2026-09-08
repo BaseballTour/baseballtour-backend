@@ -309,6 +309,24 @@ class FavoriteCollectionRepository:
             )
         )
 
+    def has_item(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        place_id: str,
+    ) -> bool:
+        """특정 사용자 컬렉션에 장소가 저장되어 있는지 확인합니다."""
+        return (
+            self._get_items_collection(
+                user_id=user_id,
+                collection_id=collection_id,
+            )
+            .document(place_id)
+            .get()
+            .exists
+        )
+
     def delete_item(
         self,
         *,

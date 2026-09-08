@@ -1570,7 +1570,9 @@
                           "isDefault": false,
                           "thumbnailUrl": "https://example.com/asia-park.jpg",
                           "createdAt": "2026-08-15T10:00:00+09:00",
-                          "updatedAt": "2026-08-15T10:00:00+09:00"
+                          "updatedAt": "2026-08-15T10:00:00+09:00",
+                          "placeCount": 2,
+                          "representativePlaceName": "첫 번째 장소"
                         }
                       ],
                       "meta": {
@@ -2095,6 +2097,292 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/users/me/favorite-collections/by-place/{placeId}": {
+      "get": {
+        "tags": [
+          "Favorite Collections"
+        ],
+        "summary": "장소별 찜 컬렉션 역조회",
+        "description": "특정 TourAPI 장소가 현재 사용자의 어떤 찜 컬렉션에 저장되어 있는지 조회합니다.",
+        "operationId": "get_favorite_place_collections_api_v1_users_me_favorite_collections_by_place__placeId__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "placeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "역조회할 TourAPI 장소 ID",
+              "title": "Placeid"
+            },
+            "description": "내부 장소 ID. TourAPI 장소는 tour_{contentId} 형식",
+            "examples": {
+              "default": {
+                "value": "tour_1603175"
+              }
+            },
+            "example": "tour_1603175"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FavoritePlaceCollectionsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "placeId": "tour_1603175",
+                        "collectionIds": [
+                          "collection_saved",
+                          "collection_001"
+                        ],
+                        "count": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 검증 또는 지원하지 않는 장소",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_place": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_FAVORITE_PLACE",
+                        "message": "TourAPI 장소만 찜할 수 있습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Firebase 인증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "token_missing": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_MISSING",
+                        "message": "인증 토큰이 필요합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_invalid": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_INVALID",
+                        "message": "인증 토큰이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_expired": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_EXPIRED",
+                        "message": "인증 토큰이 만료되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_revoked": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_REVOKED",
+                        "message": "폐기된 인증 토큰입니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한 없음",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "access_denied": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_ACCESS_DENIED",
+                        "message": "해당 여행에 접근할 권한이 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "컬렉션 또는 찜 장소 없음",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "collection_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "FAVORITE_COLLECTION_NOT_FOUND",
+                        "message": "찜 컬렉션을 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "item_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "FAVORITE_COLLECTION_ITEM_NOT_FOUND",
+                        "message": "찜한 장소를 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TourAPI 오류 응답",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_response": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_INVALID_RESPONSE",
+                        "message": "TourAPI 응답 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "tour_api_failed": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TOUR_API_FAILED",
+                        "message": "TourAPI 요청 처리에 실패했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "TourAPI 연결 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_TIMEOUT",
+                        "message": "TourAPI 요청 시간이 초과되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "unavailable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_UNAVAILABLE",
+                        "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/users/me/favorite-collections/{collectionId}": {
@@ -18632,6 +18920,25 @@
             "title": "Thumbnailurl",
             "description": "컬렉션 첫 장소의 대표 이미지"
           },
+          "placeCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Placecount",
+            "description": "컬렉션에 저장된 장소 개수",
+            "default": 0
+          },
+          "representativePlaceName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Representativeplacename",
+            "description": "컬렉션 첫 장소의 이름"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -18670,6 +18977,35 @@
         ],
         "title": "FavoriteCollectionUpdateRequest",
         "description": "개인 찜 컬렉션 이름 변경 요청."
+      },
+      "FavoritePlaceCollectionsResponse": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "collectionIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collectionids"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "collectionIds",
+          "count"
+        ],
+        "title": "FavoritePlaceCollectionsResponse",
+        "description": "특정 장소가 저장된 개인 찜 컬렉션 목록."
       },
       "GameResponse": {
         "properties": {
@@ -20997,6 +21333,25 @@
           "data"
         ],
         "title": "SuccessResponse[FavoriteCollectionResponse]"
+      },
+      "SuccessResponse_FavoritePlaceCollectionsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/FavoritePlaceCollectionsResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[FavoritePlaceCollectionsResponse]"
       },
       "SuccessResponse_GameResponse_": {
         "properties": {

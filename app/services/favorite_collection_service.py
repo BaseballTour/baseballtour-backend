@@ -15,7 +15,9 @@ from app.schemas.favorite_collection import (
     FavoriteCollectionDocument,
     FavoriteCollectionItemDocument,
     FavoriteCollectionRecord,
+    FavoriteCollectionResponse,
     FavoriteCollectionUpdateRequest,
+    FavoritePlaceCollectionsResponse,
 )
 
 
@@ -91,39 +93,88 @@ class FavoriteCollectionService:
             user_id=user_id,
         )
 
+    async def get_collection_summary(
+        self,
+        *,
+        user_id: str,
+        collection: FavoriteCollectionRecord,
+    ) -> FavoriteCollectionResponse:
+        """실제 찜 장소 수와 첫 장소의 대표 정보를 조회합니다."""
+        items = self._repository.get_items(
+            user_id=user_id,
+            collection_id=collection.collection_id,
+        )
+
+        place = None
+        if items:
+            first_item = items[0]
+            place = first_item.place_snapshot
+
+            if place is None:
+                try:
+                    place = await self._place_adapter.get_place_detail(
+                        first_item.place_id.removeprefix("tour_")
+                    )
+                    self._repository.update_item_snapshot(
+                        user_id=user_id,
+                        collection_id=collection.collection_id,
+                        place_id=first_item.place_id,
+                        place_snapshot=place,
+                    )
+                except (AppException, ValueError):
+                    place = None
+
+        return FavoriteCollectionResponse(
+            collection_id=collection.collection_id,
+            name=collection.name,
+            is_default=collection.is_default,
+            thumbnail_url=(
+                place.thumbnail_url if place is not None else None
+            ),
+            place_count=len(items),
+            representative_place_name=(
+                place.name if place is not None else None
+            ),
+            created_at=collection.created_at,
+            updated_at=collection.updated_at,
+        )
+
+    async def get_collection_summaries(
+        self,
+        *,
+        user_id: str,
+        collections: list[FavoriteCollectionRecord],
+    ) -> dict[str, FavoriteCollectionResponse]:
+        """컬렉션별 요약 정보를 한 번씩 조회합니다."""
+        summaries = await asyncio.gather(
+            *(
+                self.get_collection_summary(
+                    user_id=user_id,
+                    collection=collection,
+                )
+                for collection in collections
+            )
+        )
+        return {
+            summary.collection_id: summary
+            for summary in summaries
+        }
+
     async def get_collection_thumbnails(
         self,
         *,
         user_id: str,
         collections: list[FavoriteCollectionRecord],
     ) -> dict[str, str | None]:
-        async def load(collection: FavoriteCollectionRecord):
-            items = self._repository.get_items(
-                user_id=user_id,
-                collection_id=collection.collection_id,
-            )
-            if not items:
-                return collection.collection_id, None
-            if items[0].place_snapshot is not None:
-                return (
-                    collection.collection_id,
-                    items[0].place_snapshot.thumbnail_url,
-                )
-            try:
-                place = await self._place_adapter.get_place_detail(
-                    items[0].place_id.removeprefix("tour_")
-                )
-                self._repository.update_item_snapshot(
-                    user_id=user_id,
-                    collection_id=collection.collection_id,
-                    place_id=items[0].place_id,
-                    place_snapshot=place,
-                )
-                return collection.collection_id, place.thumbnail_url
-            except (AppException, ValueError):
-                return collection.collection_id, None
-
-        return dict(await asyncio.gather(*(load(item) for item in collections)))
+        """기존 썸네일 조회 인터페이스를 유지합니다."""
+        summaries = await self.get_collection_summaries(
+            user_id=user_id,
+            collections=collections,
+        )
+        return {
+            collection_id: summary.thumbnail_url
+            for collection_id, summary in summaries.items()
+        }
 
     async def get_collection_places(
         self,
@@ -291,6 +342,37 @@ class FavoriteCollectionService:
                 code="FAVORITE_COLLECTION_ITEM_NOT_FOUND",
                 message="찜한 장소를 찾을 수 없습니다.",
             )
+
+    def get_collections_for_place(
+        self,
+        *,
+        user_id: str,
+        place_id: str,
+    ) -> FavoritePlaceCollectionsResponse:
+        """장소가 저장된 현재 사용자의 컬렉션 ID를 조회합니다."""
+        if not place_id.startswith("tour_"):
+            raise AppException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code="INVALID_FAVORITE_PLACE",
+                message="TourAPI 장소만 찜할 수 있습니다.",
+            )
+
+        collections = self.get_collections(user_id=user_id)
+        collection_ids = [
+            collection.collection_id
+            for collection in collections
+            if self._repository.has_item(
+                user_id=user_id,
+                collection_id=collection.collection_id,
+                place_id=place_id,
+            )
+        ]
+
+        return FavoritePlaceCollectionsResponse(
+            place_id=place_id,
+            collection_ids=collection_ids,
+            count=len(collection_ids),
+        )
 
     def _get_collection_or_raise(
         self,
