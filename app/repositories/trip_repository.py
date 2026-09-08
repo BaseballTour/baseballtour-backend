@@ -24,6 +24,14 @@ class TripIdempotencyConflictError(Exception):
     """같은 Idempotency-Key가 다른 요청에 재사용된 경우."""
 
 
+class TripCoverImageConflictError(Exception):
+    pass
+
+
+class TripCoverImageAccessDeniedError(Exception):
+    pass
+
+
 class TripRepository:
     """Firestore trips Collection 접근을 담당합니다."""
 
@@ -294,6 +302,60 @@ class TripRepository:
                     "updated_at": updated_at,
                 }
             )
+
+        return commit(transaction)
+
+
+    def replace_cover_image(
+        self,
+        *,
+        trip_id: str,
+        user_id: str,
+        expected_storage_path: str | None,
+        storage_path: str,
+        updated_at: datetime,
+    ) -> tuple[TripRecord, str | None] | None:
+        document_reference = self._collection.document(trip_id)
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction):
+            snapshot = document_reference.get(
+                transaction=transaction,
+            )
+            if not snapshot.exists:
+                return None
+
+            current = self._to_record(
+                trip_id=snapshot.id,
+                data=snapshot.to_dict() or {},
+            )
+            if current.user_id != user_id:
+                raise TripCoverImageAccessDeniedError()
+
+            previous_path = current.cover_image_storage_path
+
+            # 동일 완료 요청의 재시도는 변경하지 않습니다.
+            if previous_path == storage_path:
+                return current, None
+
+            if previous_path != expected_storage_path:
+                raise TripCoverImageConflictError()
+
+            transaction.update(
+                document_reference,
+                {
+                    "coverImageStoragePath": storage_path,
+                    "updatedAt": updated_at,
+                },
+            )
+            updated = current.model_copy(
+                update={
+                    "cover_image_storage_path": storage_path,
+                    "updated_at": updated_at,
+                }
+            )
+            return updated, previous_path
 
         return commit(transaction)
 

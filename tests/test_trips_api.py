@@ -154,6 +154,7 @@ def test_create_trip_returns_created_summary(
         "gameId": GAME_ID,
         "title": "두산 부산 원정",
         "subtitle": "2026.08.14 ~ 2026.08.16",
+        "coverImageUrl": None,
         "status": "PLANNING",
         "tripStartAt": "2026-08-14T10:30:00+09:00",
         "tripEndAt": "2026-08-16T19:00:00+09:00",
