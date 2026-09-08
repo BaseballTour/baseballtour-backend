@@ -1570,7 +1570,9 @@
                           "isDefault": false,
                           "thumbnailUrl": "https://example.com/asia-park.jpg",
                           "createdAt": "2026-08-15T10:00:00+09:00",
-                          "updatedAt": "2026-08-15T10:00:00+09:00"
+                          "updatedAt": "2026-08-15T10:00:00+09:00",
+                          "placeCount": 2,
+                          "representativePlaceName": "첫 번째 장소"
                         }
                       ],
                       "meta": {
@@ -2095,6 +2097,292 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/users/me/favorite-collections/by-place/{placeId}": {
+      "get": {
+        "tags": [
+          "Favorite Collections"
+        ],
+        "summary": "장소별 찜 컬렉션 역조회",
+        "description": "특정 TourAPI 장소가 현재 사용자의 어떤 찜 컬렉션에 저장되어 있는지 조회합니다.",
+        "operationId": "get_favorite_place_collections_api_v1_users_me_favorite_collections_by_place__placeId__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "placeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "역조회할 TourAPI 장소 ID",
+              "title": "Placeid"
+            },
+            "description": "내부 장소 ID. TourAPI 장소는 tour_{contentId} 형식",
+            "examples": {
+              "default": {
+                "value": "tour_1603175"
+              }
+            },
+            "example": "tour_1603175"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FavoritePlaceCollectionsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "placeId": "tour_1603175",
+                        "collectionIds": [
+                          "collection_saved",
+                          "collection_001"
+                        ],
+                        "count": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 검증 또는 지원하지 않는 장소",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_place": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_FAVORITE_PLACE",
+                        "message": "TourAPI 장소만 찜할 수 있습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Firebase 인증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "token_missing": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_MISSING",
+                        "message": "인증 토큰이 필요합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_invalid": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_INVALID",
+                        "message": "인증 토큰이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_expired": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_EXPIRED",
+                        "message": "인증 토큰이 만료되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "token_revoked": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "AUTH_TOKEN_REVOKED",
+                        "message": "폐기된 인증 토큰입니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한 없음",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "access_denied": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TRIP_ACCESS_DENIED",
+                        "message": "해당 여행에 접근할 권한이 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "컬렉션 또는 찜 장소 없음",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "collection_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "FAVORITE_COLLECTION_NOT_FOUND",
+                        "message": "찜 컬렉션을 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "item_not_found": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "FAVORITE_COLLECTION_ITEM_NOT_FOUND",
+                        "message": "찜한 장소를 찾을 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TourAPI 오류 응답",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_response": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_INVALID_RESPONSE",
+                        "message": "TourAPI 응답 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "tour_api_failed": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TOUR_API_FAILED",
+                        "message": "TourAPI 요청 처리에 실패했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "TourAPI 연결 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_TIMEOUT",
+                        "message": "TourAPI 요청 시간이 초과되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "unavailable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_UNAVAILABLE",
+                        "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/users/me/favorite-collections/{collectionId}": {
@@ -3543,7 +3831,7 @@
           "Games"
         ],
         "summary": "KBO 경기 목록 조회",
-        "description": "날짜, 구단, 구장, 경기 상태 조건으로 KBO 경기 목록을 조회합니다.",
+        "description": "날짜 또는 기간, 구단, 구장, 경기 상태 조건으로 KBO 경기 목록을 조회합니다. from과 to는 함께 사용하며 양 끝 날짜를 포함합니다. date와 from/to는 함께 사용할 수 없습니다.",
         "operationId": "get_games_api_v1_games_get",
         "parameters": [
           {
@@ -3565,6 +3853,54 @@
             },
             "description": "한국시간 기준 경기 날짜(YYYY-MM-DD)",
             "example": "2026-08-16"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "한국시간 기준 조회 시작 날짜",
+              "title": "From"
+            },
+            "description": "한국시간 기준 조회 시작 날짜",
+            "examples": {
+              "default": {
+                "value": "2026-08-01"
+              }
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "한국시간 기준 조회 종료 날짜",
+              "title": "To"
+            },
+            "description": "한국시간 기준 조회 종료 날짜",
+            "examples": {
+              "default": {
+                "value": "2026-08-31"
+              }
+            }
           },
           {
             "name": "teamId",
@@ -4006,6 +4342,492 @@
                         "mediaUrl": "https://storage.example/signed-read",
                         "logMediaId": null,
                         "sequenceNo": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notices": {
+      "get": {
+        "tags": [
+          "Notices"
+        ],
+        "summary": "공지사항 목록 조회",
+        "description": "공개된 공지사항을 최신 게시일순으로 조회합니다.",
+        "operationId": "get_notices_api_v1_notices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_NoticeSummaryResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "noticeId": "notice_001",
+                          "title": "서비스 점검 안내",
+                          "publishedAt": "2026-08-15T19:00:00+09:00"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notices/{noticeId}": {
+      "get": {
+        "tags": [
+          "Notices"
+        ],
+        "summary": "공지사항 상세 조회",
+        "description": "공지사항 ID로 공개된 공지사항의 본문을 조회합니다.",
+        "operationId": "get_notice_api_v1_notices__noticeId__get",
+        "parameters": [
+          {
+            "name": "noticeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "공지사항 ID",
+              "title": "Noticeid"
+            },
+            "description": "공지사항 ID",
+            "examples": {
+              "default": {
+                "value": "notice_001"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NoticeDetailResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "noticeId": "notice_001",
+                        "title": "서비스 점검 안내",
+                        "publishedAt": "2026-08-15T19:00:00+09:00",
+                        "content": "서비스 점검이 진행됩니다."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/notification-settings": {
+      "get": {
+        "tags": [
+          "Notification Settings"
+        ],
+        "summary": "내 알림 설정 조회",
+        "description": "인증된 사용자의 현재 알림 수신 설정을 조회합니다.",
+        "operationId": "get_my_notification_settings_api_v1_users_me_notification_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NotificationSettingsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "gameReminderEnabled": true,
+                        "tripReminderEnabled": true,
+                        "marketingEnabled": false,
+                        "updatedAt": "2026-09-07T17:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Notification Settings"
+        ],
+        "summary": "내 알림 설정 수정",
+        "description": "인증된 사용자의 알림 수신 설정을 부분 수정하고 실제 변경된 항목의 이력을 저장합니다.",
+        "operationId": "update_my_notification_settings_api_v1_users_me_notification_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettingsUpdateRequest"
+              },
+              "examples": {
+                "normal": {
+                  "summary": "정상 요청",
+                  "value": {
+                    "marketingEnabled": true
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NotificationSettingsResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "gameReminderEnabled": true,
+                        "tripReminderEnabled": true,
+                        "marketingEnabled": false,
+                        "updatedAt": "2026-09-07T17:00:00+09:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/notification-consent-history": {
+      "get": {
+        "tags": [
+          "Notification Settings"
+        ],
+        "summary": "내 알림 동의 변경 이력 조회",
+        "description": "인증된 사용자의 알림 수신 설정 변경 이력을 최신순으로 조회합니다.",
+        "operationId": "get_my_notification_consent_history_api_v1_users_me_notification_consent_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_NotificationConsentHistoryResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "historyId": "history_001",
+                          "consentType": "MARKETING",
+                          "previousEnabled": false,
+                          "enabled": true,
+                          "changedAt": "2026-09-07T17:00:00+09:00"
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
                       }
                     }
                   }
@@ -13947,8 +14769,8 @@
         "tags": [
           "Trips"
         ],
-        "summary": "여행 일정 장소 시작시간 변경",
-        "description": "PLACE 유형의 itemId만 변경할 수 있습니다. ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION Anchor의 시간은 여행·경기·숙소 기본정보를 수정한 뒤 일정을 재생성하여 변경합니다.",
+        "summary": "여행 일정 장소 시작시간·날짜 변경",
+        "description": "PLACE 유형의 시작시간을 변경합니다. scheduledStartAt의 날짜가 현재 날짜와 다르면 해당 PLACE를 대상 날짜의 일정으로 이동하고 출발 날짜와 대상 날짜의 이동정보를 다시 계산합니다. ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION Anchor는 이 API에서 변경할 수 없습니다.",
         "operationId": "update_itinerary_item_time_api_v1_trips__tripId__plan_items__itemId__time_patch",
         "security": [
           {
@@ -13974,7 +14796,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "시간을 변경할 PLACE 유형 Item ID",
+              "description": "시간 또는 날짜를 변경할 PLACE 유형 Item ID",
               "title": "Itemid"
             },
             "description": "저장된 일정 안에서 항목을 식별하는 불투명 ID. 날짜·순서 등 문자열 형식을 해석하지 말고 응답 값을 그대로 사용",
@@ -18098,6 +18920,25 @@
             "title": "Thumbnailurl",
             "description": "컬렉션 첫 장소의 대표 이미지"
           },
+          "placeCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Placecount",
+            "description": "컬렉션에 저장된 장소 개수",
+            "default": 0
+          },
+          "representativePlaceName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Representativeplacename",
+            "description": "컬렉션 첫 장소의 이름"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -18136,6 +18977,35 @@
         ],
         "title": "FavoriteCollectionUpdateRequest",
         "description": "개인 찜 컬렉션 이름 변경 요청."
+      },
+      "FavoritePlaceCollectionsResponse": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "collectionIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collectionids"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "collectionIds",
+          "count"
+        ],
+        "title": "FavoritePlaceCollectionsResponse",
+        "description": "특정 장소가 저장된 개인 찜 컬렉션 목록."
       },
       "GameResponse": {
         "properties": {
@@ -18684,7 +19554,8 @@
           "scheduledStartAt": {
             "type": "string",
             "format": "date-time",
-            "title": "Scheduledstartat"
+            "title": "Scheduledstartat",
+            "description": "변경할 시작시각. 기존 일정과 다른 날짜를 지정하면 해당 PLACE 항목을 그 날짜의 일정으로 이동합니다."
           }
         },
         "additionalProperties": false,
@@ -18693,7 +19564,7 @@
           "scheduledStartAt"
         ],
         "title": "ItineraryPlanTimeUpdateRequest",
-        "description": "일정 PLACE 항목의 시작시간 변경 요청.",
+        "description": "일정 PLACE 항목의 시작시간 또는 날짜 변경 요청.",
         "examples": [
           {
             "scheduledStartAt": "2026-08-19T10:00:00+09:00"
@@ -18835,6 +19706,60 @@
           "meta"
         ],
         "title": "ListSuccessResponse[GameResponse]"
+      },
+      "ListSuccessResponse_NoticeSummaryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/NoticeSummaryResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[NoticeSummaryResponse]"
+      },
+      "ListSuccessResponse_NotificationConsentHistoryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationConsentHistoryResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[NotificationConsentHistoryResponse]"
       },
       "ListSuccessResponse_PlaceSelectionResponse_": {
         "properties": {
@@ -19500,6 +20425,184 @@
         ],
         "title": "MediaUploadUrlResponse",
         "description": "Firebase Storage 업로드 URL 응답."
+      },
+      "NoticeDetailResponse": {
+        "properties": {
+          "noticeId": {
+            "type": "string",
+            "title": "Noticeid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Publishedat"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "noticeId",
+          "title",
+          "publishedAt",
+          "content"
+        ],
+        "title": "NoticeDetailResponse"
+      },
+      "NoticeSummaryResponse": {
+        "properties": {
+          "noticeId": {
+            "type": "string",
+            "title": "Noticeid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Publishedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "noticeId",
+          "title",
+          "publishedAt"
+        ],
+        "title": "NoticeSummaryResponse"
+      },
+      "NotificationConsentHistoryResponse": {
+        "properties": {
+          "historyId": {
+            "type": "string",
+            "title": "Historyid"
+          },
+          "consentType": {
+            "$ref": "#/components/schemas/NotificationConsentType"
+          },
+          "previousEnabled": {
+            "type": "boolean",
+            "title": "Previousenabled"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "historyId",
+          "consentType",
+          "previousEnabled",
+          "enabled",
+          "changedAt"
+        ],
+        "title": "NotificationConsentHistoryResponse",
+        "description": "알림 수신 설정 변경 이력 API 응답."
+      },
+      "NotificationConsentType": {
+        "type": "string",
+        "enum": [
+          "GAME_REMINDER",
+          "TRIP_REMINDER",
+          "MARKETING"
+        ],
+        "title": "NotificationConsentType"
+      },
+      "NotificationSettingsResponse": {
+        "properties": {
+          "gameReminderEnabled": {
+            "type": "boolean",
+            "title": "Gamereminderenabled"
+          },
+          "tripReminderEnabled": {
+            "type": "boolean",
+            "title": "Tripreminderenabled"
+          },
+          "marketingEnabled": {
+            "type": "boolean",
+            "title": "Marketingenabled"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gameReminderEnabled",
+          "tripReminderEnabled",
+          "marketingEnabled",
+          "updatedAt"
+        ],
+        "title": "NotificationSettingsResponse",
+        "description": "사용자 알림 설정 API 응답."
+      },
+      "NotificationSettingsUpdateRequest": {
+        "properties": {
+          "gameReminderEnabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gamereminderenabled"
+          },
+          "tripReminderEnabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tripreminderenabled"
+          },
+          "marketingEnabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marketingenabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotificationSettingsUpdateRequest",
+        "description": "알림 설정 부분 수정 요청.",
+        "examples": [
+          {
+            "gameReminderEnabled": true,
+            "marketingEnabled": false,
+            "tripReminderEnabled": true
+          }
+        ]
       },
       "Place": {
         "properties": {
@@ -20232,6 +21335,25 @@
         ],
         "title": "SuccessResponse[FavoriteCollectionResponse]"
       },
+      "SuccessResponse_FavoritePlaceCollectionsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/FavoritePlaceCollectionsResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[FavoritePlaceCollectionsResponse]"
+      },
       "SuccessResponse_GameResponse_": {
         "properties": {
           "success": {
@@ -20345,6 +21467,44 @@
           "data"
         ],
         "title": "SuccessResponse[MediaUploadUrlResponse]"
+      },
+      "SuccessResponse_NoticeDetailResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NoticeDetailResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[NoticeDetailResponse]"
+      },
+      "SuccessResponse_NotificationSettingsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationSettingsResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[NotificationSettingsResponse]"
       },
       "SuccessResponse_PlaceSelectionResponse_": {
         "properties": {

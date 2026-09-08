@@ -48,7 +48,7 @@
 | PATCH | `/trips/{tripId}/plan/items/order` | 여행 일정 장소 순서 변경 |
 | DELETE | `/trips/{tripId}/plan/items/{itemId}` | 여행 일정 장소 삭제 |
 | PATCH | `/trips/{tripId}/plan/items/{itemId}/fixed` | 여행 일정 장소 고정 여부 변경 |
-| PATCH | `/trips/{tripId}/plan/items/{itemId}/time` | 여행 일정 장소 시작시간 변경 |
+| PATCH | `/trips/{tripId}/plan/items/{itemId}/time` | 여행 일정 장소 시작시간·날짜 변경 |
 | GET | `/trips/{tripId}/recommendation-candidates` | 일정 생성 전 추천 후보 조회 |
 | GET | `/users/me` | 내 사용자 정보 조회 |
 | PATCH | `/users/me` | 내 사용자 정보 수정 |
@@ -623,3 +623,163 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 
 기존 Firestore 컬렉션 문서에 `isDefault` 필드가 없는 경우에는
 `false`로 취급한다.
+
+### 경기 목록 기간 조회
+
+`GET /api/v1/games`는 기존 단일 날짜 조회와 함께 기간 조회를 지원합니다.
+
+- `date=2026-08-15`: 한국시간 기준 해당 날짜의 경기 조회
+- `from=2026-08-01&to=2026-08-31`: 시작일과 종료일을 모두 포함한 기간 조회
+- `from`과 `to`는 함께 입력해야 합니다.
+- `date`와 `from/to`는 동시에 사용할 수 없습니다.
+- 시작일이 종료일보다 늦으면 `422 INVALID_GAME_DATE_RANGE`를 반환합니다.
+- 기존 `teamId`, `stadiumId`, `status` 필터와 함께 사용할 수 있습니다.
+- 날짜 조건이 없으면 기존 전체 조회 동작을 유지합니다.
+- 날짜 조건이 있으면 한국시간 날짜 범위를 UTC로 변환하여 Firestore `gameStartAt` 범위 쿼리로 조회합니다.
+- 응답은 기존 `ListSuccessResponse[GameResponse]` 형식을 유지합니다.
+
+### 공지사항 조회
+
+#### GET /api/v1/notices
+
+공개된 공지사항 목록을 최신 게시일순으로 조회합니다.
+
+- 인증 없이 조회할 수 있습니다.
+- Firestore `notices` 컬렉션에서 `isPublished=true`인 문서만 반환합니다.
+- 목록에는 `noticeId`, `title`, `publishedAt`을 반환하며 본문은 포함하지 않습니다.
+- `publishedAt` 내림차순으로 정렬하고, 같은 게시일이면 `noticeId` 내림차순으로 정렬합니다.
+- 응답은 `ListSuccessResponse[NoticeSummaryResponse]` 형식입니다.
+- 현재 페이지네이션은 지원하지 않으며 `nextPageToken`은 `null`입니다.
+
+#### GET /api/v1/notices/{noticeId}
+
+공지사항 ID로 공개된 공지사항의 상세정보를 조회합니다.
+
+- 응답에는 `noticeId`, `title`, `publishedAt`, `content`를 반환합니다.
+- 존재하지 않거나 비공개인 공지는 `404 NOTICE_NOT_FOUND`를 반환합니다.
+- 응답은 `SuccessResponse[NoticeDetailResponse]` 형식입니다.
+
+#### Firestore notices 문서
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| title | string | 공지 제목 |
+| content | string | 공지 본문 |
+| isPublished | boolean | 공개 여부 |
+| publishedAt | timestamp \| null | 게시일 |
+| createdAt | timestamp | 생성일 |
+| updatedAt | timestamp | 수정일 |
+
+공개된 문서는 `publishedAt`이 반드시 있어야 합니다. 이번 구현은 조회 전용이며 관리자 작성·수정·삭제 API는 포함하지 않습니다.
+
+### 알림 설정 및 동의 변경 이력
+
+이번 구현은 알림 수신 설정과 변경 이력 관리만 지원합니다. 실제 푸시 알림 발송은 포함하지 않습니다.
+
+#### GET /api/v1/users/me/notification-settings
+
+인증된 사용자의 현재 알림 설정을 조회합니다. 설정 문서가 없으면 기본값을 생성합니다.
+
+| 필드 | 기본값 | 설명 |
+|---|---|---|
+| gameReminderEnabled | true | 경기 알림 |
+| tripReminderEnabled | true | 여행 일정 알림 |
+| marketingEnabled | false | 마케팅 알림 |
+| updatedAt | 현재 시각 | 설정 수정 시각 |
+
+응답은 `SuccessResponse[NotificationSettingsResponse]` 형식입니다.
+
+#### PATCH /api/v1/users/me/notification-settings
+
+알림 설정을 부분 수정합니다.
+
+요청 예시: `{"marketingEnabled": true}`
+
+- 하나 이상의 설정을 입력해야 합니다.
+- 입력하지 않은 설정은 기존 값을 유지합니다.
+- 설정 값에 `null`을 사용할 수 없습니다.
+- 실제 값이 변경된 항목만 변경 이력을 생성합니다.
+- 설정과 변경 이력은 Firestore batch로 함께 저장합니다.
+- 응답은 `SuccessResponse[NotificationSettingsResponse]` 형식입니다.
+
+#### GET /api/v1/users/me/notification-consent-history
+
+인증된 사용자의 알림 설정 변경 이력을 최신순으로 조회합니다.
+
+이력에는 `historyId`, `consentType`, `previousEnabled`, `enabled`, `changedAt`을 반환합니다. `consentType`은 `GAME_REMINDER`, `TRIP_REMINDER`, `MARKETING` 중 하나입니다.
+
+응답은 `ListSuccessResponse[NotificationConsentHistoryResponse]` 형식이며, 현재 페이지네이션은 지원하지 않습니다.
+
+#### Firestore 저장 구조
+
+- `users/{userId}/settings/notifications`: 현재 알림 설정
+- `users/{userId}/notificationConsentHistory/{historyId}`: 설정 변경 이력
+
+기본 설정은 경기·여행 알림을 켜고 마케팅 알림을 끈 상태로 생성합니다.
+
+### 찜 컬렉션 요약 및 장소별 역조회
+
+기존 개인 찜 컬렉션 API를 유지하면서 목록 및 이름 변경 응답에 요약 정보를 추가합니다.
+
+#### 컬렉션 요약 필드
+
+`FavoriteCollectionResponse`에 다음 필드가 추가됩니다.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| placeCount | integer | 컬렉션에 저장된 실제 장소 개수 |
+| representativePlaceName | string | null | 첫 번째 저장 장소의 이름 |
+| thumbnailUrl | string | null | 첫 번째 저장 장소의 대표 이미지 |
+
+- 빈 컬렉션은 `placeCount=0`, `representativePlaceName=null`, `thumbnailUrl=null`입니다.
+- 기존 `items` 문서를 조회하여 개수를 계산하므로 별도 카운터나 데이터 마이그레이션은 필요하지 않습니다.
+- 대표 장소는 기존 저장 시각 오름차순의 첫 번째 장소입니다.
+- 장소 스냅샷이 있으면 외부 API를 호출하지 않습니다.
+- 기존 ID 전용 찜 문서는 TourAPI 상세조회로 스냅샷을 보충합니다.
+- 대표 장소 조회가 실패해도 컬렉션 목록 전체를 실패시키지 않고 대표 정보를 null로 반환합니다.
+
+#### GET /api/v1/users/me/favorite-collections/by-place/{placeId}
+
+특정 TourAPI 장소가 현재 인증된 사용자의 어떤 찜 컬렉션에 저장되어 있는지 조회합니다.
+
+**Path parameter**
+
+- `placeId`: TourAPI 장소 ID. 예: `tour_1603175`
+
+**성공 응답 예시**
+
+    {
+      "success": true,
+      "data": {
+        "placeId": "tour_1603175",
+        "collectionIds": ["collection_saved", "collection_001"],
+        "count": 2
+      }
+    }
+
+- 같은 장소가 여러 컬렉션에 저장되어 있으면 모든 컬렉션 ID를 반환합니다.
+- 저장된 컬렉션이 없으면 `collectionIds=[]`, `count=0`입니다.
+- 조회 대상은 현재 인증된 사용자의 컬렉션으로 제한됩니다.
+- TourAPI 장소 ID가 아니면 422 `INVALID_FAVORITE_PLACE`를 반환합니다.
+- 별도 역조회 인덱스는 저장하지 않고 현재 컬렉션의 Item 존재 여부를 조회합니다.
+- 실제 TourAPI 호출이나 Firestore E2E는 이번 단위 테스트에서 검증하지 않았습니다.
+
+### 여행 일정 장소의 날짜 이동
+
+`PATCH /api/v1/trips/{tripId}/plan/items/{itemId}/time`은 PLACE 항목의
+시작시간 변경뿐 아니라 다른 날짜로의 이동에도 사용한다.
+
+요청 예시:
+
+    {
+      "scheduledStartAt": "2026-08-16T14:00:00+09:00"
+    }
+
+- `scheduledStartAt`의 날짜가 기존 날짜와 같으면 해당 PLACE의 시작시간을 변경한다.
+- 날짜가 다르면 해당 PLACE를 대상 날짜의 일정으로 이동한다.
+- 이동한 PLACE의 기존 방문시간 길이는 유지한다.
+- 이동 후 출발 날짜와 대상 날짜의 이동정보 및 sequence를 다시 계산한다.
+- 변경된 PLACE는 `isFixed=true`가 된다.
+- 대상 날짜가 현재 Plan에 없으면 `404 ITINERARY_DAY_NOT_FOUND`를 반환한다.
+- 대상 날짜에 동일한 장소가 이미 있으면 `400 ITINERARY_EDIT_INVALID`를 반환한다.
+- ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION Anchor는 이동할 수 없다.

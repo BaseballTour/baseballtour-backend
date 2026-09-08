@@ -782,3 +782,55 @@ def test_create_if_absent_uses_fixed_id_and_is_idempotent() -> None:
     assert list(stored) == ["collection_saved"]
     assert stored["collection_saved"]["name"] == "저장됨"
     assert stored["collection_saved"]["isDefault"] is True
+
+
+def test_has_item_returns_true_for_saved_place() -> None:
+    client = FakeFirestoreClient()
+    repository = FavoriteCollectionRepository(
+        client=client
+    )
+
+    collection = repository.create(
+        user_id="user_001",
+        collection=make_collection(),
+    )
+
+    repository.save_item(
+        user_id="user_001",
+        collection_id=collection.collection_id,
+        item=FavoriteCollectionItemDocument(
+            place_id="tour_123456",
+            created_at=datetime(
+                2026,
+                8,
+                20,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ),
+        ),
+    )
+
+    assert repository.has_item(
+        user_id="user_001",
+        collection_id=collection.collection_id,
+        place_id="tour_123456",
+    ) is True
+
+
+def test_has_item_returns_false_for_missing_place() -> None:
+    client = FakeFirestoreClient()
+    repository = FavoriteCollectionRepository(
+        client=client
+    )
+
+    collection = repository.create(
+        user_id="user_001",
+        collection=make_collection(),
+    )
+
+    assert repository.has_item(
+        user_id="user_001",
+        collection_id=collection.collection_id,
+        place_id="tour_missing",
+    ) is False

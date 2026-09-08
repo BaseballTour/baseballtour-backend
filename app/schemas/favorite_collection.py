@@ -53,6 +53,15 @@ class FavoriteCollectionResponse(ApiModel):
         default=None,
         description="컬렉션 첫 장소의 대표 이미지",
     )
+    place_count: int = Field(
+        default=0,
+        ge=0,
+        description="컬렉션에 저장된 장소 개수",
+    )
+    representative_place_name: str | None = Field(
+        default=None,
+        description="컬렉션 첫 장소의 이름",
+    )
     created_at: AwareDatetime
     updated_at: AwareDatetime
 
@@ -76,3 +85,11 @@ class FavoriteCollectionItemResponse(ApiModel):
 
     place_id: str
     created_at: AwareDatetime
+
+
+class FavoritePlaceCollectionsResponse(ApiModel):
+    """특정 장소가 저장된 개인 찜 컬렉션 목록."""
+
+    place_id: str
+    collection_ids: list[str]
+    count: int = Field(ge=0)

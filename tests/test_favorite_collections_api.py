@@ -11,6 +11,8 @@ from app.main import app
 from app.schemas.favorite_collection import (
     FavoriteCollectionItemDocument,
     FavoriteCollectionRecord,
+    FavoriteCollectionResponse,
+    FavoritePlaceCollectionsResponse,
 )
 
 
@@ -84,6 +86,8 @@ def test_create_favorite_collection_returns_created(
         "name": "가보고 싶은 장소",
         "isDefault": False,
         "thumbnailUrl": None,
+        "placeCount": 0,
+        "representativePlaceName": None,
         "createdAt": "2026-08-20T19:00:00+09:00",
         "updatedAt": "2026-08-20T19:00:00+09:00",
     }
@@ -110,10 +114,23 @@ def test_get_favorite_collections_returns_list(
             name="관광지",
         ),
     ]
-    service.get_collection_thumbnails = AsyncMock(
+    service.get_collection_summaries = AsyncMock(
         return_value={
-            "collection_001": "https://example.com/food.jpg",
-            "collection_002": None,
+            "collection_001": FavoriteCollectionResponse(
+                **make_collection(
+                    collection_id="collection_001",
+                    name="맛집",
+                ).model_dump(),
+                thumbnail_url="https://example.com/food.jpg",
+                place_count=2,
+                representative_place_name="첫 번째 맛집",
+            ),
+            "collection_002": FavoriteCollectionResponse(
+                **make_collection(
+                    collection_id="collection_002",
+                    name="관광지",
+                ).model_dump(),
+            ),
         }
     )
 
@@ -137,6 +154,8 @@ def test_get_favorite_collections_returns_list(
     assert body["data"][0]["name"] == "맛집"
     assert body["data"][0]["isDefault"] is False
     assert body["data"][0]["thumbnailUrl"] == "https://example.com/food.jpg"
+    assert body["data"][0]["placeCount"] == 2
+    assert body["data"][0]["representativePlaceName"] == "첫 번째 맛집"
     assert body["data"][1]["name"] == "관광지"
 
     assert body["meta"] == {
@@ -154,7 +173,7 @@ def test_get_favorite_collections_returns_empty_list(
 ) -> None:
     service = Mock()
     service.get_collections.return_value = []
-    service.get_collection_thumbnails = AsyncMock(return_value={})
+    service.get_collection_summaries = AsyncMock(return_value={})
 
     with patch(
         (
@@ -202,6 +221,11 @@ def test_update_favorite_collection_returns_updated(
     service.update_collection.return_value = (
         make_collection(
             name="부산 원정",
+        )
+    )
+    service.get_collection_summary = AsyncMock(
+        return_value=FavoriteCollectionResponse(
+            **make_collection(name="부산 원정").model_dump(),
         )
     )
 
@@ -362,3 +386,74 @@ def test_default_collection_conflict_is_documented_in_openapi() -> None:
 
     assert "409" in path["patch"]["responses"]
     assert "409" in path["delete"]["responses"]
+
+
+def test_get_favorite_place_collections_returns_collection_ids(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_collections_for_place.return_value = (
+        FavoritePlaceCollectionsResponse(
+            place_id="tour_123456",
+            collection_ids=[
+                "collection_001",
+                "collection_002",
+            ],
+            count=2,
+        )
+    )
+
+    with patch(
+        (
+            "app.api.v1.endpoints.favorite_collections."
+            "FavoriteCollectionService"
+        ),
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            (
+                "/api/v1/users/me/favorite-collections/"
+                "by-place/tour_123456"
+            )
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": {
+            "placeId": "tour_123456",
+            "collectionIds": [
+                "collection_001",
+                "collection_002",
+            ],
+            "count": 2,
+        },
+    }
+
+    service.get_collections_for_place.assert_called_once_with(
+        user_id=USER_ID,
+        place_id="tour_123456",
+    )
+
+
+def test_favorite_place_reverse_lookup_is_documented_in_openapi() -> None:
+    schema = app.openapi()
+
+    path = schema["paths"][
+        "/api/v1/users/me/favorite-collections/by-place/{placeId}"
+    ]
+
+    assert "get" in path
+
+    parameters = path["get"]["parameters"]
+    place_id_parameter = next(
+        parameter
+        for parameter in parameters
+        if parameter["name"] == "placeId"
+    )
+
+    assert place_id_parameter["description"]
+    assert (
+        "example" in place_id_parameter
+        or "examples" in place_id_parameter
+    )

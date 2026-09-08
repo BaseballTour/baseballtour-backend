@@ -823,19 +823,24 @@ async def update_itinerary_item_fixed(
 @router.patch(
     "/{tripId}/plan/items/{itemId}/time",
     response_model=SuccessResponse[ItineraryPlanResponse],
-    summary="여행 일정 장소 시작시간 변경",
+    summary="여행 일정 장소 시작시간·날짜 변경",
     description=(
-        "PLACE 유형의 itemId만 변경할 수 있습니다. "
+        "PLACE 유형의 시작시간을 변경합니다. "
+        "scheduledStartAt의 날짜가 현재 날짜와 다르면 해당 PLACE를 "
+        "대상 날짜의 일정으로 이동하고 출발 날짜와 대상 날짜의 "
+        "이동정보를 다시 계산합니다. "
         "ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION "
-        "Anchor의 시간은 여행·경기·숙소 기본정보를 수정한 뒤 "
-        "일정을 재생성하여 변경합니다."
+        "Anchor는 이 API에서 변경할 수 없습니다."
     ),
 )
 async def update_itinerary_item_time(
     trip_id: Annotated[str, Path(alias="tripId", description="여행 ID")],
     item_id: Annotated[
         str,
-        Path(alias="itemId", description="시간을 변경할 PLACE 유형 Item ID"),
+        Path(
+            alias="itemId",
+            description="시간 또는 날짜를 변경할 PLACE 유형 Item ID",
+        ),
     ],
     request: ItineraryPlanTimeUpdateRequest,
     user_id: Annotated[str, Depends(get_current_active_user_id)],

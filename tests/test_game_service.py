@@ -22,6 +22,18 @@ class StubGameRepository:
     def get_all(self) -> list[GameRecord]:
         return list(self._games)
 
+    def get_by_date_range(
+        self,
+        *,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> list[GameRecord]:
+        return [
+            game
+            for game in self._games
+            if start_at <= game.game_start_at < end_at
+        ]
+
     def get_by_id(
         self,
         game_id: str,
@@ -268,3 +280,94 @@ def test_get_missing_game_raises_game_not_found() -> None:
 
     assert exception.status_code == 404
     assert exception.code == "GAME_NOT_FOUND"
+
+
+def test_get_games_filters_by_inclusive_korea_date_range() -> None:
+    service = create_service()
+
+    games = service.get_games(
+        date_from=date(2026, 8, 15),
+        date_to=date(2026, 8, 16),
+    )
+
+    assert [
+        game.game_id
+        for game in games
+    ] == [
+        "game_20260815_lotte_doosan",
+        "game_20260816_nc_doosan",
+    ]
+
+
+def test_get_games_date_range_includes_end_date() -> None:
+    service = create_service()
+
+    games = service.get_games(
+        date_from=date(2026, 8, 16),
+        date_to=date(2026, 8, 16),
+    )
+
+    assert len(games) == 1
+    assert (
+        games[0].game_id
+        == "game_20260816_nc_doosan"
+    )
+
+
+def test_get_games_rejects_date_with_range() -> None:
+    service = create_service()
+
+    with pytest.raises(AppException) as exc_info:
+        service.get_games(
+            game_date=date(2026, 8, 15),
+            date_from=date(2026, 8, 15),
+            date_to=date(2026, 8, 16),
+        )
+
+    assert exc_info.value.status_code == 422
+    assert (
+        exc_info.value.code
+        == "INVALID_GAME_DATE_RANGE"
+    )
+
+
+@pytest.mark.parametrize(
+    ("date_from", "date_to"),
+    [
+        (date(2026, 8, 15), None),
+        (None, date(2026, 8, 16)),
+    ],
+)
+def test_get_games_rejects_incomplete_date_range(
+    date_from: date | None,
+    date_to: date | None,
+) -> None:
+    service = create_service()
+
+    with pytest.raises(AppException) as exc_info:
+        service.get_games(
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert (
+        exc_info.value.code
+        == "INVALID_GAME_DATE_RANGE"
+    )
+
+
+def test_get_games_rejects_reversed_date_range() -> None:
+    service = create_service()
+
+    with pytest.raises(AppException) as exc_info:
+        service.get_games(
+            date_from=date(2026, 8, 16),
+            date_to=date(2026, 8, 15),
+        )
+
+    assert exc_info.value.status_code == 422
+    assert (
+        exc_info.value.code
+        == "INVALID_GAME_DATE_RANGE"
+    )

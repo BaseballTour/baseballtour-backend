@@ -195,6 +195,19 @@ class StubFavoriteCollectionRepository:
             update={"place_snapshot": place_snapshot}
         )
 
+    def has_item(
+        self,
+        *,
+        user_id: str,
+        collection_id: str,
+        place_id: str,
+    ) -> bool:
+        return (
+            user_id,
+            collection_id,
+            place_id,
+        ) in self.items
+
     def delete_item(
         self,
         *,
@@ -714,3 +727,199 @@ def test_delete_default_collection_is_rejected() -> None:
         user_id=USER_ID,
         collection_id=default.collection_id,
     ) is not None
+
+
+@pytest.mark.anyio
+async def test_collection_summary_uses_snapshot_and_count() -> None:
+    repository = StubFavoriteCollectionRepository()
+    collection = seed_collection(repository)
+
+    first_place = Place(
+        place_id="tour_100001",
+        name="첫 번째 장소",
+        category=PlaceCategory.TOURIST_SPOT,
+        latitude=37.5,
+        longitude=127.0,
+        address="서울특별시",
+        thumbnail_url="https://example.com/first.jpg",
+        source=PlaceSource.TOUR_API,
+        source_content_id="100001",
+    )
+    second_place = Place(
+        place_id="tour_100002",
+        name="두 번째 장소",
+        category=PlaceCategory.TOURIST_SPOT,
+        latitude=37.6,
+        longitude=127.1,
+        address="서울특별시",
+        source=PlaceSource.TOUR_API,
+        source_content_id="100002",
+    )
+
+    repository.items[
+        (USER_ID, COLLECTION_ID, first_place.place_id)
+    ] = FavoriteCollectionItemDocument(
+        place_id=first_place.place_id,
+        place_snapshot=first_place,
+        created_at=FIXED_TIME,
+    )
+    repository.items[
+        (USER_ID, COLLECTION_ID, second_place.place_id)
+    ] = FavoriteCollectionItemDocument(
+        place_id=second_place.place_id,
+        place_snapshot=second_place,
+        created_at=FIXED_TIME,
+    )
+
+    adapter = Mock()
+    adapter.get_place_detail = AsyncMock()
+
+    service = FavoriteCollectionService(
+        repository=repository,
+        place_adapter=adapter,
+    )
+
+    summary = await service.get_collection_summary(
+        user_id=USER_ID,
+        collection=collection,
+    )
+
+    assert summary.collection_id == COLLECTION_ID
+    assert summary.place_count == 2
+    assert summary.representative_place_name == "첫 번째 장소"
+    assert summary.thumbnail_url == "https://example.com/first.jpg"
+    adapter.get_place_detail.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_collection_summary_empty_collection() -> None:
+    service, repository = create_service()
+    collection = seed_collection(repository)
+
+    summary = await service.get_collection_summary(
+        user_id=USER_ID,
+        collection=collection,
+    )
+
+    assert summary.place_count == 0
+    assert summary.representative_place_name is None
+    assert summary.thumbnail_url is None
+
+
+@pytest.mark.anyio
+async def test_collection_summary_backfills_legacy_snapshot() -> None:
+    repository = StubFavoriteCollectionRepository()
+    collection = seed_collection(repository)
+
+    repository.items[
+        (USER_ID, COLLECTION_ID, "tour_123456")
+    ] = FavoriteCollectionItemDocument(
+        place_id="tour_123456",
+        created_at=FIXED_TIME,
+    )
+
+    place = Place(
+        place_id="tour_123456",
+        name="보충된 장소",
+        category=PlaceCategory.TOURIST_SPOT,
+        latitude=37.5,
+        longitude=127.0,
+        address="서울특별시",
+        thumbnail_url="https://example.com/backfilled.jpg",
+        source=PlaceSource.TOUR_API,
+        source_content_id="123456",
+    )
+
+    adapter = Mock()
+    adapter.get_place_detail = AsyncMock(
+        return_value=place,
+    )
+
+    service = FavoriteCollectionService(
+        repository=repository,
+        place_adapter=adapter,
+    )
+
+    summary = await service.get_collection_summary(
+        user_id=USER_ID,
+        collection=collection,
+    )
+
+    assert summary.place_count == 1
+    assert summary.representative_place_name == "보충된 장소"
+    assert summary.thumbnail_url == "https://example.com/backfilled.jpg"
+
+    adapter.get_place_detail.assert_awaited_once_with("123456")
+
+    stored = repository.items[
+        (USER_ID, COLLECTION_ID, "tour_123456")
+    ]
+    assert stored.place_snapshot == place
+
+
+def test_get_collections_for_place_returns_matching_collections() -> None:
+    service, repository = create_service()
+
+    first = seed_collection(repository)
+
+    second = FavoriteCollectionRecord(
+        collection_id="collection_002",
+        name="부산 맛집",
+        created_at=FIXED_TIME,
+        updated_at=FIXED_TIME,
+    )
+    repository.collections[
+        (USER_ID, second.collection_id)
+    ] = second
+
+    item = FavoriteCollectionItemDocument(
+        place_id="tour_123456",
+        created_at=FIXED_TIME,
+    )
+
+    repository.items[
+        (USER_ID, first.collection_id, item.place_id)
+    ] = item
+    repository.items[
+        (USER_ID, second.collection_id, item.place_id)
+    ] = item
+
+    result = service.get_collections_for_place(
+        user_id=USER_ID,
+        place_id="tour_123456",
+    )
+
+    assert result.place_id == "tour_123456"
+    assert result.count == 2
+    assert set(result.collection_ids) == {
+        first.collection_id,
+        second.collection_id,
+    }
+
+
+def test_get_collections_for_place_returns_empty_when_not_saved() -> None:
+    service, repository = create_service()
+    seed_collection(repository)
+
+    result = service.get_collections_for_place(
+        user_id=USER_ID,
+        place_id="tour_999999",
+    )
+
+    assert result.place_id == "tour_999999"
+    assert result.collection_ids == []
+    assert result.count == 0
+
+
+def test_get_collections_for_place_rejects_non_tour_place() -> None:
+    service, _ = create_service()
+
+    with pytest.raises(AppException) as exception_info:
+        service.get_collections_for_place(
+            user_id=USER_ID,
+            place_id="kakao_123456",
+        )
+
+    exception = exception_info.value
+    assert exception.status_code == 422
+    assert exception.code == "INVALID_FAVORITE_PLACE"

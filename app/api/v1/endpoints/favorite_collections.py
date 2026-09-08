@@ -12,6 +12,7 @@ from app.schemas.favorite_collection import (
     FavoriteCollectionRecord,
     FavoriteCollectionResponse,
     FavoriteCollectionUpdateRequest,
+    FavoritePlaceCollectionsResponse,
 )
 from app.schemas.response import (
     ErrorResponse,
@@ -94,20 +95,14 @@ async def get_favorite_collections(
     ],
 ) -> ListSuccessResponse[FavoriteCollectionResponse]:
     service = FavoriteCollectionService()
-
-    collections = service.get_collections(
-        user_id=user_id,
-    )
-    thumbnails = await service.get_collection_thumbnails(
+    collections = service.get_collections(user_id=user_id)
+    summaries = await service.get_collection_summaries(
         user_id=user_id,
         collections=collections,
     )
 
     data = [
-        to_favorite_collection_response(
-            collection,
-            thumbnails.get(collection.collection_id),
-        )
+        summaries[collection.collection_id]
         for collection in collections
     ]
 
@@ -118,6 +113,38 @@ async def get_favorite_collections(
             next_page_token=None,
         ),
     )
+
+
+@router.get(
+    "/by-place/{placeId}",
+    response_model=SuccessResponse[FavoritePlaceCollectionsResponse],
+    summary="장소별 찜 컬렉션 역조회",
+    description=(
+        "특정 TourAPI 장소가 현재 사용자의 어떤 찜 컬렉션에 "
+        "저장되어 있는지 조회합니다."
+    ),
+)
+def get_favorite_place_collections(
+    place_id: Annotated[
+        str,
+        Path(
+            alias="placeId",
+            description="역조회할 TourAPI 장소 ID",
+            openapi_examples={
+                "default": {"value": "tour_1603175"}
+            },
+        ),
+    ],
+    user_id: Annotated[
+        str,
+        Depends(get_current_active_user_id),
+    ],
+) -> SuccessResponse[FavoritePlaceCollectionsResponse]:
+    data = FavoriteCollectionService().get_collections_for_place(
+        user_id=user_id,
+        place_id=place_id,
+    )
+    return SuccessResponse(data=data)
 
 
 @router.get(
@@ -155,7 +182,7 @@ async def get_favorite_collection_places(
         },
     },
 )
-def update_favorite_collection(
+async def update_favorite_collection(
     collection_id: Annotated[
         str,
         Path(
@@ -170,18 +197,16 @@ def update_favorite_collection(
     ],
 ) -> SuccessResponse[FavoriteCollectionResponse]:
     service = FavoriteCollectionService()
-
     collection = service.update_collection(
         user_id=user_id,
         collection_id=collection_id,
         request=request,
     )
-
-    return SuccessResponse(
-        data=to_favorite_collection_response(
-            collection
-        )
+    summary = await service.get_collection_summary(
+        user_id=user_id,
+        collection=collection,
     )
+    return SuccessResponse(data=summary)
 
 
 @router.delete(

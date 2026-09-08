@@ -1,4 +1,7 @@
 from google.cloud.exceptions import Conflict
+from datetime import datetime
+
+from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 
 from app.core.firebase import get_firestore_client
@@ -27,6 +30,42 @@ class GameRepository:
         for document in self._collection.stream():
             data = document.to_dict() or {}
 
+            games.append(
+                GameRecord(
+                    game_id=document.id,
+                    **data,
+                )
+            )
+
+        return sorted(
+            games,
+            key=lambda game: game.game_start_at,
+        )
+
+    def get_by_date_range(
+        self,
+        *,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> list[GameRecord]:
+        """시작 이상, 종료 미만의 경기만 Firestore에서 조회합니다."""
+        query = (
+            self._collection
+            .where(
+                filter=FieldFilter(
+                    "gameStartAt", ">=", start_at
+                )
+            )
+            .where(
+                filter=FieldFilter(
+                    "gameStartAt", "<", end_at
+                )
+            )
+        )
+
+        games: list[GameRecord] = []
+        for document in query.stream():
+            data = document.to_dict() or {}
             games.append(
                 GameRecord(
                     game_id=document.id,

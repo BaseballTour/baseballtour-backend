@@ -116,6 +116,9 @@ def _list(data: list[Any]) -> dict[str, Any]:
 
 
 REQUEST_EXAMPLES = {
+    ("patch", "/api/v1/users/me/notification-settings"): {
+        "marketingEnabled": True,
+    },
     ("post", "/api/v1/users/me/favorite-collections"): {"name": "고척 원정 후보"},
     ("patch", "/api/v1/users/me/favorite-collections/{collectionId}"): {"name": "서울 원정 맛집"},
     ("post", "/api/v1/trips"): {"gameId": GAME["gameId"], "title": "고척 원정 1박 2일",
@@ -155,7 +158,65 @@ COLLECTION = {"collectionId": "collection_001", "name": "고척 원정 후보", 
 SELECTION = {"placeId": PLACE["placeId"], "isRequired": True,
              "createdAt": "2026-08-15T10:10:00+09:00"}
 
+NOTICE = {
+    "noticeId": "notice_001",
+    "title": "서비스 점검 안내",
+    "publishedAt": "2026-08-15T19:00:00+09:00",
+    "content": "서비스 점검이 진행됩니다.",
+}
+
+NOTIFICATION_SETTINGS = {
+    "gameReminderEnabled": True,
+    "tripReminderEnabled": True,
+    "marketingEnabled": False,
+    "updatedAt": "2026-09-07T17:00:00+09:00",
+}
+
+NOTIFICATION_CONSENT_HISTORY = {
+    "historyId": "history_001",
+    "consentType": "MARKETING",
+    "previousEnabled": False,
+    "enabled": True,
+    "changedAt": "2026-09-07T17:00:00+09:00",
+}
+
+FAVORITE_COLLECTION_SUMMARY = {
+    **COLLECTION,
+    "placeCount": 2,
+    "representativePlaceName": "첫 번째 장소",
+}
+
+FAVORITE_PLACE_COLLECTIONS = {
+    "placeId": "tour_1603175",
+    "collectionIds": ["collection_saved", "collection_001"],
+    "count": 2,
+}
+
 SUCCESS_EXAMPLES = {
+    (
+        "get",
+        "/api/v1/users/me/favorite-collections/by-place/{placeId}",
+        "200",
+    ): _success(FAVORITE_PLACE_COLLECTIONS),
+    (
+        "get",
+        "/api/v1/users/me/notification-settings",
+        "200",
+    ): _success(NOTIFICATION_SETTINGS),
+    (
+        "patch",
+        "/api/v1/users/me/notification-settings",
+        "200",
+    ): _success(NOTIFICATION_SETTINGS),
+    (
+        "get",
+        "/api/v1/users/me/notification-consent-history",
+        "200",
+    ): _list([NOTIFICATION_CONSENT_HISTORY]),
+    ("get", "/api/v1/notices", "200"): _list([
+        {key: value for key, value in NOTICE.items() if key != "content"}
+    ]),
+    ("get", "/api/v1/notices/{noticeId}", "200"): _success(NOTICE),
     ("get", "/api/v1/accommodations/search", "200"): _list([
         ACCOMMODATION_CANDIDATE
     ]),
@@ -167,7 +228,7 @@ SUCCESS_EXAMPLES = {
     }),
     ("get", "/", "200"): _success({"name": "BaseballTour Backend", "environment": "development", "status": "running"}),
     ("get", "/api/v1/health", "200"): _success({"status": "healthy"}),
-    ("get", "/api/v1/users/me/favorite-collections", "200"): _list([COLLECTION]),
+    ("get", "/api/v1/users/me/favorite-collections", "200"): _list([FAVORITE_COLLECTION_SUMMARY]),
     ("post", "/api/v1/users/me/favorite-collections", "201"): _success(COLLECTION),
     ("get", "/api/v1/users/me/favorite-collections/{collectionId}", "200"): _list([PLACE]),
     ("patch", "/api/v1/users/me/favorite-collections/{collectionId}", "200"): _success(COLLECTION),
