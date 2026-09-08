@@ -514,6 +514,7 @@ class ItineraryPlanService:
             type=ItineraryItemType.PLACE,
             sequence=len(day.items) + 1,
             place_id=request.place_id,
+            place_url=getattr(place, "place_url", None),
             category=getattr(place, "category", None),
             thumbnail_url=getattr(place, "thumbnail_url", None),
             short_description=normalize_short_description(

@@ -79,6 +79,7 @@ def _merge_kakao_fields(place: Place, item: dict[str, Any]) -> Place:
     )
     updates: dict[str, Any] = {
         "kakao_place_id": str(item.get("id") or "").strip() or None,
+        "place_url": str(item.get("place_url") or "").strip() or place.place_url,
         "enriched_by": [*place.enriched_by, PlaceSource.KAKAO],
     }
     if not place.address.strip():

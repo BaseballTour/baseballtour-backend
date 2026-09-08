@@ -1,5 +1,6 @@
 from datetime import date
 from enum import Enum
+from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -230,6 +231,31 @@ class Place(BaseModel):
         description="정보 보충에 사용된 카카오 장소 ID"
     )
 
+    place_url: str | None = Field(
+        default=None,
+        description="사용자가 최신 장소 정보를 확인할 수 있는 외부 지도 링크",
+    )
+
+    is_player_pick: bool = Field(
+        default=False,
+        description="선수 추천 장소 여부",
+    )
+
+    player_pick_id: str | None = Field(
+        default=None,
+        description="선수 추천 장소 문서 ID",
+    )
+
+    recommended_by_players: list[str] = Field(
+        default_factory=list,
+        description="이 장소를 추천한 선수 이름 목록",
+    )
+
+    recommendation_note: str | None = Field(
+        default=None,
+        description="선수 추천에 대한 관리자 설명",
+    )
+
     enriched_by: list[PlaceSource] = Field(
         default_factory=list,
         description="기본 출처 외에 장소 정보를 보충한 데이터 출처"
@@ -256,6 +282,16 @@ class Place(BaseModel):
     )
 
     @model_validator(mode="after")
+    def ensure_place_url(self) -> "Place":
+        if not self.place_url:
+            self.place_url = build_kakao_map_url(
+                name=self.name,
+                latitude=self.latitude,
+                longitude=self.longitude,
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_source_content_id(self) -> "Place":
         if (
             self.source in {PlaceSource.TOUR_API, PlaceSource.KAKAO}
@@ -266,4 +302,18 @@ class Place(BaseModel):
                 "sourceContentId가 필요합니다."
             )
         return self
+
+
+def build_kakao_map_url(
+    *,
+    name: str,
+    latitude: float,
+    longitude: float,
+) -> str:
+    """외부 API 호출 없이 장소 좌표를 여는 카카오맵 링크를 만듭니다."""
+    encoded_name = quote(name.strip() or "장소", safe="")
+    return (
+        "https://map.kakao.com/link/map/"
+        f"{encoded_name},{latitude:.6f},{longitude:.6f}"
+    )
 

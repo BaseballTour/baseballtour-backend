@@ -70,6 +70,10 @@ async def test_detail_combines_common_intro_and_image(monkeypatch) -> None:
     assert first.admission_deadline_time == "21:00"
     assert first.closed_days_status == "PARSED"
     assert first.thumbnail_url == "https://example.com/detail.jpg"
+    assert first.place_url == (
+        "https://map.kakao.com/link/map/"
+        "%ED%85%8C%EC%8A%A4%ED%8A%B8%20%EC%8B%9D%EB%8B%B9,37.500000,127.000000"
+    )
     assert second == first
     assert calls["common"] == 1
     assert calls["intro_content_type_id"] == "39"

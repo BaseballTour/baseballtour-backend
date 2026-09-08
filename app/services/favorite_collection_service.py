@@ -10,6 +10,7 @@ from app.models.place import Place
 from app.repositories.favorite_collection_repository import (
     FavoriteCollectionRepository,
 )
+from app.repositories.player_pick_repository import PlayerPickRepository
 from app.schemas.favorite_collection import (
     FavoriteCollectionCreateRequest,
     FavoriteCollectionDocument,
@@ -34,12 +35,39 @@ class FavoriteCollectionService:
         self,
         repository: FavoriteCollectionRepository | None = None,
         place_adapter: TourApiAdapter | None = None,
+        player_pick_repository: PlayerPickRepository | None = None,
     ) -> None:
         self._repository = (
             repository
             or FavoriteCollectionRepository()
         )
         self._place_adapter = place_adapter or tour_api_adapter
+        self._player_pick_repository = player_pick_repository
+
+    def _get_player_pick_repository(self) -> PlayerPickRepository:
+        if self._player_pick_repository is None:
+            self._player_pick_repository = PlayerPickRepository()
+        return self._player_pick_repository
+
+    async def _resolve_place(self, place_id: str) -> Place | None:
+        if place_id.startswith("tour_"):
+            return await self._place_adapter.get_place_detail(
+                place_id.removeprefix("tour_")
+            )
+        if place_id.startswith("player_pick_"):
+            record = self._get_player_pick_repository().get_by_id(place_id)
+            if record is None or record.place_snapshot is None:
+                return None
+            return record.place_snapshot.model_copy(
+                update={
+                    "place_id": record.player_pick_id,
+                    "is_player_pick": True,
+                    "player_pick_id": record.player_pick_id,
+                    "recommended_by_players": [record.player_name],
+                    "recommendation_note": record.recommendation_note,
+                }
+            )
+        return None
 
     def create_collection(
         self,
@@ -112,9 +140,9 @@ class FavoriteCollectionService:
 
             if place is None:
                 try:
-                    place = await self._place_adapter.get_place_detail(
-                        first_item.place_id.removeprefix("tour_")
-                    )
+                    place = await self._resolve_place(first_item.place_id)
+                    if place is None:
+                        raise ValueError("찜 장소 snapshot을 복구할 수 없습니다.")
                     self._repository.update_item_snapshot(
                         user_id=user_id,
                         collection_id=collection.collection_id,
@@ -196,9 +224,9 @@ class FavoriteCollectionService:
             if item.place_snapshot is not None:
                 return item.place_snapshot
             try:
-                place = await self._place_adapter.get_place_detail(
-                    item.place_id.removeprefix("tour_")
-                )
+                place = await self._resolve_place(item.place_id)
+                if place is None:
+                    return None
                 self._repository.update_item_snapshot(
                     user_id=user_id,
                     collection_id=collection_id,
@@ -286,23 +314,27 @@ class FavoriteCollectionService:
         collection_id: str,
         place_id: str,
     ) -> FavoriteCollectionItemDocument:
-        """개인 컬렉션에 TourAPI 장소를 찜합니다."""
+        """개인 컬렉션에 TourAPI 또는 선수 추천 장소를 찜합니다."""
 
         self._get_collection_or_raise(
             user_id=user_id,
             collection_id=collection_id,
         )
 
-        if not place_id.startswith("tour_"):
+        if not place_id.startswith(("tour_", "player_pick_")):
             raise AppException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 code="INVALID_FAVORITE_PLACE",
-                message="TourAPI 장소만 찜할 수 있습니다.",
+                message="TourAPI 또는 선수 추천 장소만 찜할 수 있습니다.",
             )
 
-        place = await self._place_adapter.get_place_detail(
-            place_id.removeprefix("tour_")
-        )
+        place = await self._resolve_place(place_id)
+        if place is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="FAVORITE_PLACE_NOT_FOUND",
+                message="찜할 장소 정보를 찾을 수 없습니다.",
+            )
 
         item = FavoriteCollectionItemDocument(
             place_id=place_id,
@@ -350,11 +382,11 @@ class FavoriteCollectionService:
         place_id: str,
     ) -> FavoritePlaceCollectionsResponse:
         """장소가 저장된 현재 사용자의 컬렉션 ID를 조회합니다."""
-        if not place_id.startswith("tour_"):
+        if not place_id.startswith(("tour_", "player_pick_")):
             raise AppException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 code="INVALID_FAVORITE_PLACE",
-                message="TourAPI 장소만 찜할 수 있습니다.",
+                message="TourAPI 또는 선수 추천 장소만 조회할 수 있습니다.",
             )
 
         collections = self.get_collections(user_id=user_id)

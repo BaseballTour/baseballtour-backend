@@ -12,6 +12,7 @@ from app.schemas.favorite_collection import (
     FavoriteCollectionRecord,
     FavoriteCollectionUpdateRequest,
 )
+from app.schemas.player_pick import PlayerPickRecord
 from app.services.favorite_collection_service import (
     FavoriteCollectionService,
 )
@@ -401,6 +402,47 @@ async def test_save_item_saves_tour_place_snapshot() -> None:
         user_id=USER_ID,
         collection_id=COLLECTION_ID,
     ) == [item]
+
+
+@pytest.mark.anyio
+async def test_save_item_saves_player_pick_snapshot() -> None:
+    service, repository = create_service()
+    seed_collection(repository)
+    snapshot = Place(
+        place_id="tour_123456",
+        name="선수 추천 식당",
+        category=PlaceCategory.RESTAURANT,
+        latitude=37.5,
+        longitude=126.8,
+        source=PlaceSource.TOUR_API,
+        source_content_id="123456",
+    )
+
+    class PlayerPickRepository:
+        def get_by_id(self, player_pick_id):
+            assert player_pick_id == "player_pick_001"
+            return PlayerPickRecord(
+                player_pick_id=player_pick_id,
+                stadium_id="gocheok",
+                player_name="테스트 선수",
+                place_id="tour_123456",
+                place_snapshot=snapshot,
+                recommendation_note="선수 추천",
+                created_at=FIXED_TIME,
+            )
+
+    service._player_pick_repository = PlayerPickRepository()
+    item = await service.save_item(
+        user_id=USER_ID,
+        collection_id=COLLECTION_ID,
+        place_id="player_pick_001",
+    )
+
+    assert item.place_id == "player_pick_001"
+    assert item.place_snapshot is not None
+    assert item.place_snapshot.place_id == "player_pick_001"
+    assert item.place_snapshot.is_player_pick is True
+    assert item.place_snapshot.recommended_by_players == ["테스트 선수"]
 
 
 @pytest.mark.anyio

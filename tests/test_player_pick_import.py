@@ -1,7 +1,16 @@
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
+from app.models.place import Place, PlaceSource
+from app.schemas.player_pick import PlayerPickDocument
 from scripts.import_player_pick_markdown import parse_markdown
-from scripts.seed_player_picks import _address_matches, _same_region
+from scripts.seed_player_picks import (
+    _address_matches,
+    _prepare_snapshot,
+    _review_row,
+    _same_region,
+)
 
 
 def test_parse_markdown_expands_shared_player_heading(tmp_path: Path) -> None:
@@ -78,3 +87,42 @@ def test_parse_markdown_keeps_heading_inline_and_followup_notes(
     assert rows[0]["recommendationNote"] == (
         "통역 · 선수단 공통 · 부모님 운영 · 야구장 내부 식당"
     )
+
+
+def test_review_row_marks_only_fields_that_need_manual_review() -> None:
+    place = Place(
+        place_id="kakao_123",
+        name="선수 추천 식당",
+        category="RESTAURANT",
+        latitude=37.5,
+        longitude=127.0,
+        address="서울 송파구",
+        telephone="02-123-4567",
+        source=PlaceSource.KAKAO,
+        source_content_id="123",
+        kakao_place_id="123",
+        place_url="https://place.map.kakao.com/123",
+    )
+    prepared = _prepare_snapshot(
+        place,
+        player_name="테스트",
+        recommendation_note=None,
+    )
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    document = PlayerPickDocument(
+        stadium_id="jamsil",
+        player_name="테스트",
+        place_id=prepared.place_id,
+        place_snapshot=prepared,
+        created_at=now,
+        updated_at=now,
+    )
+
+    review = _review_row(document)
+
+    assert review["placeSnapshot"]["overview"] == (
+        "테스트 선수가 추천한 선수 추천 식당입니다."
+    )
+    assert review["placeSnapshot"]["placeUrl"].endswith("/123")
+    assert "telephone" not in review["review"]["missingFields"]
+    assert "businessHoursRules" in review["review"]["missingFields"]

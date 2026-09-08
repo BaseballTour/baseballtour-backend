@@ -288,12 +288,16 @@ def _schedule_day(
                 type=ItineraryItemType.PLACE,
                 sequence=len(items) + 1,
                 place_id=place.place_id,
+                place_url=place.place_url,
                 category=place.category,
                 thumbnail_url=place.thumbnail_url,
                 short_description=normalize_short_description(
                     place.overview
                 ),
                 overview=place.overview,
+                is_player_pick=place.is_player_pick,
+                recommended_by_players=place.recommended_by_players,
+                recommendation_note=place.recommendation_note,
                 name=place.name,
                 address=place.address or place.name,
                 latitude=place.latitude,
@@ -735,7 +739,7 @@ def _fill_routes_with_recommendations(
                         _meal_time_category_priority(
                             place, visit.start.time()
                         ),
-                        marginal,
+                        max(0, marginal - (10 if place.is_player_pick else 0)),
                         abs(
                             result.anchor_slack_minutes
                             - minimum_anchor_slack
@@ -1012,6 +1016,7 @@ def _anchor_item(
         type=item_type,
         sequence=sequence,
         place_id=place_id,
+        place_url=getattr(point, "place_url", None),
         name=point.name,
         address=getattr(point, "address", None) or point.name,
         latitude=point.latitude,

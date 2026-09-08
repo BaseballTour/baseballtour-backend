@@ -81,6 +81,19 @@ def test_plan_document_serializes_storage_metadata() -> None:
     assert "planId" not in data
 
 
+def test_plan_item_serializes_place_url() -> None:
+    document = create_plan_document()
+    document.days[0].items[0].place_url = (
+        "https://place.map.kakao.com/123"
+    )
+
+    data = document.model_dump(mode="json", by_alias=True)
+
+    assert data["days"][0]["items"][0]["placeUrl"] == (
+        "https://place.map.kakao.com/123"
+    )
+
+
 def test_plan_document_serializes_item_times_in_korea_timezone() -> None:
     document = create_plan_document()
     item = document.days[0].items[0]
