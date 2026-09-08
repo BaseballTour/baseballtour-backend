@@ -716,3 +716,50 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 - `users/{userId}/notificationConsentHistory/{historyId}`: 설정 변경 이력
 
 기본 설정은 경기·여행 알림을 켜고 마케팅 알림을 끈 상태로 생성합니다.
+
+### 찜 컬렉션 요약 및 장소별 역조회
+
+기존 개인 찜 컬렉션 API를 유지하면서 목록 및 이름 변경 응답에 요약 정보를 추가합니다.
+
+#### 컬렉션 요약 필드
+
+`FavoriteCollectionResponse`에 다음 필드가 추가됩니다.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| placeCount | integer | 컬렉션에 저장된 실제 장소 개수 |
+| representativePlaceName | string | null | 첫 번째 저장 장소의 이름 |
+| thumbnailUrl | string | null | 첫 번째 저장 장소의 대표 이미지 |
+
+- 빈 컬렉션은 `placeCount=0`, `representativePlaceName=null`, `thumbnailUrl=null`입니다.
+- 기존 `items` 문서를 조회하여 개수를 계산하므로 별도 카운터나 데이터 마이그레이션은 필요하지 않습니다.
+- 대표 장소는 기존 저장 시각 오름차순의 첫 번째 장소입니다.
+- 장소 스냅샷이 있으면 외부 API를 호출하지 않습니다.
+- 기존 ID 전용 찜 문서는 TourAPI 상세조회로 스냅샷을 보충합니다.
+- 대표 장소 조회가 실패해도 컬렉션 목록 전체를 실패시키지 않고 대표 정보를 null로 반환합니다.
+
+#### GET /api/v1/users/me/favorite-collections/by-place/{placeId}
+
+특정 TourAPI 장소가 현재 인증된 사용자의 어떤 찜 컬렉션에 저장되어 있는지 조회합니다.
+
+**Path parameter**
+
+- `placeId`: TourAPI 장소 ID. 예: `tour_1603175`
+
+**성공 응답 예시**
+
+    {
+      "success": true,
+      "data": {
+        "placeId": "tour_1603175",
+        "collectionIds": ["collection_saved", "collection_001"],
+        "count": 2
+      }
+    }
+
+- 같은 장소가 여러 컬렉션에 저장되어 있으면 모든 컬렉션 ID를 반환합니다.
+- 저장된 컬렉션이 없으면 `collectionIds=[]`, `count=0`입니다.
+- 조회 대상은 현재 인증된 사용자의 컬렉션으로 제한됩니다.
+- TourAPI 장소 ID가 아니면 422 `INVALID_FAVORITE_PLACE`를 반환합니다.
+- 별도 역조회 인덱스는 저장하지 않고 현재 컬렉션의 Item 존재 여부를 조회합니다.
+- 실제 TourAPI 호출이나 Firestore E2E는 이번 단위 테스트에서 검증하지 않았습니다.
