@@ -428,3 +428,45 @@ def test_add_itinerary_item_requires_authentication() -> None:
 
     assert body["success"] is False
     assert body["error"]["code"] == "AUTH_TOKEN_MISSING"
+
+
+def test_update_itinerary_item_time_accepts_cross_day_datetime(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    captured: dict[str, object] = {}
+
+    async def update_item_time(**kwargs):
+        captured.update(kwargs)
+        return make_plan()
+
+    service.update_item_time = update_item_time
+
+    with patch(
+        "app.api.v1.endpoints.trips.ItineraryPlanService",
+        return_value=service,
+    ):
+        response = authenticated_client.patch(
+            (
+                f"/api/v1/trips/{TRIP_ID}/plan/items/"
+                "item_1_1/time"
+            ),
+            json={
+                "scheduledStartAt": (
+                    "2026-08-16T14:00:00+09:00"
+                )
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+    assert captured["user_id"] == USER_ID
+    assert captured["trip_id"] == TRIP_ID
+    assert captured["item_id"] == "item_1_1"
+
+    request = captured["request"]
+    assert (
+        request.scheduled_start_at.isoformat()
+        == "2026-08-16T14:00:00+09:00"
+    )
