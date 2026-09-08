@@ -92,6 +92,7 @@ class Place(BaseModel):
                     "postalCode": None,
                     "telephone": None,
                     "thumbnailUrl": "https://example.com/place.jpg",
+                    "placeUrl": "https://map.kakao.com/link/map/%EA%B4%80%EA%B4%91%EC%A7%80%20%EC%98%88%EC%8B%9C,37.512200,127.071900",
                     "overview": "TourAPI에서 조회한 장소 소개 예시입니다.",
                     "openTime": "10:00",
                     "closeTime": "20:00",

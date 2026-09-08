@@ -21,7 +21,9 @@ PLACE = {
     "closedWeekdays": [], "eventStartDate": None, "eventEndDate": None,
     "defaultStayMinutes": 60, "distanceMeters": 487.4,
     "source": "TOUR_API", "sourceContentId": "1603175",
-    "kakaoPlaceId": None, "enrichedBy": [],
+    "kakaoPlaceId": None,
+    "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
+    "enrichedBy": [],
     "contentTypeId": "12", "lclsSystem1": "VE",
     "lclsSystem2": "VE01", "lclsSystem3": "VE010100",
 }
@@ -53,6 +55,7 @@ TRIP_DETAIL = {
         "name": "고척 예시 호텔",
         "address": "서울특별시 구로구 경인로 00",
         "latitude": 37.4985, "longitude": 126.868,
+        "placeUrl": "https://place.map.kakao.com/123456789",
     },
     "travelStyle": "BALANCED", "scheduleDensity": "MODERATE",
     "activePlanId": "plan_001",
@@ -65,6 +68,7 @@ PLAN = {
     "days": [{"date": "2026-08-16", "dayType": "GAME_DAY", "items": [{
         "itemId": "item_1_1", "type": "PLACE", "sequence": 1,
         "placeId": PLACE["placeId"], "category": "TOURIST_SPOT",
+        "placeUrl": PLACE["placeUrl"],
         "thumbnailUrl": PLACE["thumbnailUrl"],
         "shortDescription": "잠실종합운동장 인근 산책 장소",
         "overview": PLACE["overview"],
