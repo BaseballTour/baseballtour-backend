@@ -31,7 +31,7 @@ from app.models.itinerary import (
     SelectedPlaceInput,
     TripInput,
 )
-from app.models.place import Place
+from app.models.place import Place, build_kakao_map_url
 from app.repositories.game_repository import GameRepository
 from app.repositories.itinerary_plan_repository import (
     ItineraryPlanRepository,
@@ -879,8 +879,16 @@ class ItineraryGenerationService:
         accommodation = None
 
         if trip.accommodation is not None:
+            accommodation_url = trip.accommodation.place_url
+            if not accommodation_url:
+                accommodation_url = build_kakao_map_url(
+                    name=trip.accommodation.name,
+                    latitude=trip.accommodation.latitude,
+                    longitude=trip.accommodation.longitude,
+                )
             accommodation = GeoPoint(
                 place_id=trip.accommodation.accommodation_id,
+                place_url=accommodation_url,
                 name=trip.accommodation.name,
                 address=trip.accommodation.address,
                 latitude=trip.accommodation.latitude,
@@ -897,11 +905,21 @@ class ItineraryGenerationService:
                     KOREA_TIMEZONE
                 ),
                 arrival_point=GeoPoint(
+                    place_url=build_kakao_map_url(
+                        name=trip.arrival_point.name,
+                        latitude=trip.arrival_point.latitude,
+                        longitude=trip.arrival_point.longitude,
+                    ),
                     name=trip.arrival_point.name,
                     latitude=trip.arrival_point.latitude,
                     longitude=trip.arrival_point.longitude,
                 ),
                 departure_point=GeoPoint(
+                    place_url=build_kakao_map_url(
+                        name=trip.departure_point.name,
+                        latitude=trip.departure_point.latitude,
+                        longitude=trip.departure_point.longitude,
+                    ),
                     name=trip.departure_point.name,
                     latitude=trip.departure_point.latitude,
                     longitude=trip.departure_point.longitude,
@@ -910,6 +928,11 @@ class ItineraryGenerationService:
                 game_anchor=GameAnchor(
                     game_id=game.game_id,
                     stadium_id=stadium.stadium_id,
+                    place_url=build_kakao_map_url(
+                        name=stadium.name,
+                        latitude=stadium.latitude,
+                        longitude=stadium.longitude,
+                    ),
                     name=stadium.name,
                     address=stadium.address,
                     latitude=stadium.latitude,

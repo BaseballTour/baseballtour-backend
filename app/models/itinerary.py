@@ -110,6 +110,7 @@ class ExcludedReasonCode(str, Enum):
 
 class GeoPoint(AlgorithmModel):
     place_id: str | None = None
+    place_url: str | None = None
     name: str
     address: str = ""
     latitude: float = Field(ge=-90, le=90)
@@ -173,6 +174,10 @@ class ItineraryItem(AlgorithmModel):
     )
     sequence: int = Field(ge=1)
     place_id: str | None = None
+    place_url: str | None = Field(
+        default=None,
+        description="장소를 확인할 수 있는 외부 지도 링크",
+    )
     category: PlaceCategory | None = Field(
         default=None,
         description="PLACE 항목의 내부 장소 카테고리",

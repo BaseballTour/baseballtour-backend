@@ -5,6 +5,7 @@ from app.models.place import (
     Place,
     PlaceCategory,
     PlaceSource,
+    build_kakao_map_url,
     default_stay_minutes_for,
 )
 
@@ -131,6 +132,11 @@ def tour_api_item_to_place(item: dict[str, Any]) -> Place:
         category=category,
         latitude=latitude,
         longitude=longitude,
+        place_url=build_kakao_map_url(
+            name=name,
+            latitude=latitude,
+            longitude=longitude,
+        ),
         address=combine_address(
             item.get("addr1"),
             item.get("addr2"),

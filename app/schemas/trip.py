@@ -72,6 +72,10 @@ class AccommodationInfo(ApiModel):
         le=180,
         description="숙소 경도",
     )
+    place_url: str | None = Field(
+        default=None,
+        description="숙소 검색 응답에서 받은 외부 지도 링크",
+    )
     @field_validator("latitude", "longitude")
     @classmethod
     def round_coordinate(cls, value: float) -> float:

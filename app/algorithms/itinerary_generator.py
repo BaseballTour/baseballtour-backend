@@ -288,6 +288,7 @@ def _schedule_day(
                 type=ItineraryItemType.PLACE,
                 sequence=len(items) + 1,
                 place_id=place.place_id,
+                place_url=place.place_url,
                 category=place.category,
                 thumbnail_url=place.thumbnail_url,
                 short_description=normalize_short_description(
@@ -1015,6 +1016,7 @@ def _anchor_item(
         type=item_type,
         sequence=sequence,
         place_id=place_id,
+        place_url=getattr(point, "place_url", None),
         name=point.name,
         address=getattr(point, "address", None) or point.name,
         latitude=point.latitude,
