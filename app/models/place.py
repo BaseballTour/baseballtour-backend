@@ -230,6 +230,11 @@ class Place(BaseModel):
         description="정보 보충에 사용된 카카오 장소 ID"
     )
 
+    place_url: str | None = Field(
+        default=None,
+        description="사용자가 최신 장소 정보를 확인할 수 있는 외부 지도 링크",
+    )
+
     is_player_pick: bool = Field(
         default=False,
         description="선수 추천 장소 여부",

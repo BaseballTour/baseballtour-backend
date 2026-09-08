@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import re
 from pathlib import Path
 
@@ -29,6 +30,14 @@ def parse_args() -> argparse.Namespace:
         "--write",
         action="store_true",
         help="검증된 항목을 Firestore에 저장합니다. 기본값은 dry-run입니다.",
+    )
+    parser.add_argument(
+        "--review-output",
+        type=Path,
+        help=(
+            "확정된 기본정보와 누락 필드를 담은 검수용 JSON 경로. "
+            "파일을 보완한 뒤 seed_player_picks 입력으로 사용할 수 있습니다."
+        ),
     )
     return parser.parse_args()
 
@@ -144,7 +153,15 @@ async def main() -> None:
     print(f"Markdown 변환: 저장 후보 {len(rows)}, 주소 없음/형식 확인 {len(skipped)}")
     for item in skipped:
         print(f"[문서 확인 필요] {item}")
-    await seed_rows(rows, write=args.write)
+    review_rows = await seed_rows(rows, write=args.write)
+    if args.review_output is not None:
+        output_path = args.review_output.resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(review_rows, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(f"검수 파일 저장: {output_path}")
 
 
 if __name__ == "__main__":

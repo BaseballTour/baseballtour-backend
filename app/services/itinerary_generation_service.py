@@ -678,16 +678,18 @@ class ItineraryGenerationService:
                 if not overlaps:
                     retained.append(item)
                     continue
+                # 재생성 대상인 비고정 PLACE는 생성기가 기존 고정 시간대를
+                # 알지 못한 채 같은 구간에 배치할 수 있습니다. 이 경우 새로
+                # 배치된 항목을 제거하고 기존 고정 항목을 보존합니다.
                 if (
                     item.item_type == ItineraryItemType.PLACE
-                    and item.added_by == ItineraryItemAddedBy.ALGORITHM
                     and not item.is_fixed
                 ):
                     continue
                 raise AppException(
                     status_code=status.HTTP_409_CONFLICT,
                     code="FIXED_ITEM_TIME_CONFLICT",
-                    message="고정한 장소가 필수 일정 또는 사용자 장소와 충돌합니다.",
+                    message="고정한 장소가 필수 Anchor 또는 다른 고정 장소와 충돌합니다.",
                     details={
                         "date": target_date.isoformat(),
                         "fixedItem": (
@@ -1003,9 +1005,7 @@ class ItineraryGenerationService:
 
     def _get_player_pick_service(self) -> PlayerPickService:
         if self._player_pick_service is None:
-            self._player_pick_service = PlayerPickService(
-                place_adapter=self._place_adapter
-            )
+            self._player_pick_service = PlayerPickService()
         return self._player_pick_service
 
     async def _load_player_pick_candidates(

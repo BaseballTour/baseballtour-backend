@@ -54,22 +54,8 @@ class SnapshotPlayerPickRepository(FakePlayerPickRepository):
         return record if record.player_pick_id == player_pick_id else None
 
 
-class FakeTourApiAdapter:
-    async def get_place_detail(self, content_id: str):
-        assert content_id == "123456"
-        return make_place()
-
-
-class FailingTourApiAdapter:
-    async def get_place_detail(self, content_id: str):
-        raise RuntimeError("TourAPI unavailable")
-
-
 def test_player_pick_service_reads_saved_snapshot() -> None:
-    service = PlayerPickService(
-        repository=SnapshotPlayerPickRepository(),
-        place_adapter=FailingTourApiAdapter(),
-    )
+    service = PlayerPickService(repository=SnapshotPlayerPickRepository())
 
     [result] = asyncio.run(
         service.get_player_picks(
@@ -91,10 +77,7 @@ def test_player_pick_service_uses_saved_snapshot_without_external_call() -> None
             )
             return [record.model_copy(update={"place_snapshot": make_place()})]
 
-    service = PlayerPickService(
-        repository=SnapshotRepository(),
-        place_adapter=FailingTourApiAdapter(),
-    )
+    service = PlayerPickService(repository=SnapshotRepository())
     [result] = asyncio.run(
         service.get_player_picks(
             stadium_id="gocheok",
@@ -105,10 +88,7 @@ def test_player_pick_service_uses_saved_snapshot_without_external_call() -> None
 
 
 def test_player_pick_service_omits_only_failed_legacy_place() -> None:
-    service = PlayerPickService(
-        repository=FakePlayerPickRepository(),
-        place_adapter=FailingTourApiAdapter(),
-    )
+    service = PlayerPickService(repository=FakePlayerPickRepository())
     result = asyncio.run(
         service.get_player_picks(
             stadium_id="gocheok",
@@ -119,10 +99,7 @@ def test_player_pick_service_omits_only_failed_legacy_place() -> None:
 
 
 def test_resolve_place_uses_player_pick_as_canonical_id() -> None:
-    service = PlayerPickService(
-        repository=SnapshotPlayerPickRepository(),
-        place_adapter=FailingTourApiAdapter(),
-    )
+    service = PlayerPickService(repository=SnapshotPlayerPickRepository())
     place = asyncio.run(service.resolve_place("player_pick_001"))
 
     assert place is not None
@@ -133,10 +110,7 @@ def test_resolve_place_uses_player_pick_as_canonical_id() -> None:
 
 
 def test_stadium_player_pick_places_are_tagged() -> None:
-    service = PlayerPickService(
-        repository=SnapshotPlayerPickRepository(),
-        place_adapter=FailingTourApiAdapter(),
-    )
+    service = PlayerPickService(repository=SnapshotPlayerPickRepository())
     places = asyncio.run(service.get_places_for_stadium("gocheok"))
 
     assert [place.place_id for place in places] == ["player_pick_001"]

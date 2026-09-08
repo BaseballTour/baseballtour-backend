@@ -1,47 +1,39 @@
-import asyncio
 import logging
 
-from app.external.tour_api.adapter import TourApiAdapter, tour_api_adapter
 from app.repositories.player_pick_repository import PlayerPickRepository
 from app.models.place import Place
 from app.schemas.player_pick import PlayerPickRecord, PlayerPickResponse
 
 
 logger = logging.getLogger(__name__)
-DETAIL_CONCURRENCY = 5
 
 
 class PlayerPickService:
-    """DB 큐레이션과 TourAPI 장소 상세를 결합합니다."""
+    """Firestore에 확정해 둔 선수 추천 장소 snapshot만 조회합니다."""
 
     def __init__(
         self,
         repository: PlayerPickRepository | None = None,
-        place_adapter: TourApiAdapter | None = None,
     ) -> None:
         self._repository = repository or PlayerPickRepository()
-        self._place_adapter = place_adapter or tour_api_adapter
 
     async def resolve_place(self, player_pick_id: str) -> Place | None:
         record = self._repository.get_by_id(player_pick_id)
         if record is None:
             return None
-        place = await self._resolve_record_place(record)
+        place = self._resolve_record_place(record)
         return self._tag_place(record, place) if place is not None else None
 
     async def get_places_for_stadium(self, stadium_id: str) -> list[Place]:
         records = self._repository.get_all(stadium_id=stadium_id)
-        semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
+        places = [self._resolve_record_place(record) for record in records]
+        return [
+            self._tag_place(record, place)
+            for record, place in zip(records, places, strict=True)
+            if place is not None
+        ]
 
-        async def resolve(record: PlayerPickRecord) -> Place | None:
-            async with semaphore:
-                place = await self._resolve_record_place(record)
-            return self._tag_place(record, place) if place is not None else None
-
-        resolved = await asyncio.gather(*(resolve(record) for record in records))
-        return [place for place in resolved if place is not None]
-
-    async def _resolve_record_place(
+    def _resolve_record_place(
         self, record: PlayerPickRecord
     ) -> Place | None:
         if record.place_snapshot is not None:
@@ -75,13 +67,7 @@ class PlayerPickService:
             stadium_id=stadium_id,
             player_name=player_name,
         )
-        semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
-
-        async def resolve(record):
-            async with semaphore:
-                return await self._resolve_record_place(record)
-
-        places = await asyncio.gather(*(resolve(record) for record in records))
+        places = [self._resolve_record_place(record) for record in records]
         responses: list[PlayerPickResponse] = []
         for record, place in zip(records, places, strict=True):
             if place is None:

@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.core.exceptions import AppException
 from app.external.kakao.client import (
     geocode_address,
     search_place_page as search_kakao_places,
@@ -16,7 +15,6 @@ from app.external.kakao.mapper import (
     kakao_address,
     kakao_category_to_place_category,
 )
-from app.external.tour_api.adapter import tour_api_adapter
 from app.models.place import (
     Place,
     PlaceSource,
@@ -29,7 +27,7 @@ from app.schemas.player_pick import PlayerPickDocument
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "장소명·주소로 TourAPI 장소를 확인하고 선수추천 DB에 저장합니다. "
+            "장소명·주소로 Kakao 장소를 확인하고 선수추천 DB에 저장합니다. "
             "기본값은 dry-run입니다."
         )
     )
@@ -113,24 +111,6 @@ def _same_region(expected: str, actual: str) -> bool:
     )
 
 
-def _score_candidate(
-    candidate: Place,
-    *,
-    place_name: str,
-    address: str,
-) -> int:
-    expected_name = _normalize(place_name)
-    actual_name = _normalize(candidate.name)
-    score = 0
-    if expected_name == actual_name:
-        score += 100
-    elif expected_name in actual_name or actual_name in expected_name:
-        score += 50
-    if _address_matches(address, candidate.address or ""):
-        score += 40
-    return score
-
-
 def _kakao_place(item: dict[str, Any]) -> Place | None:
     kakao_id = str(item.get("id") or "").strip()
     name = str(item.get("place_name") or "").strip()
@@ -155,6 +135,7 @@ def _kakao_place(item: dict[str, Any]) -> Place | None:
         source=PlaceSource.KAKAO,
         source_content_id=kakao_id,
         kakao_place_id=kakao_id,
+        place_url=str(item.get("place_url") or "").strip() or None,
     )
 
 
@@ -239,75 +220,81 @@ async def _resolve_manual_place(
 
 
 async def _resolve_place(row: dict[str, Any]) -> Place | None:
-    place_id = str(row.get("placeId") or "").strip()
-    if place_id.startswith("tour_"):
-        return await tour_api_adapter.get_place_detail(
-            place_id.removeprefix("tour_")
-        )
+    snapshot = row.get("placeSnapshot")
+    if isinstance(snapshot, dict):
+        return Place.model_validate(snapshot)
 
     place_name = str(row.get("placeName") or "").strip()
     address = str(row.get("address") or "").strip()
     if not place_name or not address:
-        raise ValueError("placeId가 없으면 placeName과 address가 필요합니다.")
-    try:
-        page = await tour_api_adapter.search_place_page(
-            keyword=place_name,
-            page_no=1,
-            num_of_rows=20,
-        )
-    except AppException:
-        kakao_place = await _resolve_kakao_place(
-            place_name=place_name,
-            address=address,
-        )
-        return kakao_place or await _resolve_manual_place(
-            place_name=place_name,
-            address=address,
-        )
-    ranked = sorted(
-        (
-            (_score_candidate(place, place_name=place_name, address=address), place)
-            for place in page.places
-        ),
-        key=lambda item: (-item[0], item[1].place_id),
+        raise ValueError("placeName과 address가 필요합니다.")
+    kakao_place = await _resolve_kakao_place(
+        place_name=place_name,
+        address=address,
     )
-    if not ranked or ranked[0][0] < 140:
-        kakao_place = await _resolve_kakao_place(
-            place_name=place_name,
-            address=address,
-        )
-        return kakao_place or await _resolve_manual_place(
-            place_name=place_name,
-            address=address,
-        )
-    if len(ranked) > 1 and ranked[0][0] == ranked[1][0]:
-        print(
-            f"[확인 필요] {place_name}: 동점 후보 "
-            + ", ".join(place.name for _, place in ranked[:5])
-        )
-        kakao_place = await _resolve_kakao_place(
-            place_name=place_name,
-            address=address,
-        )
-        return kakao_place or await _resolve_manual_place(
-            place_name=place_name,
-            address=address,
-        )
-    selected = ranked[0][1]
-    try:
-        return await tour_api_adapter.get_place_detail(
-            selected.place_id.removeprefix("tour_")
-        )
-    except Exception:
-        return selected
+    return kakao_place or await _resolve_manual_place(
+        place_name=place_name,
+        address=address,
+    )
 
 
-async def seed_rows(rows: list[Any], *, write: bool = False) -> None:
+def _prepare_snapshot(
+    place: Place,
+    *,
+    player_name: str,
+    recommendation_note: str | None,
+) -> Place:
+    overview = place.overview or (
+        f"{player_name} 선수가 추천한 {place.name}입니다."
+    )
+    return place.model_copy(
+        update={
+            "overview": overview,
+            "recommendation_note": recommendation_note,
+        }
+    )
+
+
+def _review_row(document: PlayerPickDocument) -> dict[str, Any]:
+    place = document.place_snapshot
+    assert place is not None
+    missing_fields = [
+        name
+        for name, value in (
+            ("thumbnailUrl", place.thumbnail_url),
+            ("telephone", place.telephone),
+            ("businessHoursRules", place.business_hours_rules),
+            ("closedDaysText", place.closed_days_text),
+        )
+        if not value
+    ]
+    return {
+        "stadiumId": document.stadium_id,
+        "playerName": document.player_name,
+        "placeName": place.name,
+        "address": place.address,
+        "recommendationNote": document.recommendation_note,
+        "placeSnapshot": place.model_dump(mode="json", by_alias=True),
+        "review": {
+            "status": "NEEDS_REVIEW" if missing_fields else "COMPLETE",
+            "missingFields": missing_fields,
+            "instructions": (
+                "공식 출처로 확인한 값만 placeSnapshot에 입력한 뒤 "
+                "이 JSON을 --input으로 다시 실행하세요."
+            ),
+        },
+    }
+
+
+async def seed_rows(
+    rows: list[Any], *, write: bool = False
+) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         raise ValueError("입력 JSON의 최상위 값은 배열이어야 합니다.")
     repository = PlayerPickRepository() if write else None
     resolved_count = 0
     skipped_count = 0
+    review_rows: list[dict[str, Any]] = []
     for index, row in enumerate(rows, start=1):
         if not isinstance(row, dict):
             print(f"[건너뜀] #{index}: 객체 형식이 아닙니다.")
@@ -325,14 +312,21 @@ async def seed_rows(rows: list[Any], *, write: bool = False) -> None:
             continue
         try:
             now = datetime.now(timezone.utc)
+            player_name = str(row.get("playerName") or "").strip()
+            recommendation_note = (
+                str(row.get("recommendationNote") or "").strip() or None
+            )
+            place = _prepare_snapshot(
+                place,
+                player_name=player_name,
+                recommendation_note=recommendation_note,
+            )
             document = PlayerPickDocument(
                 stadium_id=str(row.get("stadiumId") or "").strip(),
-                player_name=str(row.get("playerName") or "").strip(),
+                player_name=player_name,
                 place_id=place.place_id,
                 place_snapshot=place,
-                recommendation_note=(
-                    str(row.get("recommendationNote") or "").strip() or None
-                ),
+                recommendation_note=recommendation_note,
                 curation_key=sha256(
                     (
                         f"{_normalize(str(row.get('placeName') or place.name))}:"
@@ -342,6 +336,7 @@ async def seed_rows(rows: list[Any], *, write: bool = False) -> None:
                 created_at=now,
                 updated_at=now,
             )
+            review_rows.append(_review_row(document))
             if repository is None:
                 print(
                     f"[DRY-RUN] {document.stadium_id} / "
@@ -364,6 +359,7 @@ async def seed_rows(rows: list[Any], *, write: bool = False) -> None:
         f"완료: 입력 {len(rows)}, 확정 {resolved_count}, 건너뜀 {skipped_count}, "
         f"모드 {'WRITE' if write else 'DRY-RUN'}"
     )
+    return review_rows
 
 
 async def main() -> None:
