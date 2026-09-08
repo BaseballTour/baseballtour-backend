@@ -217,6 +217,7 @@ placeholder seed는 production 환경에서 실행하지 않는다.
 저장 일정의 `PLACE` Item은 장소 카드 표시를 위해 다음 정보를 제공한다.
 
 - `thumbnailUrl`: 장소 썸네일
+- `placeUrl`: 카카오 장소 고유 링크 또는 이름·좌표 기반 카카오맵 링크. 장소 목록·상세·찜·추천 후보·일정 Item에서 동일하게 제공합니다.
 - `shortDescription`: 한 줄 표시용 장소 소개
 - `overview`: 원본 장소 소개
 

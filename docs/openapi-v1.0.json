@@ -1048,6 +1048,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -2454,6 +2455,7 @@
                           "source": "TOUR_API",
                           "sourceContentId": "1603175",
                           "kakaoPlaceId": null,
+                          "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                           "enrichedBy": [],
                           "contentTypeId": "12",
                           "lclsSystem1": "VE",
@@ -5137,7 +5139,8 @@
                       "name": "고척 예시 호텔",
                       "address": "서울특별시 구로구 경인로 00",
                       "latitude": 37.4985,
-                      "longitude": 126.868
+                      "longitude": 126.868,
+                      "placeUrl": "https://place.map.kakao.com/123456789"
                     },
                     "travelStyle": "BALANCED",
                     "scheduleDensity": "MODERATE"
@@ -6202,7 +6205,8 @@
                           "name": "고척 예시 호텔",
                           "address": "서울특별시 구로구 경인로 00",
                           "latitude": 37.4985,
-                          "longitude": 126.868
+                          "longitude": 126.868,
+                          "placeUrl": "https://place.map.kakao.com/123456789"
                         },
                         "travelStyle": "BALANCED",
                         "scheduleDensity": "MODERATE",
@@ -6753,7 +6757,8 @@
                           "name": "고척 예시 호텔",
                           "address": "서울특별시 구로구 경인로 00",
                           "latitude": 37.4985,
-                          "longitude": 126.868
+                          "longitude": 126.868,
+                          "placeUrl": "https://place.map.kakao.com/123456789"
                         },
                         "travelStyle": "BALANCED",
                         "scheduleDensity": "MODERATE",
@@ -10392,6 +10397,7 @@
                           "source": "TOUR_API",
                           "sourceContentId": "1603175",
                           "kakaoPlaceId": null,
+                          "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                           "enrichedBy": [],
                           "contentTypeId": "12",
                           "lclsSystem1": "VE",
@@ -10925,6 +10931,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -11480,6 +11487,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -12544,6 +12552,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -13111,6 +13120,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -13685,6 +13695,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -14267,6 +14278,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -14852,6 +14864,7 @@
                                 "sequence": 1,
                                 "placeId": "tour_1603175",
                                 "category": "TOURIST_SPOT",
+                                "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                                 "thumbnailUrl": "https://example.com/asia-park.jpg",
                                 "shortDescription": "잠실종합운동장 인근 산책 장소",
                                 "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
@@ -16338,6 +16351,7 @@
                             "source": "TOUR_API",
                             "sourceContentId": "1603175",
                             "kakaoPlaceId": null,
+                            "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                             "enrichedBy": [],
                             "contentTypeId": "12",
                             "lclsSystem1": "VE",
@@ -17027,6 +17041,7 @@
                           "source": "TOUR_API",
                           "sourceContentId": "1603175",
                           "kakaoPlaceId": null,
+                          "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                           "enrichedBy": [],
                           "contentTypeId": "12",
                           "lclsSystem1": "VE",
@@ -17280,6 +17295,7 @@
                         "source": "TOUR_API",
                         "sourceContentId": "1603175",
                         "kakaoPlaceId": null,
+                        "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                         "enrichedBy": [],
                         "contentTypeId": "12",
                         "lclsSystem1": "VE",
@@ -17687,6 +17703,7 @@
                           "source": "TOUR_API",
                           "sourceContentId": "1603175",
                           "kakaoPlaceId": null,
+                          "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
                           "enrichedBy": [],
                           "contentTypeId": "12",
                           "lclsSystem1": "VE",
@@ -18053,6 +18070,18 @@
             "minimum": -180.0,
             "title": "Longitude",
             "description": "숙소 경도"
+          },
+          "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeurl",
+            "description": "숙소 검색 응답에서 받은 외부 지도 링크"
           }
         },
         "additionalProperties": false,
@@ -19287,6 +19316,18 @@
             ],
             "title": "Placeid"
           },
+          "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeurl",
+            "description": "장소를 확인할 수 있는 외부 지도 링크"
+          },
           "category": {
             "anyOf": [
               {
@@ -19333,6 +19374,32 @@
             ],
             "title": "Overview",
             "description": "장소 한 줄 소개 또는 원문 소개"
+          },
+          "isPlayerPick": {
+            "type": "boolean",
+            "title": "Isplayerpick",
+            "description": "선수 추천 장소 여부",
+            "default": false
+          },
+          "recommendedByPlayers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendedbyplayers",
+            "description": "이 장소를 추천한 선수 이름 목록"
+          },
+          "recommendationNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationnote",
+            "description": "선수 추천 설명"
           },
           "name": {
             "type": "string",
@@ -20862,6 +20929,56 @@
             "title": "Kakaoplaceid",
             "description": "정보 보충에 사용된 카카오 장소 ID"
           },
+          "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeurl",
+            "description": "사용자가 최신 장소 정보를 확인할 수 있는 외부 지도 링크"
+          },
+          "isPlayerPick": {
+            "type": "boolean",
+            "title": "Isplayerpick",
+            "description": "선수 추천 장소 여부",
+            "default": false
+          },
+          "playerPickId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playerpickid",
+            "description": "선수 추천 장소 문서 ID"
+          },
+          "recommendedByPlayers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendedbyplayers",
+            "description": "이 장소를 추천한 선수 이름 목록"
+          },
+          "recommendationNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationnote",
+            "description": "선수 추천에 대한 관리자 설명"
+          },
           "enrichedBy": {
             "items": {
               "$ref": "#/components/schemas/PlaceSource"
@@ -20942,6 +21059,7 @@
             "openTime": "10:00",
             "overview": "TourAPI에서 조회한 장소 소개 예시입니다.",
             "placeId": "tour_1603175",
+            "placeUrl": "https://map.kakao.com/link/map/%EA%B4%80%EA%B4%91%EC%A7%80%20%EC%98%88%EC%8B%9C,37.512200,127.071900",
             "sigunguCode": "18",
             "source": "TOUR_API",
             "sourceContentId": "1603175",
@@ -22199,7 +22317,8 @@
               "address": "서울특별시 송파구 올림픽로 00",
               "latitude": 37.5101,
               "longitude": 127.0767,
-              "name": "잠실 예시 호텔"
+              "name": "잠실 예시 호텔",
+              "placeUrl": "https://place.map.kakao.com/123456789"
             },
             "arrivalPoint": {
               "latitude": 37.5547,
@@ -22545,10 +22664,12 @@
         "examples": [
           {
             "accommodation": {
+              "accommodationId": "accommodation_kakao_123456789",
               "address": "서울특별시 송파구",
               "latitude": 37.513,
               "longitude": 127.102,
-              "name": "잠실 호텔"
+              "name": "잠실 호텔",
+              "placeUrl": "https://place.map.kakao.com/123456789"
             },
             "scheduleDensity": "LIGHT",
             "title": "잠실 1박 2일 직관 여행",
