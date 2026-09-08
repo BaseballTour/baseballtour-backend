@@ -111,6 +111,7 @@ class TripCreateRequest(ApiModel):
                         "address": "서울특별시 송파구 올림픽로 00",
                         "latitude": 37.5101,
                         "longitude": 127.0767,
+                        "placeUrl": "https://place.map.kakao.com/123456789",
                     },
                 }
             ]
@@ -179,10 +180,12 @@ class TripUpdateRequest(ApiModel):
                     "travelStyle": "RELAXED",
                     "scheduleDensity": "LIGHT",
                     "accommodation": {
+                        "accommodationId": "accommodation_kakao_123456789",
                         "name": "잠실 호텔",
                         "address": "서울특별시 송파구",
                         "latitude": 37.513,
                         "longitude": 127.102,
+                        "placeUrl": "https://place.map.kakao.com/123456789",
                     },
                 }
             ]
