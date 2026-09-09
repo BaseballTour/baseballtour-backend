@@ -51,11 +51,8 @@ class FakeDocumentReference:
         self._collection = collection
         self.id = document_id
 
-    def get(self) -> FakeSnapshot:
-        return FakeSnapshot(
-            self.id,
-            self._collection.documents.get(self.id),
-        )
+    def get(self, *, transaction=None) -> FakeSnapshot:
+        return FakeSnapshot(self.id, self._collection.documents.get(self.id))
 
     def set(self, data: dict) -> None:
         self._collection.documents[self.id] = dict(data)
@@ -220,89 +217,39 @@ def make_plan() -> ItineraryPlanDocument:
 
 def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
     client = FakeClient()
-
-    client.collection("trips").documents["trip_001"] = {
-        "status": "GENERATING",
-        "activePlanId": None,
-    }
-
+    client.collection('trips').documents['trip_001'] = {'status': 'GENERATING', 'activePlanId': None, 'generationLeaseId': 'test-generation-lease-001'}
     repository = ItineraryPlanRepository(client=client)
-
-    result = repository.commit_generated_plan(
-        trip_id="trip_001",
-        plan=make_plan(),
-        previous_plan_id=None,
-        rejected_recommendation_place_ids=["tour_rejected"],
-    )
-
-    assert result.plan_id.startswith("plan_")
+    result = repository.commit_generated_plan(trip_id='trip_001', plan=make_plan(), previous_plan_id=None, rejected_recommendation_place_ids=['tour_rejected'], generation_lease_id='test-generation-lease-001')
+    assert result.plan_id.startswith('plan_')
     assert result.status == ItineraryPlanStatus.ACTIVE
+    stored_plan = client.collection('itineraryPlans').documents[result.plan_id]
+    assert stored_plan['tripId'] == 'trip_001'
+    assert stored_plan['userId'] == 'firebase-user-123'
+    assert stored_plan['status'] == 'ACTIVE'
+    assert stored_plan['days'][0]['date'] == '2026-08-15'
+    assert isinstance(stored_plan['days'][0]['items'][0]['scheduledStartAt'], datetime)
+    assert stored_plan['days'][0]['items'][0]['itemId'] == 'item_1_1'
+    stored_trip = client.collection('trips').documents['trip_001']
+    assert stored_trip['status'] == 'GENERATED'
+    assert stored_trip['activePlanId'] == result.plan_id
+    assert stored_trip['rejectedRecommendationPlaceIds'] == ['tour_rejected']
+    assert stored_trip['updatedAt'] == NOW
 
-    stored_plan = client.collection(
-        "itineraryPlans"
-    ).documents[result.plan_id]
-
-    assert stored_plan["tripId"] == "trip_001"
-    assert stored_plan["userId"] == "firebase-user-123"
-    assert stored_plan["status"] == "ACTIVE"
-    assert stored_plan["days"][0]["date"] == "2026-08-15"
-    assert isinstance(
-        stored_plan["days"][0]["items"][0]["scheduledStartAt"],
-        datetime,
-    )
-    assert stored_plan["days"][0]["items"][0]["itemId"] == (
-        "item_1_1"
-    )
-
-    stored_trip = client.collection(
-        "trips"
-    ).documents["trip_001"]
-
-    assert stored_trip["status"] == "GENERATED"
-    assert stored_trip["activePlanId"] == result.plan_id
-    assert stored_trip["rejectedRecommendationPlaceIds"] == [
-        "tour_rejected"
-    ]
-    assert stored_trip["updatedAt"] == NOW
 
 
 def test_commit_generated_plan_archives_previous_plan() -> None:
     client = FakeClient()
-
-    client.collection("trips").documents["trip_001"] = {
-        "status": "GENERATING",
-        "activePlanId": "plan_old",
-    }
-
-    client.collection(
-        "itineraryPlans"
-    ).documents["plan_old"] = {
-        "status": "ACTIVE",
-        "updatedAt": NOW,
-    }
-
+    client.collection('trips').documents['trip_001'] = {'status': 'GENERATING', 'activePlanId': 'plan_old', 'generationLeaseId': 'test-generation-lease-001'}
+    client.collection('itineraryPlans').documents['plan_old'] = {'status': 'ACTIVE', 'updatedAt': NOW, 'tripId': 'trip_001'}
     repository = ItineraryPlanRepository(client=client)
+    result = repository.commit_generated_plan(trip_id='trip_001', plan=make_plan(), previous_plan_id='plan_old', rejected_recommendation_place_ids=[], generation_lease_id='test-generation-lease-001')
+    previous = client.collection('itineraryPlans').documents['plan_old']
+    assert previous['status'] == 'ARCHIVED'
+    assert previous['updatedAt'] == NOW
+    trip = client.collection('trips').documents['trip_001']
+    assert trip['activePlanId'] == result.plan_id
+    assert trip['status'] == 'GENERATED'
 
-    result = repository.commit_generated_plan(
-        trip_id="trip_001",
-        plan=make_plan(),
-        previous_plan_id="plan_old",
-        rejected_recommendation_place_ids=[],
-    )
-
-    previous = client.collection(
-        "itineraryPlans"
-    ).documents["plan_old"]
-
-    assert previous["status"] == "ARCHIVED"
-    assert previous["updatedAt"] == NOW
-
-    trip = client.collection(
-        "trips"
-    ).documents["trip_001"]
-
-    assert trip["activePlanId"] == result.plan_id
-    assert trip["status"] == "GENERATED"
 
 
 def test_get_by_id_returns_plan_record() -> None:
@@ -456,3 +403,93 @@ def test_delete_all_by_trip_id_removes_only_matching_plans() -> None:
     assert "plan_active" not in plans
     assert "plan_archived" not in plans
     assert "plan_other" in plans
+
+
+def test_stale_generation_lease_cannot_commit_new_plan() -> None:
+    client = FakeClient()
+    client.collection("trips").documents["trip_001"] = {
+        "status": "GENERATING",
+        "activePlanId": None,
+        "generationLeaseId": "current-lease",
+    }
+
+    repository = ItineraryPlanRepository(client=client)
+
+    plans_before = dict(
+        client.collection("itineraryPlans").documents
+    )
+    trip_before = dict(
+        client.collection("trips").documents["trip_001"]
+    )
+
+    with pytest.raises(Exception) as captured:
+        repository.commit_generated_plan(
+            trip_id="trip_001",
+            plan=make_plan(),
+            previous_plan_id=None,
+            rejected_recommendation_place_ids=[],
+            generation_lease_id="stale-lease",
+        )
+
+    assert (
+        getattr(captured.value, "code", None)
+        == "TRIP_GENERATION_IN_PROGRESS"
+    )
+    assert (
+        client.collection("itineraryPlans").documents
+        == plans_before
+    )
+    assert (
+        client.collection("trips").documents["trip_001"]
+        == trip_before
+    )
+
+
+def test_stale_generation_lease_cannot_commit_regenerated_day() -> None:
+    client = FakeClient()
+
+    client.collection("trips").documents["trip_001"] = {
+        "status": "GENERATING",
+        "activePlanId": "plan_001",
+        "generationLeaseId": "current-lease",
+    }
+    client.collection("itineraryPlans").documents["plan_001"] = {
+        "tripId": "trip_001",
+        "status": "ACTIVE",
+        "updatedAt": NOW,
+    }
+
+    repository = ItineraryPlanRepository(client=client)
+
+    trip_before = dict(
+        client.collection("trips").documents["trip_001"]
+    )
+    plan_before = dict(
+        client.collection(
+            "itineraryPlans"
+        ).documents["plan_001"]
+    )
+
+    with pytest.raises(Exception) as captured:
+        repository.commit_regenerated_day(
+            trip_id="trip_001",
+            plan_id="plan_001",
+            days=make_plan().days,
+            updated_at=NOW,
+            generation_lease_id="stale-lease",
+        )
+
+    assert (
+        getattr(captured.value, "code", None)
+        == "TRIP_GENERATION_IN_PROGRESS"
+    )
+    assert (
+        client.collection("trips").documents["trip_001"]
+        == trip_before
+    )
+    assert (
+        client.collection(
+            "itineraryPlans"
+        ).documents["plan_001"]
+        == plan_before
+    )

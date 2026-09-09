@@ -81,39 +81,63 @@ class ItineraryPlanRepository:
         plan: ItineraryPlanDocument,
         previous_plan_id: str | None,
         rejected_recommendation_place_ids: list[str],
+        generation_lease_id: str | None = None,
     ) -> ItineraryPlanRecord:
-        """
-        새 일정 Plan 저장과 Trip 상태 갱신을 transaction으로 처리합니다.
+        """소유권을 확인한 뒤 새 Plan과 Trip 상태를 원자적으로 저장합니다."""
+        from app.core.exceptions import AppException
 
-        기존 ACTIVE Plan이 있으면 ARCHIVED로 변경하고,
-        새 Plan을 ACTIVE로 저장한 뒤 Trip의 activePlanId와
-        status를 갱신합니다.
-        """
-
-        plan_reference = self._collection.document(
-            new_prefixed_id("plan")
-        )
-        trip_reference = self._trip_collection.document(
-            trip_id
-        )
-
+        plan_reference = self._collection.document(new_prefixed_id("plan"))
+        trip_reference = self._trip_collection.document(trip_id)
         previous_plan_reference = (
             self._collection.document(previous_plan_id)
             if previous_plan_id is not None
             else None
         )
-
         transaction = self._client.transaction()
+
         plan_data = plan.model_dump(
             by_alias=True,
             exclude_none=False,
         )
-        plan_data["days"] = _serialize_days_for_firestore(
-            plan.days
-        )
+        plan_data["days"] = _serialize_days_for_firestore(plan.days)
 
         @transactional
         def commit(transaction) -> None:
+            # Firestore transaction은 모든 읽기를 쓰기보다 먼저 수행합니다.
+            trip_snapshot = trip_reference.get(transaction=transaction)
+            if not trip_snapshot.exists:
+                raise AppException(
+                    status_code=404,
+                    code="TRIP_NOT_FOUND",
+                    message="여행을 찾을 수 없습니다.",
+                )
+
+            _require_generation_lease(
+                trip_snapshot.to_dict() or {},
+                generation_lease_id=generation_lease_id,
+                expected_active_plan_id=previous_plan_id,
+            )
+
+            if previous_plan_reference is not None:
+                previous_snapshot = previous_plan_reference.get(
+                    transaction=transaction,
+                )
+                previous_data = (
+                    previous_snapshot.to_dict() or {}
+                    if previous_snapshot.exists
+                    else {}
+                )
+                if (
+                    not previous_snapshot.exists
+                    or previous_data.get("tripId") != trip_id
+                    or previous_data.get("status") != "ACTIVE"
+                ):
+                    raise AppException(
+                        status_code=409,
+                        code="TRIP_GENERATION_IN_PROGRESS",
+                        message="기존 활성 일정이 변경되었습니다.",
+                    )
+
             if previous_plan_reference is not None:
                 transaction.update(
                     previous_plan_reference,
@@ -123,16 +147,13 @@ class ItineraryPlanRepository:
                     },
                 )
 
-            transaction.set(
-                plan_reference,
-                plan_data,
-            )
-
+            transaction.set(plan_reference, plan_data)
             transaction.update(
                 trip_reference,
                 {
                     "status": TripStatus.GENERATED.value,
                     "activePlanId": plan_reference.id,
+                    "generationLeaseId": None,
                     "rejectedRecommendationPlaceIds": (
                         rejected_recommendation_place_ids
                     ),
@@ -141,7 +162,6 @@ class ItineraryPlanRepository:
             )
 
         commit(transaction)
-
         return ItineraryPlanRecord(
             plan_id=plan_reference.id,
             **plan.model_dump(),
@@ -247,10 +267,14 @@ class ItineraryPlanRepository:
         plan_id: str,
         days: list[ItineraryPlanDay],
         updated_at: datetime,
+        generation_lease_id: str | None = None,
     ) -> ItineraryPlanRecord:
-        """같은 활성 Plan의 하루만 교체하고 생성 잠금을 해제합니다."""
+        """현재 생성 요청만 활성 Plan의 하루를 교체할 수 있습니다."""
+        from app.core.exceptions import AppException
+
         plan_reference = self._collection.document(plan_id)
         trip_reference = self._trip_collection.document(trip_id)
+
         total_travel_minutes = sum(
             item.travel_minutes_from_previous
             for day in days
@@ -265,6 +289,37 @@ class ItineraryPlanRepository:
 
         @transactional
         def commit(transaction) -> None:
+            trip_snapshot = trip_reference.get(transaction=transaction)
+            if not trip_snapshot.exists:
+                raise AppException(
+                    status_code=404,
+                    code="TRIP_NOT_FOUND",
+                    message="여행을 찾을 수 없습니다.",
+                )
+
+            _require_generation_lease(
+                trip_snapshot.to_dict() or {},
+                generation_lease_id=generation_lease_id,
+                expected_active_plan_id=plan_id,
+            )
+
+            plan_snapshot = plan_reference.get(transaction=transaction)
+            plan_data = (
+                plan_snapshot.to_dict() or {}
+                if plan_snapshot.exists
+                else {}
+            )
+            if (
+                not plan_snapshot.exists
+                or plan_data.get("tripId") != trip_id
+                or plan_data.get("status") != "ACTIVE"
+            ):
+                raise AppException(
+                    status_code=409,
+                    code="TRIP_GENERATION_IN_PROGRESS",
+                    message="기존 활성 일정이 변경되었습니다.",
+                )
+
             transaction.update(
                 plan_reference,
                 {
@@ -278,12 +333,36 @@ class ItineraryPlanRepository:
                 trip_reference,
                 {
                     "status": TripStatus.GENERATED.value,
+                    "generationLeaseId": None,
                     "updatedAt": updated_at,
                 },
             )
 
         commit(transaction)
+
         updated = self.get_by_id(plan_id)
         if updated is None:
             raise RuntimeError("재생성한 일정 Plan을 조회할 수 없습니다.")
         return updated
+
+
+def _require_generation_lease(
+    data: dict,
+    *,
+    generation_lease_id: str | None,
+    expected_active_plan_id: str | None,
+) -> None:
+    """현재 Trip 상태·lease·활성 Plan이 모두 일치해야 합니다."""
+    from app.core.exceptions import AppException
+
+    if (
+        not generation_lease_id
+        or data.get("status") != TripStatus.GENERATING.value
+        or data.get("generationLeaseId") != generation_lease_id
+        or data.get("activePlanId") != expected_active_plan_id
+    ):
+        raise AppException(
+            status_code=409,
+            code="TRIP_GENERATION_IN_PROGRESS",
+            message="일정 생성 권한이 변경되었습니다. 여행 상태를 다시 조회해 주세요.",
+        )

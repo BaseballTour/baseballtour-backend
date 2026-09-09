@@ -292,6 +292,11 @@ class TripDocument(ApiModel):
 
     status: TripStatus = TripStatus.PLANNING
     active_plan_id: str | None = None
+    generation_lease_id: str | None = Field(
+        default=None,
+        exclude=True,
+        description="현재 일정 생성 요청의 내부 lease ID",
+    )
     rejected_recommendation_place_ids: list[str] = Field(
         default_factory=list,
         description="재생성에서 다시 제안하지 않을 자동 추천 장소 ID",

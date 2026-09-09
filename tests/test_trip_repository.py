@@ -729,3 +729,57 @@ def test_create_idempotent_rejects_key_reuse_with_other_request(
         )
 
     assert len(client.collections["trips"]) == 1
+
+
+def test_generation_lease_fences_stale_restoration(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        trip_repository_module,
+        "transactional",
+        lambda function: function,
+    )
+    client = FakeFirestoreClient()
+    repository = TripRepository(client=client)
+    trip = seed_trip(
+        repository,
+        client,
+        create_trip_document(),
+    )
+    now = datetime(2026, 8, 20, 3, 0, tzinfo=timezone.utc)
+
+    first = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.PLANNING,
+        updated_at=now,
+    )
+    assert first is not None
+    assert first.generation_lease_id
+
+    recovered = repository.recover_stale_generation(
+        trip_id=trip.trip_id,
+        stale_before=now,
+        updated_at=now,
+    )
+    assert recovered is not None
+    assert recovered.generation_lease_id is None
+
+    second = repository.claim_generation(
+        trip_id=trip.trip_id,
+        expected_status=TripStatus.PLANNING,
+        updated_at=now,
+    )
+    assert second is not None
+    assert second.generation_lease_id != first.generation_lease_id
+
+    assert repository.restore_generation_if_owned(
+        trip_id=trip.trip_id,
+        generation_lease_id=first.generation_lease_id,
+        original_status=TripStatus.PLANNING,
+        updated_at=now,
+    ) is False
+
+    current = repository.get_by_id(trip.trip_id)
+    assert current is not None
+    assert current.status == TripStatus.GENERATING
+    assert current.generation_lease_id == second.generation_lease_id
