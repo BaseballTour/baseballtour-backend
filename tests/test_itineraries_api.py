@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.dependencies.auth import get_current_active_user_id
 from app.core.exceptions import AppException
 from app.main import app
+from app.models.place import Place
 from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
     ItineraryPlanStatus,
@@ -171,6 +172,98 @@ def test_recommendation_candidates_preserve_external_timeout_response(
             }],
         },
     }
+
+
+def _candidate(
+    place_id: str,
+    name: str,
+    *,
+    category: str = "RESTAURANT",
+    distance: float = 100,
+    lcls2: str | None = "FD01",
+    player_pick: bool = False,
+) -> Place:
+    return Place(
+        placeId=place_id,
+        name=name,
+        category=category,
+        latitude=37.5,
+        longitude=127.0,
+        address="서울특별시",
+        distanceMeters=distance,
+        source="LOCAL_DATA" if player_pick else "TOUR_API",
+        sourceContentId=None if player_pick else place_id.removeprefix("tour_"),
+        lclsSystem1="FD",
+        lclsSystem2=lcls2,
+        isPlayerPick=player_pick,
+    )
+
+
+def test_recommendation_candidates_filter_sort_and_paginate(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_recommendation_candidates = AsyncMock(
+        return_value=[
+            _candidate("tour_1", "먼 한식", distance=300),
+            _candidate("tour_2", "가까운 한식", distance=50),
+            _candidate("tour_3", "다른 음식", lcls2="FD02", distance=10),
+        ]
+    )
+    with patch(
+        "app.api.v1.endpoints.trips.ItineraryGenerationService",
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            f"/api/v1/trips/{TRIP_ID}/recommendation-candidates"
+            "?filterId=KOREAN&keyword=한식&sort=DISTANCE&pageSize=1"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["placeId"] == "tour_2"
+    assert response.json()["meta"] == {"count": 1, "nextPageToken": "2"}
+
+
+def test_recommendation_candidates_support_player_pick_filter(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_recommendation_candidates = AsyncMock(
+        return_value=[
+            _candidate("tour_1", "일반 장소"),
+            _candidate("player_place_1", "선수 추천", player_pick=True),
+        ]
+    )
+    with patch(
+        "app.api.v1.endpoints.trips.ItineraryGenerationService",
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            f"/api/v1/trips/{TRIP_ID}/recommendation-candidates"
+            "?filterId=PLAYER_PICK"
+        )
+
+    assert response.status_code == 200
+    assert [item["placeId"] for item in response.json()["data"]] == [
+        "player_place_1"
+    ]
+
+
+def test_recommendation_candidates_reject_invalid_page_token(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.get_recommendation_candidates = AsyncMock(return_value=[])
+    with patch(
+        "app.api.v1.endpoints.trips.ItineraryGenerationService",
+        return_value=service,
+    ):
+        response = authenticated_client.get(
+            f"/api/v1/trips/{TRIP_ID}/recommendation-candidates"
+            "?pageToken=bad"
+        )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_PAGE_TOKEN"
 
 
 def test_create_itinerary_has_no_request_body(

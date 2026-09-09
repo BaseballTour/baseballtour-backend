@@ -5436,6 +5436,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -5937,6 +5967,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -6473,6 +6533,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -7028,6 +7118,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -7512,6 +7632,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -8043,6 +8193,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -8553,6 +8733,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -9086,6 +9296,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -9628,6 +9868,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -10127,6 +10397,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -10394,7 +10694,7 @@
           "Trips"
         ],
         "summary": "일정 생성 전 추천 후보 조회",
-        "description": "경기장·도착지·출발지·숙소 주변의 TourAPI 장소를 중복 제거와 카테고리 다양성 필터 후 반환합니다.",
+        "description": "경기장·도착지·출발지·숙소 주변의 TourAPI 및 선수 추천 장소를 중복 제거 후 반환합니다. keyword·filterId·sort는 전체 후보에 먼저 적용되며, 그 결과를 pageSize·pageToken으로 나눕니다.",
         "operationId": "get_recommendation_candidates_api_v1_trips__tripId__recommendation_candidates_get",
         "security": [
           {
@@ -10412,6 +10712,97 @@
             },
             "description": "여행 문서 ID",
             "example": "trip_001"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "페이지 크기",
+              "default": 20,
+              "title": "Pagesize"
+            },
+            "description": "한 페이지에서 반환할 최대 장소 수",
+            "example": 20
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "이전 응답의 nextPageToken",
+              "title": "Pagetoken"
+            },
+            "description": "이전 응답의 nextPageToken. 첫 요청에서는 생략",
+            "example": "2"
+          },
+          {
+            "name": "filterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "/tour/filter-options의 통합 필터 ID 또는 PLAYER_PICK",
+              "title": "Filterid"
+            },
+            "description": "프론트 통합 필터 ID. category 및 lclsSystem 코드와 함께 사용하지 않음",
+            "example": "CAFE"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "후보 이름·주소 검색어",
+              "title": "Keyword"
+            },
+            "description": "검색할 장소명 또는 키워드",
+            "example": "잠실 맛집"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "RECOMMENDED",
+                "DISTANCE",
+                "NAME"
+              ],
+              "type": "string",
+              "description": "추천 적합도·거리·이름 정렬",
+              "default": "RECOMMENDED",
+              "title": "Sort"
+            },
+            "description": "추천 적합도·거리·이름 정렬"
           }
         ],
         "responses": {
@@ -10669,6 +11060,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -11228,6 +11649,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -11784,6 +12235,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -12268,6 +12749,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -12849,6 +13360,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -13414,6 +13955,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -13989,6 +14560,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
@@ -14575,6 +15176,36 @@
                         "details": []
                       }
                     }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
                   }
                 },
                 "schema": {
@@ -15158,6 +15789,36 @@
                       "error": {
                         "code": "ITINERARY_ITEM_DATE_MISMATCH",
                         "message": "date와 scheduledStartAt의 날짜가 일치해야 합니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_filter": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_FILTER",
+                        "message": "지원하지 않는 추천 장소 필터입니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_recommendation_keyword": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_RECOMMENDATION_KEYWORD",
+                        "message": "검색어에는 공백만 사용할 수 없습니다.",
                         "details": []
                       }
                     }
