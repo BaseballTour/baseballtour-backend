@@ -163,6 +163,7 @@ GET /api/v1/tour/nearby?longitude=127.0&latitude=37.5&filterId=FISHING
 | 문서 ID | 자동 생성 | 응답의 `playerPickId` |
 | `stadiumId` | string | 구장 필터 |
 | `playerName` | string | 화면에 표시할 선수명 |
+| `playerPosition` | string \| null | `PITCHER`, `CATCHER`, `INFIELDER`, `OUTFIELDER`, `COACH`, `STAFF`, `TEAM_GROUP` |
 | `placeId` | `tour_`, `kakao_`, `player_place_` 접두사 | 검증 방식에 따른 추천 장소 내부 ID |
 | `placeSnapshot` | Place | 외부 API 장애 시 사용할 저장 시점 장소 정보 |
 | `recommendationNote` | string 또는 null | 부모님 운영·선수단 공통 추천 등 부가 설명 |

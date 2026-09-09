@@ -271,6 +271,7 @@ def _review_row(document: PlayerPickDocument) -> dict[str, Any]:
     return {
         "stadiumId": document.stadium_id,
         "playerName": document.player_name,
+        "playerPosition": document.player_position,
         "placeName": place.name,
         "address": place.address,
         "recommendationNote": document.recommendation_note,
@@ -313,6 +314,7 @@ async def seed_rows(
         try:
             now = datetime.now(timezone.utc)
             player_name = str(row.get("playerName") or "").strip()
+            player_position = row.get("playerPosition") or None
             recommendation_note = (
                 str(row.get("recommendationNote") or "").strip() or None
             )
@@ -324,6 +326,7 @@ async def seed_rows(
             document = PlayerPickDocument(
                 stadium_id=str(row.get("stadiumId") or "").strip(),
                 player_name=player_name,
+                player_position=player_position,
                 place_id=place.place_id,
                 place_snapshot=place,
                 recommendation_note=recommendation_note,

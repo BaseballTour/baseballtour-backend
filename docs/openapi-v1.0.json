@@ -17655,6 +17655,7 @@
                           "playerPickId": "player_pick_001",
                           "stadiumId": "gocheok",
                           "playerName": "홍길동",
+                          "playerPosition": "INFIELDER",
                           "place": {
                             "placeId": "tour_1603175",
                             "name": "아시아공원",
@@ -22651,6 +22652,16 @@
             "type": "string",
             "title": "Playername"
           },
+          "playerPosition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayerPosition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "place": {
             "$ref": "#/components/schemas/Place"
           },
@@ -22675,6 +22686,19 @@
           "place"
         ],
         "title": "PlayerPickResponse"
+      },
+      "PlayerPosition": {
+        "type": "string",
+        "enum": [
+          "PITCHER",
+          "CATCHER",
+          "INFIELDER",
+          "OUTFIELDER",
+          "COACH",
+          "STAFF",
+          "TEAM_GROUP"
+        ],
+        "title": "PlayerPosition"
       },
       "PreferredCategory": {
         "type": "string",

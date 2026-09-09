@@ -1,7 +1,19 @@
+from enum import Enum
+
 from pydantic import AwareDatetime, Field
 
 from app.models.place import Place
 from app.schemas.base import ApiModel
+
+
+class PlayerPosition(str, Enum):
+    PITCHER = "PITCHER"
+    CATCHER = "CATCHER"
+    INFIELDER = "INFIELDER"
+    OUTFIELDER = "OUTFIELDER"
+    COACH = "COACH"
+    STAFF = "STAFF"
+    TEAM_GROUP = "TEAM_GROUP"
 
 
 class PlayerPickDocument(ApiModel):
@@ -9,6 +21,10 @@ class PlayerPickDocument(ApiModel):
 
     stadium_id: str = Field(min_length=1)
     player_name: str = Field(min_length=1)
+    player_position: PlayerPosition | None = Field(
+        default=None,
+        description="선수 포지션 또는 추천 주체 역할. 해당 없음은 null",
+    )
     place_id: str = Field(
         pattern=r"^(tour|kakao|player_place)_.+$",
         description="TourAPI·Kakao 장소 ID 또는 관리자 장소 ID",
@@ -37,5 +53,6 @@ class PlayerPickResponse(ApiModel):
     player_pick_id: str
     stadium_id: str
     player_name: str
+    player_position: PlayerPosition | None = None
     place: Place
     recommendation_note: str | None = None

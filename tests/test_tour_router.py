@@ -207,6 +207,7 @@ def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
                     player_pick_id="player_pick_001",
                     stadium_id=stadium_id,
                     player_name=player_name or "테스트 선수",
+                    player_position="INFIELDER",
                     place=make_place(),
                     recommendation_note="선수 부모님이 운영하는 가게",
                 )
@@ -228,6 +229,7 @@ def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
     assert response.json()["data"][0]["recommendationNote"] == (
         "선수 부모님이 운영하는 가게"
     )
+    assert response.json()["data"][0]["playerPosition"] == "INFIELDER"
     assert received == {
         "stadium_id": "gocheok",
         "player_name": "테스트 선수",

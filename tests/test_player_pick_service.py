@@ -29,6 +29,7 @@ class FakePlayerPickRepository:
                 player_pick_id="player_pick_001",
                 stadium_id=stadium_id,
                 player_name=player_name or "테스트 선수",
+                player_position="INFIELDER",
                 place_id="tour_123456",
                 created_at=datetime.now(ZoneInfo("Asia/Seoul")),
             )
@@ -65,6 +66,7 @@ def test_player_pick_service_reads_saved_snapshot() -> None:
     )
 
     assert result.player_pick_id == "player_pick_001"
+    assert result.player_position.value == "INFIELDER"
     assert result.place.place_id == "tour_123456"
 
 

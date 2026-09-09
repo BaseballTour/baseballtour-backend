@@ -77,6 +77,7 @@ class PlayerPickService:
                     player_pick_id=record.player_pick_id,
                     stadium_id=record.stadium_id,
                     player_name=record.player_name,
+                    player_position=record.player_position,
                     place=place,
                     recommendation_note=record.recommendation_note,
                 )
