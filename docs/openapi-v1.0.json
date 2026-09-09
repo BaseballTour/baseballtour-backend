@@ -5205,7 +5205,6 @@
                       "longitude": 126.868,
                       "placeUrl": "https://place.map.kakao.com/123456789"
                     },
-                    "travelStyle": "BALANCED",
                     "scheduleDensity": "DENSE",
                     "preferredCategories": [
                       "FOOD",
@@ -6335,7 +6334,6 @@
                           "longitude": 126.868,
                           "placeUrl": "https://place.map.kakao.com/123456789"
                         },
-                        "travelStyle": "BALANCED",
                         "scheduleDensity": "DENSE",
                         "preferredCategories": [
                           "FOOD",
@@ -6921,7 +6919,6 @@
                           "longitude": 126.868,
                           "placeUrl": "https://place.map.kakao.com/123456789"
                         },
-                        "travelStyle": "BALANCED",
                         "scheduleDensity": "DENSE",
                         "preferredCategories": [
                           "FOOD",
@@ -23679,15 +23676,6 @@
         ],
         "title": "TravelMode"
       },
-      "TravelStyle": {
-        "type": "string",
-        "enum": [
-          "RELAXED",
-          "BALANCED",
-          "EXPLORER"
-        ],
-        "title": "TravelStyle"
-      },
       "TravelTimeSource": {
         "type": "string",
         "enum": [
@@ -23765,10 +23753,6 @@
               }
             ]
           },
-          "travelStyle": {
-            "$ref": "#/components/schemas/TravelStyle",
-            "default": "BALANCED"
-          },
           "scheduleDensity": {
             "$ref": "#/components/schemas/ScheduleDensity",
             "default": "MODERATE"
@@ -23818,7 +23802,6 @@
             ],
             "scheduleDensity": "MODERATE",
             "title": "잠실 원정 직관 여행",
-            "travelStyle": "BALANCED",
             "tripEndAt": "2026-08-15T23:00:00+09:00",
             "tripStartAt": "2026-08-15T12:00:00+09:00"
           }
@@ -23901,9 +23884,6 @@
               }
             ]
           },
-          "travelStyle": {
-            "$ref": "#/components/schemas/TravelStyle"
-          },
           "scheduleDensity": {
             "$ref": "#/components/schemas/ScheduleDensity"
           },
@@ -23942,7 +23922,6 @@
           "tripStartAt",
           "tripEndAt",
           "createdAt",
-          "travelStyle",
           "scheduleDensity",
           "preferredCategories",
           "updatedAt"
@@ -24169,16 +24148,6 @@
               }
             ]
           },
-          "travelStyle": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TravelStyle"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "scheduleDensity": {
             "anyOf": [
               {
@@ -24220,7 +24189,6 @@
             },
             "scheduleDensity": "LIGHT",
             "title": "잠실 1박 2일 직관 여행",
-            "travelStyle": "RELAXED",
             "tripEndAt": "2026-08-16T11:00:00+09:00"
           }
         ]

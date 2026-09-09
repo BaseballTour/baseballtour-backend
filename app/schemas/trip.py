@@ -13,7 +13,6 @@ from app.models.place import build_kakao_map_url
 from app.models.travel_preferences import (
     PreferredCategory,
     ScheduleDensity,
-    TravelStyle,
 )
 
 from app.schemas.base import ApiModel
@@ -110,7 +109,6 @@ class TripCreateRequest(ApiModel):
                     "title": "잠실 원정 직관 여행",
                     "tripStartAt": "2026-08-15T12:00:00+09:00",
                     "tripEndAt": "2026-08-15T23:00:00+09:00",
-                    "travelStyle": "BALANCED",
                     "scheduleDensity": "MODERATE",
                     "preferredCategories": ["FOOD", "CULTURE"],
                     "arrivalPoint": {
@@ -158,7 +156,6 @@ class TripCreateRequest(ApiModel):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
-    travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
     preferred_categories: list[PreferredCategory] = Field(default_factory=list)
 
@@ -196,7 +193,6 @@ class TripUpdateRequest(ApiModel):
                 {
                     "title": "잠실 1박 2일 직관 여행",
                     "tripEndAt": "2026-08-16T11:00:00+09:00",
-                    "travelStyle": "RELAXED",
                     "scheduleDensity": "LIGHT",
                     "accommodation": {
                         "accommodationId": "accommodation_kakao_123456789",
@@ -233,7 +229,6 @@ class TripUpdateRequest(ApiModel):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
-    travel_style: TravelStyle | None = None
     schedule_density: ScheduleDensity | None = None
     preferred_categories: list[PreferredCategory] | None = None
 
@@ -292,7 +287,6 @@ class TripDocument(ApiModel):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
-    travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
     preferred_categories: list[PreferredCategory] = Field(default_factory=list)
 
@@ -348,7 +342,6 @@ class TripDetailResponse(TripSummaryResponse):
     arrival_point: TripPoint | None = None
     departure_point: TripPoint | None = None
     accommodation: AccommodationInfo | None = None
-    travel_style: TravelStyle
     schedule_density: ScheduleDensity
     preferred_categories: list[PreferredCategory]
     active_plan_id: str | None = None

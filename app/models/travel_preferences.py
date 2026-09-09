@@ -1,12 +1,6 @@
 from enum import Enum
 
 
-class TravelStyle(str, Enum):
-    RELAXED = "RELAXED"
-    BALANCED = "BALANCED"
-    EXPLORER = "EXPLORER"
-
-
 class PreferredCategory(str, Enum):
     FOOD = "FOOD"
     ACTIVITY = "ACTIVITY"

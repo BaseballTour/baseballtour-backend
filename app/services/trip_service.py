@@ -107,7 +107,6 @@ class TripService:
             arrival_point=request.arrival_point,
             departure_point=request.departure_point,
             accommodation=request.accommodation,
-            travel_style=request.travel_style,
             schedule_density=request.schedule_density,
             preferred_categories=request.preferred_categories,
             status=TripStatus.PLANNING,

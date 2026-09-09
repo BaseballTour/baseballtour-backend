@@ -206,7 +206,6 @@ uv run python -m scripts.import_player_pick_markdown --write --input "jamsil=C:\
 
 | 필드 | 후보 값 | 기본값 |
 | --- | --- | --- |
-| `travelStyle` | `RELAXED`, `BALANCED`, `EXPLORER` | `BALANCED` |
 | `scheduleDensity` | `LIGHT`, `MODERATE`, `DENSE` | `MODERATE` |
 
 `LIGHT`, `MODERATE`, `DENSE`는 하루 자동 추천 상한을 각각 2, 3, 5개로

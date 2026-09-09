@@ -223,7 +223,6 @@ def to_detail_response(
         arrival_point=trip.arrival_point,
         departure_point=trip.departure_point,
         accommodation=trip.accommodation,
-        travel_style=trip.travel_style,
         schedule_density=trip.schedule_density,
         preferred_categories=trip.preferred_categories,
         active_plan_id=trip.active_plan_id,

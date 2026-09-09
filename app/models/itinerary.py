@@ -18,7 +18,6 @@ from app.models.place import PlaceCategory
 from app.models.travel_preferences import (
     PreferredCategory,
     ScheduleDensity,
-    TravelStyle,
 )
 
 
@@ -145,7 +144,6 @@ class TripInput(AlgorithmModel):
         default_factory=list
     )
     auto_fill_recommendations: bool = True
-    travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
     preferred_categories: list[PreferredCategory] = Field(default_factory=list)
 
