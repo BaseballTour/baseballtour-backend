@@ -332,6 +332,7 @@ SUCCESS_EXAMPLES = {
     ("post", "/api/v1/trips/{tripId}/place-selections/import", "200"): _list([SELECTION]),
     ("patch", "/api/v1/trips/{tripId}/place-selections/{placeId}", "200"): _success(SELECTION),
     ("post", "/api/v1/trips/{tripId}/itineraries", "201"): _success(PLAN),
+    ("post", "/api/v1/trips/{tripId}/plan/days/{date}/regenerate", "200"): _success(PLAN),
     ("get", "/api/v1/trips/{tripId}/plan", "200"): _success(PLAN),
     ("patch", "/api/v1/trips/{tripId}/plan/items/order", "200"): _success(PLAN),
     ("delete", "/api/v1/trips/{tripId}/plan/items/{itemId}", "200"): _success(PLAN),

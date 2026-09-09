@@ -68,6 +68,7 @@ def generate_itinerary(
     recommended_places: list[Place] | None = None,
     supplemental_recommendations_by_date: dict[date, list[Place]] | None = None,
     recommendation_diagnostics: dict[str, object] | None = None,
+    target_dates: set[date] | None = None,
 ) -> ItineraryResult:
     """Anchor와 가까운 장소 우선 규칙을 적용하는 1차 일정 생성기."""
     selected = {item.place_id: item for item in trip.selected_places}
@@ -81,7 +82,7 @@ def generate_itinerary(
     excluded: list[ExcludedPlace] = []
     days: list[ItineraryDay] = []
     routes, failed_reasons = _assign_places_to_dates(
-        trip, candidates, selected, matrix
+        trip, candidates, selected, matrix, target_dates=target_dates
     )
     auto_ids: set[str] = set()
     if trip.auto_fill_recommendations and recommended_places:
@@ -125,6 +126,9 @@ def generate_itinerary(
     current_date = trip.trip_start_at.date()
     end_date = trip.trip_end_at.date()
     while current_date <= end_date:
+        if target_dates is not None and current_date not in target_dates:
+            current_date += timedelta(days=1)
+            continue
         day_type = classify_day(
             current_date,
             trip.trip_start_at.date(),
@@ -414,12 +418,15 @@ def _assign_places_to_dates(
     candidates: list[Place],
     selections: dict,
     matrix: TravelTimeMatrix,
+    *,
+    target_dates: set[date] | None = None,
 ) -> tuple[dict[date, list[Place]], dict[str, ExcludedReasonCode]]:
     """필수·일반·자동추천 순으로 모든 날짜와 삽입 위치를 비교한다."""
     dates: list[date] = []
     value = trip.trip_start_at.date()
     while value <= trip.trip_end_at.date():
-        dates.append(value)
+        if target_dates is None or value in target_dates:
+            dates.append(value)
         value += timedelta(days=1)
     routes = {value: [] for value in dates}
     failures: dict[str, ExcludedReasonCode] = {}

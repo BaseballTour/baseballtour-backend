@@ -534,6 +534,44 @@ async def test_generate_passes_previous_active_plan() -> None:
 
 
 @pytest.mark.anyio
+async def test_regenerate_day_updates_same_plan() -> None:
+    generator = Mock(return_value=make_result())
+    context = make_service(
+        trip=make_trip(
+            trip_status=TripStatus.GENERATED,
+            active_plan_id="plan_old",
+        ),
+        generator=generator,
+    )
+    previous_document = ItineraryGenerationService._build_plan_document(
+        user_id=USER_ID,
+        result=make_result(),
+        now=NOW,
+    )
+    previous = ItineraryPlanRecord(
+        plan_id="plan_old",
+        **previous_document.model_dump(),
+    )
+    context.plan_repository.get_by_id.return_value = previous
+    context.plan_repository.commit_regenerated_day.side_effect = (
+        lambda **kwargs: previous.model_copy(
+            update={"days": kwargs["days"], "updated_at": kwargs["updated_at"]}
+        )
+    )
+
+    result = await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        target_date=START_AT.date(),
+    )
+
+    assert result.plan_id == "plan_old"
+    assert generator.call_args.kwargs["target_dates"] == {START_AT.date()}
+    context.plan_repository.commit_regenerated_day.assert_called_once()
+    context.plan_repository.commit_generated_plan.assert_not_called()
+
+
+@pytest.mark.anyio
 async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
     context = make_service(
         trip=make_trip(

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from itertools import permutations
 from zoneinfo import ZoneInfo
 
@@ -164,3 +164,20 @@ def test_same_input_has_deterministic_result() -> None:
     second = generate_itinerary(trip, list(reversed(places)), matrix)
 
     assert first.model_dump() == second.model_dump()
+
+
+def test_target_date_generation_only_returns_requested_day() -> None:
+    place = make_place("target-place")
+    trip = make_trip([SelectedPlaceInput(place_id=place.place_id)])
+
+    result = generate_itinerary(
+        trip,
+        [place],
+        matrix_for(place.place_id),
+        target_dates={date(2026, 8, 16)},
+    )
+
+    assert [day.date for day in result.days] == [date(2026, 8, 16)]
+    assert any(
+        item.place_id == place.place_id for item in result.days[0].items
+    )

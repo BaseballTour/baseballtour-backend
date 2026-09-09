@@ -168,6 +168,7 @@ class ItineraryGenerationService:
         *,
         user_id: str,
         trip_id: str,
+        target_date: date | None = None,
     ) -> ItineraryPlanRecord:
         """로그인 사용자의 여행 일정을 생성하고 저장합니다."""
 
@@ -206,6 +207,39 @@ class ItineraryGenerationService:
                 )
             )
 
+            previous_plan = self._get_previous_plan(trip.active_plan_id)
+            occupied_other_day_ids: set[str] = set()
+            if target_date is not None:
+                if previous_plan is None:
+                    raise AppException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        code="ITINERARY_PLAN_NOT_FOUND",
+                        message="현재 활성화된 여행 일정을 찾을 수 없습니다.",
+                    )
+                target_day = next(
+                    (day for day in previous_plan.days if day.date == target_date),
+                    None,
+                )
+                if target_day is None:
+                    raise AppException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        code="ITINERARY_DAY_NOT_FOUND",
+                        message="재생성할 날짜가 현재 일정에 없습니다.",
+                        details={"date": target_date.isoformat()},
+                    )
+                occupied_other_day_ids = {
+                    item.place_id
+                    for day in previous_plan.days
+                    if day.date != target_date
+                    for item in day.items
+                    if item.place_id is not None
+                }
+                selections = [
+                    selection
+                    for selection in selections
+                    if selection.place_id not in occupied_other_day_ids
+                ]
+
             trip_input = self._build_trip_input(
                 trip=trip,
                 game=game,
@@ -217,8 +251,11 @@ class ItineraryGenerationService:
                 selections
             )
 
-            previous_plan = self._get_previous_plan(trip.active_plan_id)
             fixed_items = self._fixed_place_items(previous_plan)
+            if target_date is not None:
+                fixed_items = [
+                    pair for pair in fixed_items if pair[0] == target_date
+                ]
             fixed_place_ids = {
                 item.place_id for _, item in fixed_items if item.place_id
             }
@@ -234,7 +271,7 @@ class ItineraryGenerationService:
             )
             recommendation_excluded_ids = {
                 selection.place_id for selection in selections
-            } | rejected_recommendation_ids | fixed_place_ids
+            } | rejected_recommendation_ids | fixed_place_ids | occupied_other_day_ids
 
             try:
                 recommendation_diagnostics: dict[str, object] = {}
@@ -314,6 +351,11 @@ class ItineraryGenerationService:
                 matrix,
                 recommended_places=recommended_places,
                 recommendation_diagnostics=recommendation_diagnostics,
+                **(
+                    {"target_dates": {target_date}}
+                    if target_date is not None
+                    else {}
+                ),
             )
             supplement_dates = self._recommendation_supplement_dates(result)
             if supplement_dates:
@@ -374,6 +416,11 @@ class ItineraryGenerationService:
                             for target_date in supplement_dates
                         },
                         recommendation_diagnostics=recommendation_diagnostics,
+                        **(
+                            {"target_dates": {target_date}}
+                            if target_date is not None
+                            else {}
+                        ),
                     )
                     self._merge_recommendation_fetch_diagnostics(
                         recommendation_diagnostics,
@@ -424,6 +471,21 @@ class ItineraryGenerationService:
                 plan=plan,
                 fixed_items=fixed_items,
             )
+
+            if target_date is not None and previous_plan is not None:
+                regenerated_day = next(
+                    day for day in plan.days if day.date == target_date
+                )
+                merged_days = [
+                    regenerated_day if day.date == target_date else day
+                    for day in previous_plan.days
+                ]
+                return self._itinerary_plan_repository.commit_regenerated_day(
+                    trip_id=trip_id,
+                    plan_id=previous_plan.plan_id,
+                    days=merged_days,
+                    updated_at=now,
+                )
 
             return (
                 self._itinerary_plan_repository
