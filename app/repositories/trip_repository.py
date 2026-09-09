@@ -10,6 +10,7 @@ from google.cloud.firestore_v1.transaction import transactional
 from pydantic import ValidationError
 
 from app.core.firebase import get_firestore_client
+from app.repositories.trip_share_repository import TripShareRepository
 from app.schemas.trip import (
     TripDocument,
     TripRecord,
@@ -388,8 +389,8 @@ class TripRepository:
         self,
         trip_id: str,
     ) -> None:
-        """여행 문서를 삭제합니다."""
+        """여행과 공유 정보를 함께 삭제합니다."""
 
-        self._collection.document(
-            trip_id
-        ).delete()
+        TripShareRepository(client=self._client).delete_trip(
+            trip_id=trip_id,
+        )

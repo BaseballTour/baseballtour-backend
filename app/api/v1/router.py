@@ -12,6 +12,7 @@ from app.api.v1.endpoints.notification_settings import router as notification_se
 from app.api.v1.endpoints.teams import router as teams_router
 from app.api.v1.endpoints.terms import router as terms_router
 from app.api.v1.endpoints.trips import router as trips_router
+from app.api.v1.endpoints.trip_shares import router as trip_shares_router
 from app.api.v1.endpoints.tour import router as tour_router
 from app.api.v1.endpoints.users import router as users_router
 
@@ -73,6 +74,10 @@ api_router.include_router(
 api_router.include_router(
     trips_router,
     tags=["Trips"],
+)
+api_router.include_router(
+    trip_shares_router,
+    tags=["Trip Sharing"],
 )
 
 api_router.include_router(

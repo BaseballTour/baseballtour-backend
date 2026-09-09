@@ -478,8 +478,42 @@ def test_update_missing_trip_returns_none() -> None:
     assert result is None
 
 
-def test_delete_removes_trip_and_is_safe_when_missing() -> None:
+def test_delete_removes_trip_and_is_safe_when_missing(
+    monkeypatch,
+) -> None:
+    import app.repositories.trip_share_repository as share_module
+
+    class FakeDeleteTransaction:
+        """기존 FakeDocumentReference를 사용하는 삭제 테스트 어댑터."""
+
+        def __init__(self):
+            self.deletes = []
+
+        def delete(self, reference):
+            self.deletes.append(reference)
+
+        def commit(self):
+            for reference in self.deletes:
+                reference.delete()
+
+    def fake_transactional(function):
+        def run(transaction, *args, **kwargs):
+            result = function(transaction, *args, **kwargs)
+            transaction.commit()
+            return result
+        return run
+
     client = FakeFirestoreClient()
+    monkeypatch.setattr(
+        client,
+        "transaction",
+        lambda: FakeDeleteTransaction(),
+    )
+    monkeypatch.setattr(
+        share_module,
+        "transactional",
+        fake_transactional,
+    )
     repository = TripRepository(client=client)
 
     trip = seed_trip(
