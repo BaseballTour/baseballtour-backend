@@ -16789,6 +16789,377 @@
         }
       }
     },
+    "/api/v1/trips/{tripId}/share": {
+      "post": {
+        "tags": [
+          "Trip Sharing"
+        ],
+        "summary": "여행 공유 링크 발급",
+        "description": "로그인 사용자가 본인의 활성 여행 일정을 공유할 수 있는 토큰을 발급합니다. 이미 활성 공유가 있으면 같은 토큰을 반환합니다.",
+        "operationId": "issue_trip_share_api_v1_trips__tripId__share_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Tripid"
+            },
+            "description": "공유할 여행 ID",
+            "example": "trip_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TripShareResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "shareToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "shareUrl": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Trip Sharing"
+        ],
+        "summary": "여행 공유 해제",
+        "description": "로그인 사용자가 본인 여행의 공유를 해제합니다. 이미 해제된 경우 revoked=false를 반환합니다.",
+        "operationId": "revoke_trip_share_api_v1_trips__tripId__share_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Tripid"
+            },
+            "description": "공유를 해제할 여행 ID",
+            "example": "trip_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TripShareRevokeResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "revoked": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shared-trips/{shareToken}": {
+      "get": {
+        "tags": [
+          "Trip Sharing"
+        ],
+        "summary": "공유 여행 조회",
+        "description": "공유 토큰으로 여행 일정을 조회합니다. 로그인하지 않은 사용자도 조회할 수 있습니다.",
+        "operationId": "get_shared_trip_api_v1_shared_trips__shareToken__get",
+        "parameters": [
+          {
+            "name": "shareToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 128,
+              "title": "Sharetoken"
+            },
+            "description": "공유 링크에 포함된 공개 조회 토큰",
+            "example": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_SharedTripResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "title": "고척 원정 1박 2일",
+                        "subtitle": "2026.08.16 ~ 2026.08.17",
+                        "tripStartAt": "2026-08-16T12:00:00+09:00",
+                        "tripEndAt": "2026-08-17T23:00:00+09:00",
+                        "game": {
+                          "gameId": "game_20260816_kiwoom_lg",
+                          "gameStartAt": "2026-08-16T17:00:00+09:00",
+                          "status": "SCHEDULED",
+                          "homeTeam": {
+                            "teamId": "kiwoom",
+                            "name": "키움 히어로즈",
+                            "logoUrl": null
+                          },
+                          "awayTeam": {
+                            "teamId": "lg",
+                            "name": "LG 트윈스",
+                            "logoUrl": null
+                          },
+                          "stadium": {
+                            "stadiumId": "gocheok",
+                            "name": "고척스카이돔",
+                            "address": "서울특별시 구로구 경인로 430",
+                            "latitude": 37.4982,
+                            "longitude": 126.8671
+                          },
+                          "homeScore": null,
+                          "awayScore": null,
+                          "resultText": null
+                        },
+                        "accommodation": {
+                          "name": "고척 예시 호텔"
+                        },
+                        "plan": {
+                          "totalTravelMinutes": 25,
+                          "totalTravelDistanceMeters": 8400,
+                          "days": [
+                            {
+                              "date": "2026-08-16",
+                              "dayType": "GAME_DAY",
+                              "items": [
+                                {
+                                  "type": "PLACE",
+                                  "sequence": 1,
+                                  "placeId": "tour_1603175",
+                                  "placeUrl": null,
+                                  "category": null,
+                                  "thumbnailUrl": null,
+                                  "shortDescription": null,
+                                  "overview": null,
+                                  "isPlayerPick": false,
+                                  "recommendedByPlayers": [],
+                                  "recommendationNote": null,
+                                  "name": "아시아공원",
+                                  "address": "서울특별시 송파구 올림픽로 44",
+                                  "latitude": 37.510082,
+                                  "longitude": 127.076703,
+                                  "scheduledStartAt": "2026-08-16T13:00:00+09:00",
+                                  "scheduledEndAt": "2026-08-16T14:00:00+09:00",
+                                  "travelMinutesFromPrevious": 25,
+                                  "travelDistanceMetersFromPrevious": 0,
+                                  "transferBufferMinutes": 0,
+                                  "travelMode": null,
+                                  "travelTimeSource": null,
+                                  "isRequired": false
+                                },
+                                {
+                                  "type": "ACCOMMODATION",
+                                  "sequence": 2,
+                                  "name": "고척 예시 호텔"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/bootstrap": {
       "post": {
         "tags": [
@@ -22942,6 +23313,346 @@
         ],
         "title": "ScheduleDensity"
       },
+      "SharedAccommodation": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SharedAccommodation"
+      },
+      "SharedAccommodationItem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ACCOMMODATION",
+            "title": "Type"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sequence",
+          "name"
+        ],
+        "title": "SharedAccommodationItem"
+      },
+      "SharedItineraryDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
+          "items": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SharedItineraryItem"
+                },
+                {
+                  "$ref": "#/components/schemas/SharedAccommodationItem"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "ACCOMMODATION": "#/components/schemas/SharedAccommodationItem",
+                  "ARRIVAL_POINT": "#/components/schemas/SharedItineraryItem",
+                  "DEPARTURE_POINT": "#/components/schemas/SharedItineraryItem",
+                  "PLACE": "#/components/schemas/SharedItineraryItem",
+                  "STADIUM": "#/components/schemas/SharedItineraryItem"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "dayType"
+        ],
+        "title": "SharedItineraryDay"
+      },
+      "SharedItineraryItem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "ARRIVAL_POINT",
+              "DEPARTURE_POINT",
+              "PLACE",
+              "STADIUM"
+            ],
+            "title": "Type"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeid"
+          },
+          "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeurl"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnailurl"
+          },
+          "shortDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortdescription"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "isPlayerPick": {
+            "type": "boolean",
+            "title": "Isplayerpick",
+            "default": false
+          },
+          "recommendedByPlayers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendedbyplayers"
+          },
+          "recommendationNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationnote"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "scheduledStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduledstartat"
+          },
+          "scheduledEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduledendat"
+          },
+          "travelMinutesFromPrevious": {
+            "type": "integer",
+            "title": "Travelminutesfromprevious",
+            "default": 0
+          },
+          "travelDistanceMetersFromPrevious": {
+            "type": "integer",
+            "title": "Traveldistancemetersfromprevious",
+            "default": 0
+          },
+          "transferBufferMinutes": {
+            "type": "integer",
+            "title": "Transferbufferminutes",
+            "default": 0
+          },
+          "travelMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "travelTimeSource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelTimeSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isRequired": {
+            "type": "boolean",
+            "title": "Isrequired",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sequence",
+          "name",
+          "address",
+          "latitude",
+          "longitude",
+          "scheduledStartAt",
+          "scheduledEndAt"
+        ],
+        "title": "SharedItineraryItem"
+      },
+      "SharedItineraryPlan": {
+        "properties": {
+          "totalTravelMinutes": {
+            "type": "integer",
+            "title": "Totaltravelminutes",
+            "default": 0
+          },
+          "totalTravelDistanceMeters": {
+            "type": "integer",
+            "title": "Totaltraveldistancemeters",
+            "default": 0
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/SharedItineraryDay"
+            },
+            "type": "array",
+            "title": "Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SharedItineraryPlan"
+      },
+      "SharedTripResponse": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "type": "string",
+            "title": "Subtitle"
+          },
+          "tripStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripstartat"
+          },
+          "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripendat"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameResponse"
+          },
+          "accommodation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedAccommodation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SharedItineraryPlan"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "subtitle",
+          "tripStartAt",
+          "tripEndAt",
+          "game",
+          "plan"
+        ],
+        "title": "SharedTripResponse"
+      },
       "StadiumSummaryResponse": {
         "properties": {
           "stadiumId": {
@@ -23338,6 +24049,25 @@
         ],
         "title": "SuccessResponse[RootData]"
       },
+      "SuccessResponse_SharedTripResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/SharedTripResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[SharedTripResponse]"
+      },
       "SuccessResponse_TermAgreementsResponse_": {
         "properties": {
           "success": {
@@ -23375,6 +24105,44 @@
           "data"
         ],
         "title": "SuccessResponse[TripDetailResponse]"
+      },
+      "SuccessResponse_TripShareResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripShareResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[TripShareResponse]"
+      },
+      "SuccessResponse_TripShareRevokeResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripShareRevokeResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[TripShareRevokeResponse]"
       },
       "SuccessResponse_TripSummaryResponse_": {
         "properties": {
@@ -24165,6 +24933,45 @@
         ],
         "title": "TripPoint",
         "description": "여행의 도착 또는 출발 장소."
+      },
+      "TripShareResponse": {
+        "properties": {
+          "shareToken": {
+            "type": "string",
+            "title": "Sharetoken"
+          },
+          "shareUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shareurl"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shareToken"
+        ],
+        "title": "TripShareResponse"
+      },
+      "TripShareRevokeResponse": {
+        "properties": {
+          "revoked": {
+            "type": "boolean",
+            "title": "Revoked"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revoked"
+        ],
+        "title": "TripShareRevokeResponse"
       },
       "TripStatus": {
         "type": "string",

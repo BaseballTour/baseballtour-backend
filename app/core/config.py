@@ -30,6 +30,7 @@ class Settings(BaseSettings):
         "secrets/firebase-service-account.json"
     )
     firebase_storage_bucket: str = ""
+    share_web_origin: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

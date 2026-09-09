@@ -904,3 +904,69 @@ Firebase `displayName`은 ID Token에서 일반적으로 `name` 클레임으로 
 - 여행 자체가 `CANCELLED`인 경우는 기존 pending 조회 정책에 따라 제외합니다.
 
 경기 취소와 여행 취소는 별개의 상태입니다.
+
+<!-- trip-sharing-v1 -->
+
+## 여행 공유 API
+
+공유 링크를 가진 사람은 로그인하지 않고 여행 일정을 조회할 수 있습니다.
+공유는 현재 활성 일정에 연결되며, 일정이 재생성되면 최신 활성 Plan을 조회합니다.
+
+### POST /api/v1/trips/{tripId}/share
+
+- 인증: Firebase 로그인 필요
+- 응답: 200 OK
+- 활성 일정이 있는 본인 여행만 공유할 수 있습니다.
+- 이미 활성 공유가 있으면 동일한 토큰을 반환합니다.
+- 해제 후 재발급하면 새로운 토큰을 생성합니다.
+
+응답 데이터는 `shareToken`, `shareUrl`입니다. `SHARE_WEB_ORIGIN`이
+설정되지 않았으면 `shareUrl`은 null입니다. 설정된 경우
+`{SHARE_WEB_ORIGIN}/shared-trips/{shareToken}` 형식으로 반환합니다.
+
+### DELETE /api/v1/trips/{tripId}/share
+
+- 인증: Firebase 로그인 필요
+- 응답: 200 OK
+- 활성 공유를 해제하면 `revoked: true`입니다.
+- 이미 해제된 경우 `revoked: false`입니다.
+- 해제된 토큰은 다시 사용할 수 없습니다.
+
+### GET /api/v1/shared-trips/{shareToken}
+
+- 인증: 필요 없음
+- 응답: 200 OK
+- 유효하지 않거나 해제된 토큰은 404 `TRIP_SHARE_NOT_FOUND`입니다.
+- 여행이 삭제·취소되었거나 활성 Plan이 없으면 조회할 수 없습니다.
+- 응답에는 `Cache-Control: no-store`가 적용됩니다.
+
+공개 응답은 `title`, `subtitle`, `tripStartAt`, `tripEndAt`, `game`,
+`accommodation`, `plan`을 포함합니다. 경기·팀·구장 요약은 기존
+`GameResponse`를 사용합니다. Plan에는 날짜별 장소와 이동시간을
+포함하되 원본 `tripId`, `planId`, `userId`, 소유자 정보는 포함하지 않습니다.
+숙소는 이름만 공개하며 주소·좌표·지도 URL은 제외합니다.
+
+일반 방문 장소의 이름·주소·좌표와 사용자가 작성한 설명은 공유될 수
+있습니다. 따라서 공개 응답이 모든 개인정보를 자동으로 제거한다고
+보장하지 않으며, 공유 전 사용자에게 공개 범위를 안내해야 합니다.
+
+공유 토큰은 링크를 가진 사람에게 조회 권한을 주는 비밀값입니다.
+원문은 서버 전용 공유 문서에 저장하고 공개 조회 인덱스에는 해시를
+사용합니다. 토큰을 로그에 기록하지 않아야 하며, Firestore 직접 접근은
+서버 권한으로 제한해야 합니다.
+
+여행 삭제 시 공유 문서와 토큰 인덱스도 같은 트랜잭션에서 삭제합니다.
+이미 시작된 공개 요청까지 강제로 취소하는 것은 보장하지 않습니다.
+
+### 주요 오류
+
+- 401: 인증되지 않은 발급·해제 요청
+- 403 `TRIP_ACCESS_DENIED`: 다른 사용자의 여행
+- 404 `TRIP_NOT_FOUND`: 소유자용 요청의 여행이 없음
+- 404 `TRIP_SHARE_NOT_FOUND`: 공개 공유를 찾을 수 없음
+- 409 `TRIP_SHARE_NOT_AVAILABLE`: 공유 가능한 활성 일정이 없음
+- 409 `TRIP_SHARE_STATE_CHANGED`: 발급 중 여행 또는 일정 상태 변경
+
+`SHARE_WEB_ORIGIN`에는 확정된 공유 웹사이트의 HTTPS Origin을 설정합니다.
+웹 프론트엔드는 `/shared-trips/{shareToken}` 페이지를 제공해야 합니다.
+실제 웹 도메인과 CORS 허용 Origin은 프론트엔드와 확정한 뒤 설정합니다.

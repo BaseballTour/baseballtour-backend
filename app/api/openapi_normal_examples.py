@@ -742,3 +742,72 @@ def install_normal_openapi_examples(app: FastAPI) -> None:
         return app.openapi_schema
 
     app.openapi = custom_openapi  # type: ignore[method-assign]
+
+
+# Trip sharing normal response examples
+from app.schemas.trip_share import SharedTripResponse
+
+SHARE_EXAMPLE_TOKEN = "a" * 43
+
+SHARED_TRIP_EXAMPLE = SharedTripResponse.model_validate({
+    "title": TRIP_SUMMARY["title"],
+    "subtitle": TRIP_SUMMARY["subtitle"],
+    "tripStartAt": TRIP_SUMMARY["tripStartAt"],
+    "tripEndAt": TRIP_SUMMARY["tripEndAt"],
+    "game": GAME,
+    "accommodation": {"name": "고척 예시 호텔"},
+    "plan": {
+        "totalTravelMinutes": PLAN["totalTravelMinutes"],
+        "totalTravelDistanceMeters": PLAN["totalTravelDistanceMeters"],
+        "days": [{
+            "date": "2026-08-16",
+            "dayType": "GAME_DAY",
+            "items": [{
+                "type": "PLACE",
+                "sequence": 1,
+                "placeId": PLACE["placeId"],
+                "name": PLACE["name"],
+                "address": PLACE["address"],
+                "latitude": PLACE["latitude"],
+                "longitude": PLACE["longitude"],
+                "scheduledStartAt": "2026-08-16T13:00:00+09:00",
+                "scheduledEndAt": "2026-08-16T14:00:00+09:00",
+                "travelMinutesFromPrevious": 25,
+            }, {
+                "type": "ACCOMMODATION",
+                "sequence": 2,
+                "name": "고척 예시 호텔",
+            }],
+        }],
+    },
+}).model_dump(mode="json", by_alias=True)
+
+SUCCESS_EXAMPLES.update({
+    ("post", "/api/v1/trips/{tripId}/share", "200"): _success({
+        "shareToken": SHARE_EXAMPLE_TOKEN,
+        "shareUrl": None,
+    }),
+    ("delete", "/api/v1/trips/{tripId}/share", "200"): _success({
+        "revoked": True,
+    }),
+    ("get", "/api/v1/shared-trips/{shareToken}", "200"): _success(
+        SHARED_TRIP_EXAMPLE
+    ),
+})
+
+
+# Trip sharing parameter documentation
+OPERATION_PARAMETER_DOCS.update({
+    ("post", "/api/v1/trips/{tripId}/share", "tripId"): (
+        "공유할 여행 ID",
+        "trip_001",
+    ),
+    ("delete", "/api/v1/trips/{tripId}/share", "tripId"): (
+        "공유를 해제할 여행 ID",
+        "trip_001",
+    ),
+    ("get", "/api/v1/shared-trips/{shareToken}", "shareToken"): (
+        "공유 링크에 포함된 공개 조회 토큰",
+        SHARE_EXAMPLE_TOKEN,
+    ),
+})
