@@ -1818,3 +1818,52 @@ def test_create_draft_requires_next_korean_day(
                 "ATTENDANCE_LOG_TRIP_NOT_COMPLETED"
             )
             context.attendance_log_repository.create.assert_not_called()
+
+
+def test_create_draft_allows_cancelled_game() -> None:
+    """경기가 취소되어도 완료된 여행의 기록은 생성할 수 있습니다."""
+    from app.schemas.game import GameStatus
+
+    context = make_service(
+        game=SimpleNamespace(
+            game_id=GAME_ID,
+            status=GameStatus.CANCELLED,
+            home_score=None,
+            away_score=None,
+        ),
+    )
+
+    result = context.service.create_draft(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+    )
+
+    assert result.log_status == AttendanceLogStatus.DRAFT
+    assert result.trip_id == TRIP_ID
+    assert result.game_id == GAME_ID
+    assert result.plan_id == PLAN_ID
+
+    context.attendance_log_repository.create.assert_called_once()
+
+    entries = [
+        call.args[1]
+        for call in context.log_entry_repository.create.call_args_list
+    ]
+    assert len(entries) == 2
+    assert {entry.entry_type for entry in entries} == {
+        LogEntryType.PLACE,
+        LogEntryType.GAME,
+    }
+
+
+def test_cancelled_game_without_scores_has_no_result() -> None:
+    """취소 경기의 미입력 점수로 승패를 생성하지 않습니다."""
+    from app.services.attendance_result import resolve_game_result
+
+    result = resolve_game_result(
+        home_side=AttendanceLogHomeSide.AWAY,
+        home_score=None,
+        away_score=None,
+    )
+
+    assert result is None
