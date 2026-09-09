@@ -136,11 +136,28 @@ class TripService:
         *,
         user_id: str,
     ) -> list[TripRecord]:
-        """로그인 사용자가 소유한 여행 목록을 반환합니다."""
+        """내 원정 화면에 표시할 완성된 여행 목록을 반환합니다.
 
-        return self._trip_repository.get_by_user_id(
-            user_id
-        )
+        여행 기본정보만 저장한 PLANNING 문서와 최초 일정 생성 도중인
+        GENERATING 문서는 화면에 노출하지 않습니다. 다만 기존 활성 일정이
+        있는 여행의 재생성 중에는 이전 일정을 계속 볼 수 있어야 하므로
+        목록에 유지합니다.
+        """
+
+        trips = self._trip_repository.get_by_user_id(user_id)
+
+        return [
+            trip
+            for trip in trips
+            if trip.status in {
+                TripStatus.GENERATED,
+                TripStatus.COMPLETED,
+            }
+            or (
+                trip.status == TripStatus.GENERATING
+                and trip.active_plan_id is not None
+            )
+        ]
 
     def get_trip(
         self,

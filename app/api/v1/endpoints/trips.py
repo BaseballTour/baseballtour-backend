@@ -275,7 +275,10 @@ def create_trip(
     "",
     response_model=ListSuccessResponse[TripSummaryResponse],
     summary="내 여행 목록 조회",
-    description="로그인 사용자가 소유한 여행 목록을 조회합니다.",
+    description=(
+        "로그인 사용자가 소유한 여행 중 일정 생성이 완료된 여행을 조회합니다. "
+        "최초 일정 생성 전 또는 생성 도중인 미완성 여행은 반환하지 않습니다."
+    ),
 )
 def get_my_trips(
     user_id: Annotated[
