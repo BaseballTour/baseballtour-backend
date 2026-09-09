@@ -57,7 +57,8 @@ TRIP_DETAIL = {
         "latitude": 37.4985, "longitude": 126.868,
         "placeUrl": "https://place.map.kakao.com/123456789",
     },
-    "travelStyle": "BALANCED", "scheduleDensity": "MODERATE",
+    "scheduleDensity": "DENSE",
+    "preferredCategories": ["FOOD", "CULTURE"],
     "activePlanId": "plan_001",
     "updatedAt": "2026-08-15T11:00:00+09:00",
 }
@@ -131,7 +132,8 @@ REQUEST_EXAMPLES = {
         "arrivalPoint": TRIP_DETAIL["arrivalPoint"],
         "departurePoint": TRIP_DETAIL["departurePoint"],
         "accommodation": TRIP_DETAIL["accommodation"],
-        "travelStyle": "BALANCED", "scheduleDensity": "MODERATE"},
+        "scheduleDensity": "DENSE",
+        "preferredCategories": ["FOOD", "CULTURE"]},
     ("patch", "/api/v1/trips/{tripId}"): {"title": "수정한 고척 원정 여행"},
     ("post", "/api/v1/trips/{tripId}/place-selections"): {"placeId": PLACE["placeId"], "isRequired": True},
     ("post", "/api/v1/trips/{tripId}/place-selections/import"): {"collectionId": "collection_001"},
@@ -231,7 +233,9 @@ SUCCESS_EXAMPLES = {
         "selectionType": "MAP_POINT",
     }),
     ("get", "/", "200"): _success({"name": "BaseballTour Backend", "environment": "development", "status": "running"}),
-    ("get", "/api/v1/health", "200"): _success({"status": "healthy"}),
+    ("get", "/api/v1/health", "200"): _success({
+        "status": "healthy", "version": "0.1.0",
+        "commitSha": "a372d55", "deployedAt": "2026-09-09T11:00:00+09:00"}),
     ("get", "/api/v1/users/me/favorite-collections", "200"): _list([FAVORITE_COLLECTION_SUMMARY]),
     ("post", "/api/v1/users/me/favorite-collections", "201"): _success(COLLECTION),
     ("get", "/api/v1/users/me/favorite-collections/{collectionId}", "200"): _list([PLACE]),
@@ -657,6 +661,7 @@ PARAMETER_DOCS = {
         "CAFE",
     ),
     "playerName": ("선수 이름 선택 필터. 생략하면 구장의 전체 선수 추천", "홍길동"),
+    "sort": ("추천 적합도·거리·이름 정렬", "RECOMMENDED"),
 }
 
 OPERATION_PARAMETER_DOCS = {

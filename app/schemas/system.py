@@ -23,3 +23,6 @@ class HealthData(ApiModel):
         default="healthy",
         description="서버 상태",
     )
+    version: str
+    commit_sha: str | None = None
+    deployed_at: str | None = None

@@ -1493,7 +1493,10 @@
                     "value": {
                       "success": true,
                       "data": {
-                        "status": "healthy"
+                        "status": "healthy",
+                        "version": "0.1.0",
+                        "commitSha": "a372d55",
+                        "deployedAt": "2026-09-09T11:00:00+09:00"
                       }
                     }
                   }
@@ -5202,8 +5205,11 @@
                       "longitude": 126.868,
                       "placeUrl": "https://place.map.kakao.com/123456789"
                     },
-                    "travelStyle": "BALANCED",
-                    "scheduleDensity": "MODERATE"
+                    "scheduleDensity": "DENSE",
+                    "preferredCategories": [
+                      "FOOD",
+                      "CULTURE"
+                    ]
                   }
                 }
               }
@@ -6328,8 +6334,11 @@
                           "longitude": 126.868,
                           "placeUrl": "https://place.map.kakao.com/123456789"
                         },
-                        "travelStyle": "BALANCED",
-                        "scheduleDensity": "MODERATE",
+                        "scheduleDensity": "DENSE",
+                        "preferredCategories": [
+                          "FOOD",
+                          "CULTURE"
+                        ],
                         "activePlanId": "plan_001",
                         "updatedAt": "2026-08-15T11:00:00+09:00"
                       }
@@ -6910,8 +6919,11 @@
                           "longitude": 126.868,
                           "placeUrl": "https://place.map.kakao.com/123456789"
                         },
-                        "travelStyle": "BALANCED",
-                        "scheduleDensity": "MODERATE",
+                        "scheduleDensity": "DENSE",
+                        "preferredCategories": [
+                          "FOOD",
+                          "CULTURE"
+                        ],
                         "activePlanId": "plan_001",
                         "updatedAt": "2026-08-15T11:00:00+09:00"
                       }
@@ -10802,7 +10814,8 @@
               "default": "RECOMMENDED",
               "title": "Sort"
             },
-            "description": "추천 적합도·거리·이름 정렬"
+            "description": "추천 적합도·거리·이름 정렬",
+            "example": "RECOMMENDED"
           }
         ],
         "responses": {
@@ -20547,10 +20560,39 @@
             "title": "Status",
             "description": "서버 상태",
             "default": "healthy"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "deployedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployedat"
           }
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "version"
+        ],
         "title": "HealthData"
       },
       "ItineraryItemAddedBy": {
@@ -22634,6 +22676,20 @@
         ],
         "title": "PlayerPickResponse"
       },
+      "PreferredCategory": {
+        "type": "string",
+        "enum": [
+          "FOOD",
+          "ACTIVITY",
+          "SHOPPING",
+          "EXPERIENCE",
+          "RELAXATION",
+          "HISTORY",
+          "NATURE",
+          "CULTURE"
+        ],
+        "title": "PreferredCategory"
+      },
       "RecommendationSummary": {
         "properties": {
           "fetchedCount": {
@@ -23620,15 +23676,6 @@
         ],
         "title": "TravelMode"
       },
-      "TravelStyle": {
-        "type": "string",
-        "enum": [
-          "RELAXED",
-          "BALANCED",
-          "EXPLORER"
-        ],
-        "title": "TravelStyle"
-      },
       "TravelTimeSource": {
         "type": "string",
         "enum": [
@@ -23706,13 +23753,16 @@
               }
             ]
           },
-          "travelStyle": {
-            "$ref": "#/components/schemas/TravelStyle",
-            "default": "BALANCED"
-          },
           "scheduleDensity": {
             "$ref": "#/components/schemas/ScheduleDensity",
             "default": "MODERATE"
+          },
+          "preferredCategories": {
+            "items": {
+              "$ref": "#/components/schemas/PreferredCategory"
+            },
+            "type": "array",
+            "title": "Preferredcategories"
           }
         },
         "additionalProperties": false,
@@ -23746,9 +23796,12 @@
               "name": "서울역"
             },
             "gameId": "game_20260815_lg_doosan",
+            "preferredCategories": [
+              "FOOD",
+              "CULTURE"
+            ],
             "scheduleDensity": "MODERATE",
             "title": "잠실 원정 직관 여행",
-            "travelStyle": "BALANCED",
             "tripEndAt": "2026-08-15T23:00:00+09:00",
             "tripStartAt": "2026-08-15T12:00:00+09:00"
           }
@@ -23831,11 +23884,15 @@
               }
             ]
           },
-          "travelStyle": {
-            "$ref": "#/components/schemas/TravelStyle"
-          },
           "scheduleDensity": {
             "$ref": "#/components/schemas/ScheduleDensity"
+          },
+          "preferredCategories": {
+            "items": {
+              "$ref": "#/components/schemas/PreferredCategory"
+            },
+            "type": "array",
+            "title": "Preferredcategories"
           },
           "activePlanId": {
             "anyOf": [
@@ -23865,8 +23922,8 @@
           "tripStartAt",
           "tripEndAt",
           "createdAt",
-          "travelStyle",
           "scheduleDensity",
+          "preferredCategories",
           "updatedAt"
         ],
         "title": "TripDetailResponse",
@@ -23879,6 +23936,12 @@
             "minLength": 1,
             "title": "Name",
             "description": "장소 이름"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "주소",
+            "default": ""
           },
           "latitude": {
             "type": "number",
@@ -23893,6 +23956,18 @@
             "minimum": -180.0,
             "title": "Longitude",
             "description": "경도"
+          },
+          "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeurl",
+            "description": "외부 지도 링크"
           }
         },
         "additionalProperties": false,
@@ -24073,16 +24148,6 @@
               }
             ]
           },
-          "travelStyle": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TravelStyle"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "scheduleDensity": {
             "anyOf": [
               {
@@ -24092,6 +24157,20 @@
                 "type": "null"
               }
             ]
+          },
+          "preferredCategories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PreferredCategory"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferredcategories"
           }
         },
         "additionalProperties": false,
@@ -24110,7 +24189,6 @@
             },
             "scheduleDensity": "LIGHT",
             "title": "잠실 1박 2일 직관 여행",
-            "travelStyle": "RELAXED",
             "tripEndAt": "2026-08-16T11:00:00+09:00"
           }
         ]

@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_name: str = "KBO Travel API"
     app_version: str = "0.1.0"
     app_env: str = "development"
+    app_commit_sha: str | None = None
+    app_deployed_at: str | None = None
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
 
