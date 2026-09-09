@@ -1,18 +1,21 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import (
     APIRouter,
     Depends,
     Header,
     Path,
+    Query,
     Response,
     status,
 )
 
 from app.api.dependencies.auth import get_current_active_user_id
 from app.api.openapi_responses import TRIP_ERROR_RESPONSES
+from app.core.exceptions import AppException
 from app.core.time import to_korea_datetime
-from app.models.place import Place
+from app.external.tour_api.filters import FILTER_DEFINITIONS, TourFilterId
+from app.models.place import Place, PlaceCategory
 from app.schemas.itinerary_plan import (
     ItineraryPlanAddItemRequest,
     ItineraryPlanFixedRequest,
@@ -57,6 +60,64 @@ router = APIRouter(
     prefix="/trips",
     responses=TRIP_ERROR_RESPONSES,
 )
+
+
+RecommendationSort = Literal["RECOMMENDED", "DISTANCE", "NAME"]
+
+_TOP_LEVEL_FILTER_CATEGORIES = {
+    TourFilterId.RESTAURANT: PlaceCategory.RESTAURANT,
+    TourFilterId.CAFE: PlaceCategory.CAFE,
+    TourFilterId.ACTIVITY: PlaceCategory.ACTIVITY,
+    TourFilterId.TOURISM: PlaceCategory.TOURIST_SPOT,
+    TourFilterId.FESTIVAL: PlaceCategory.FESTIVAL,
+    TourFilterId.EXHIBITION: PlaceCategory.CULTURAL_FACILITY,
+    TourFilterId.SHOPPING: PlaceCategory.SHOPPING,
+}
+
+
+def _matches_recommendation_filter(place: Place, filter_id: str) -> bool:
+    if filter_id == "PLAYER_PICK":
+        return place.is_player_pick
+    try:
+        parsed = TourFilterId(filter_id)
+    except ValueError as exc:
+        raise AppException(
+            status_code=400,
+            code="INVALID_RECOMMENDATION_FILTER",
+            message="지원하지 않는 추천 장소 필터입니다.",
+            details={"filterId": filter_id},
+        ) from exc
+
+    fallback_category = _TOP_LEVEL_FILTER_CATEGORIES.get(parsed)
+    if fallback_category is not None and place.category == fallback_category:
+        return True
+    definition = FILTER_DEFINITIONS[parsed]
+    if definition.allowed_categories and place.category in definition.allowed_categories:
+        return True
+    return any(
+        place.lcls_system1 == clause.lcls_system1
+        and (clause.lcls_system2 is None or place.lcls_system2 == clause.lcls_system2)
+        and (clause.lcls_system3 is None or place.lcls_system3 == clause.lcls_system3)
+        for clause in definition.clauses
+    )
+
+
+def _recommendation_page_number(page_token: str | None) -> int:
+    try:
+        page_number = int(page_token or "1")
+    except ValueError as exc:
+        raise AppException(
+            status_code=400,
+            code="INVALID_PAGE_TOKEN",
+            message="페이지 토큰 형식이 올바르지 않습니다.",
+        ) from exc
+    if page_number < 1:
+        raise AppException(
+            status_code=400,
+            code="INVALID_PAGE_TOKEN",
+            message="페이지 토큰 형식이 올바르지 않습니다.",
+        )
+    return page_number
 
 
 def resolve_trip_subtitle(
@@ -562,8 +623,9 @@ def delete_place_selection(
     response_model=ListSuccessResponse[Place],
     summary="일정 생성 전 추천 후보 조회",
     description=(
-        "경기장·도착지·출발지·숙소 주변의 TourAPI 장소를 "
-        "중복 제거와 카테고리 다양성 필터 후 반환합니다."
+        "경기장·도착지·출발지·숙소 주변의 TourAPI 및 선수 추천 장소를 "
+        "중복 제거 후 반환합니다. keyword·filterId·sort는 전체 후보에 "
+        "먼저 적용되며, 그 결과를 pageSize·pageToken으로 나눕니다."
     ),
 )
 async def get_recommendation_candidates(
@@ -572,18 +634,90 @@ async def get_recommendation_candidates(
         str,
         Depends(get_current_active_user_id),
     ],
+    page_size: Annotated[
+        int,
+        Query(alias="pageSize", ge=1, le=50, description="페이지 크기"),
+    ] = 20,
+    page_token: Annotated[
+        str | None,
+        Query(alias="pageToken", description="이전 응답의 nextPageToken"),
+    ] = None,
+    filter_id: Annotated[
+        str | None,
+        Query(
+            alias="filterId",
+            description=(
+                "/tour/filter-options의 통합 필터 ID 또는 PLAYER_PICK"
+            ),
+        ),
+    ] = None,
+    keyword: Annotated[
+        str | None,
+        Query(min_length=1, max_length=100, description="후보 이름·주소 검색어"),
+    ] = None,
+    sort: Annotated[
+        RecommendationSort,
+        Query(description="추천 적합도·거리·이름 정렬"),
+    ] = "RECOMMENDED",
 ) -> ListSuccessResponse[Place]:
+    page_number = _recommendation_page_number(page_token)
+    if filter_id is not None and filter_id != "PLAYER_PICK":
+        try:
+            TourFilterId(filter_id)
+        except ValueError as exc:
+            raise AppException(
+                status_code=400,
+                code="INVALID_RECOMMENDATION_FILTER",
+                message="지원하지 않는 추천 장소 필터입니다.",
+                details={"filterId": filter_id},
+            ) from exc
+    if keyword is not None and not keyword.strip():
+        raise AppException(
+            status_code=400,
+            code="INVALID_RECOMMENDATION_KEYWORD",
+            message="검색어에는 공백만 사용할 수 없습니다.",
+        )
     candidates = await (
         ItineraryGenerationService().get_recommendation_candidates(
             user_id=user_id,
             trip_id=trip_id,
         )
     )
+    if keyword is not None:
+        normalized_keyword = keyword.strip().casefold()
+        candidates = [
+            place
+            for place in candidates
+            if normalized_keyword in place.name.casefold()
+            or normalized_keyword in place.address.casefold()
+        ]
+    if filter_id is not None:
+        candidates = [
+            place
+            for place in candidates
+            if _matches_recommendation_filter(place, filter_id)
+        ]
+    if sort == "DISTANCE":
+        candidates.sort(
+            key=lambda place: (
+                place.distance_meters is None,
+                place.distance_meters or 0,
+                place.name,
+            )
+        )
+    elif sort == "NAME":
+        candidates.sort(key=lambda place: place.name.casefold())
+
+    start = (page_number - 1) * page_size
+    page = candidates[start : start + page_size]
+    next_page_token = (
+        str(page_number + 1) if start + page_size < len(candidates) else None
+    )
     return ListSuccessResponse(
-        data=candidates,
+        data=page,
         meta=ListMeta(
-            count=len(candidates),
-            next_page_token=None,
+            count=len(page),
+            next_page_token=next_page_token,
         ),
     )
 

@@ -113,6 +113,9 @@ TRIP_ERROR_RESPONSES = {
         itinerary_edit_invalid=_example("ITINERARY_EDIT_INVALID", "일정 항목을 수정할 수 없습니다."),
         anchor_not_editable=_example("ITINERARY_ANCHOR_NOT_EDITABLE", "Anchor 시간은 이 API에서 변경할 수 없습니다."),
         item_date_mismatch=_example("ITINERARY_ITEM_DATE_MISMATCH", "date와 scheduledStartAt의 날짜가 일치해야 합니다."),
+        invalid_page_token=_example("INVALID_PAGE_TOKEN", "페이지 토큰 형식이 올바르지 않습니다."),
+        invalid_recommendation_filter=_example("INVALID_RECOMMENDATION_FILTER", "지원하지 않는 추천 장소 필터입니다."),
+        invalid_recommendation_keyword=_example("INVALID_RECOMMENDATION_KEYWORD", "검색어에는 공백만 사용할 수 없습니다."),
     ),
     404: _response(
         "여행·일정 리소스 없음",
