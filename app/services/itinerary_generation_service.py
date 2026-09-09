@@ -3,6 +3,7 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import date, datetime, time, timedelta, timezone
 import logging
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import status
@@ -1217,14 +1218,12 @@ class ItineraryGenerationService:
                         **item.model_dump(
                             by_alias=True
                         ),
-                        "itemId": (
-                            f"item_{day_index}_{item_index}"
-                        ),
+                        # itemId는 날짜·순서와 무관한 불변 식별자입니다.
+                        # 재생성 때 기존 고정 itemId를 복원해도 새 항목과
+                        # 충돌하지 않도록 매번 고유 값을 발급합니다.
+                        "itemId": f"item_{uuid4().hex}",
                     }
-                    for item_index, item in enumerate(
-                        day.items,
-                        start=1,
-                    )
+                    for item in day.items
                 ],
             }
             for day_index, day in enumerate(
