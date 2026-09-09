@@ -15,6 +15,7 @@ from app.schemas.trip import (
     TripDocument,
     TripPoint,
     TripRecord,
+    TripStatus,
     TripUpdateRequest,
 )
 from app.services.trip_service import TripService
@@ -389,13 +390,23 @@ def test_create_trip_rejects_game_outside_period() -> None:
     assert exception.code == "GAME_OUTSIDE_TRIP_PERIOD"
 
 
-def test_get_my_trips_returns_only_owner_trips() -> None:
+def test_get_my_trips_hides_incomplete_trips() -> None:
     service, repository = create_service()
 
-    service.create_trip(
+    planning_trip = service.create_trip(
         user_id="user-001",
         request=create_request(),
         idempotency_key="test-request-key",
+    )
+
+    generated_trip = repository.create(
+        TripDocument(
+            **planning_trip.model_dump(
+                exclude={"trip_id", "status", "active_plan_id"}
+            ),
+            status=TripStatus.GENERATED,
+            active_plan_id="plan_generated",
+        )
     )
 
     other_trip = TripDocument(
@@ -428,8 +439,29 @@ def test_get_my_trips_returns_only_owner_trips() -> None:
         user_id="user-001"
     )
 
-    assert len(trips) == 1
-    assert trips[0].user_id == "user-001"
+    assert [trip.trip_id for trip in trips] == [generated_trip.trip_id]
+
+
+def test_get_my_trips_keeps_regenerating_trip_with_active_plan() -> None:
+    service, repository = create_service()
+    now = datetime.now(timezone.utc)
+    regenerating_trip = repository.create(
+        TripDocument(
+            user_id="user-001",
+            game_id=GAME_ID,
+            title="기존 일정 재생성 중",
+            trip_start_at=datetime(2026, 8, 14, tzinfo=timezone.utc),
+            trip_end_at=datetime(2026, 8, 16, tzinfo=timezone.utc),
+            status=TripStatus.GENERATING,
+            active_plan_id="plan_existing",
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    trips = service.get_my_trips(user_id="user-001")
+
+    assert [trip.trip_id for trip in trips] == [regenerating_trip.trip_id]
 
 
 def test_get_trip_rejects_other_owner() -> None:
