@@ -371,6 +371,7 @@ ATTENDANCE_LOG_EXAMPLE = {
     "planId": "plan_001",
     "logTitle": "사직 원정 직관 기록",
     "summaryText": "역전승을 직접 본 날",
+    "mate": "친구",
     "logStatus": "PUBLISHED",
     "visibility": "PUBLIC",
     "createdAt": "2026-08-19T12:00:00+09:00",
@@ -493,6 +494,7 @@ REQUEST_EXAMPLES.update({
         "/api/v1/attendance-logs/{attendanceLogId}",
     ): {
         "summaryText": "역전승을 직접 본 날",
+        "mate": "친구",
         "logStatus": "PUBLISHED",
         "visibility": "PUBLIC",
     },

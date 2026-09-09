@@ -268,6 +268,11 @@ def make_service(
         )
     )
 
+    player_pick_service = Mock()
+    player_pick_service.get_places_for_stadium = AsyncMock(
+        return_value=[]
+    )
+
     service = ItineraryGenerationService(
         trip_repository=trip_repository,
         game_repository=game_repository,
@@ -276,6 +281,7 @@ def make_service(
         itinerary_plan_repository=plan_repository,
         place_adapter=place_adapter,
         recommendation_service=recommendation_service,
+        player_pick_service=player_pick_service,
         travel_time_provider=None,
         generator=generator or (lambda *_, **__: make_result()),
     )

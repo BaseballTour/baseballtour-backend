@@ -2,6 +2,7 @@ import base64
 import binascii
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import status
 
@@ -133,6 +134,7 @@ class AttendanceLogService:
             trip_id=trip_id,
         )
 
+        self._validate_trip_completed(trip)
         self._validate_duplicate_log(
             trip_id=trip_id,
         )
@@ -404,6 +406,7 @@ class AttendanceLogService:
             log_title=attendance_log.log_title,
             summary_text=attendance_log.summary_text,
             seat=attendance_log.seat,
+            mate=attendance_log.mate,
             log_status=attendance_log.log_status,
             visibility=attendance_log.visibility,
             created_at=attendance_log.created_at,
@@ -465,6 +468,8 @@ class AttendanceLogService:
 
         if "seat" in request.model_fields_set:
             updates["seat"] = request.seat
+        if "mate" in request.model_fields_set:
+            updates["mate"] = request.mate
 
         if (
             "log_status"
@@ -1005,6 +1010,7 @@ class AttendanceLogService:
             log_title=record.log_title,
             summary_text=record.summary_text,
             seat=record.seat,
+            mate=record.mate,
             game_start_at=game.game_start_at,
             stadium_name=game.stadium.name,
             home_team_name=game.home_team.name,
@@ -1165,6 +1171,7 @@ class AttendanceLogService:
             log_title=record.log_title,
             summary_text=record.summary_text,
             seat=record.seat,
+            mate=record.mate,
             log_status=record.log_status,
             visibility=record.visibility,
             created_at=record.created_at,
@@ -1196,6 +1203,27 @@ class AttendanceLogService:
             )
 
         return trip
+
+    @staticmethod
+    def _validate_trip_completed(
+        trip: TripRecord,
+    ) -> None:
+        """한국시간 기준 여행 종료 다음 날부터 로그 생성을 허용합니다."""
+        korean_timezone = ZoneInfo("Asia/Seoul")
+        today = datetime.now(korean_timezone).date()
+        trip_end_date = trip.trip_end_at.astimezone(
+            korean_timezone
+        ).date()
+
+        if today <= trip_end_date:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="ATTENDANCE_LOG_TRIP_NOT_COMPLETED",
+                message=(
+                    "여행 종료 다음 날부터 "
+                    "직관 로그를 생성할 수 있습니다."
+                ),
+            )
 
     def _validate_duplicate_log(
         self,

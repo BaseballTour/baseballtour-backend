@@ -111,10 +111,11 @@ Storage 내부 경로는 사용자 응답에 노출하지 않으며, signed URL�
 3. 업로드가 끝나면 `POST /api/v1/media/complete`를 호출해 실제 Storage
    객체 검증과 서비스 데이터 연결을 완료한다.
 
-미디어 목적은 다음 두 가지다.
+미디어 목적은 다음 세 가지다.
 
 - `PROFILE_IMAGE`: 사용자 프로필 이미지
 - `ATTENDANCE_LOG`: 직관 로그 이미지 또는 동영상
+- `TRIP_COVER_IMAGE`: 여행 커버이미지
 
 지원 형식과 최대 크기는 다음과 같다.
 
@@ -172,6 +173,26 @@ Storage 객체를 best-effort로 삭제하여 orphan 파일이 남지 않도록 
 임시 signed GET URL인 `coverImageUrl`을 반환한다. 커버가 없는 기존 여행은
 `coverImageUrl: null`이다. 이전 커버 blob은 교체 즉시 삭제하지 않으며,
 별도의 참조 확인·정리 정책이 마련되기 전까지 Storage에 남을 수 있다.
+
+### 직관 로그 수동 생성 및 동행 정보
+
+직관 로그는 사용자가 `POST /api/v1/attendance-logs`를 호출해 직접 생성한다.
+여행 종료 시 자동으로 생성하지 않는다.
+
+생성은 `tripEndAt`을 한국시간(`Asia/Seoul`) 날짜로 변환했을 때
+**여행 종료 다음 날 00:00 KST부터** 허용한다.
+종료일 당일에는 실제 종료 시각이 지났더라도 생성할 수 없다.
+조건을 충족하지 않으면 `ATTENDANCE_LOG_TRIP_NOT_COMPLETED`(409)를 반환한다.
+
+기존 여행 소유권, 중복 로그, 활성 일정, 경기 존재 검사는 유지한다.
+생성 시점의 확정 일정을 기반으로 DRAFT 로그와 Entry를 생성한다.
+
+`mate`는 함께 직관한 사람을 기록하는 선택적 문자열이다.
+`PATCH /api/v1/attendance-logs/{attendanceLogId}`에서 수정할 수 있으며
+최대 100자다. 필드를 생략하면 기존 값을 유지하고, `null`이면 삭제한다.
+
+직관 로그 목록·상세·아카이브 응답에 `mate`를 포함한다.
+기존 문서에 필드가 없으면 `null`로 반환한다.
 
 ### 직관 로그 공개 범위와 소유권
 
