@@ -73,7 +73,11 @@ class UserService:
             birth_year=request.birth_year,
             birth_date=None,
             gender=None,
-            name=request.name,
+            name=(
+                request.name.strip()
+                if request.name is not None and request.name.strip()
+                else authenticated_user.display_name
+            ),
             phone_number=request.phone_number,
             support_team_id=request.support_team_id,
             profile_image_url=None,

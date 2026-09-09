@@ -615,3 +615,50 @@ def test_bootstrap_user_tolerates_default_collection_storage_failure(
             user_id="firebase-user-123"
         )
     )
+
+
+
+@pytest.mark.parametrize(
+    ("request_name", "firebase_name", "expected"),
+    [
+        ("직접 입력 이름", "Firebase 이름", "직접 입력 이름"),
+        (None, "서민준", "서민준"),
+        ("  서민준  ", "Firebase 이름", "서민준"),
+        ("   ", "Firebase 이름", "Firebase 이름"),
+        (None, None, None),
+    ],
+)
+def test_bootstrap_name_precedence(
+    repositories: tuple[Mock, Mock],
+    request_name: str | None,
+    firebase_name: str | None,
+    expected: str | None,
+) -> None:
+    user_repository, team_repository = repositories
+    user_repository.exists.return_value = False
+    user_repository.create.return_value = True
+    team_repository.get_by_id.return_value = make_team()
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+        favorite_collection_service=Mock(),
+    )
+
+    result = service.bootstrap_user(
+        authenticated_user=AuthenticatedUser(
+            uid="firebase-user-123",
+            email="fan@example.com",
+            display_name=firebase_name,
+        ),
+        request=UserBootstrapRequest(
+            nickname="테스트사용자",
+            birth_year=2002,
+            name=request_name,
+            support_team_id="doosan",
+        ),
+    )
+
+    created_user = user_repository.create.call_args.args[1]
+    assert created_user.name == expected
+    assert result.name == expected

@@ -873,3 +873,19 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 
 삭제된 직관 로그는 존재하지 않는 것으로 취급합니다.
 취소 경기의 빈 티켓 생성 정책은 별도 요구사항으로 처리합니다.
+
+
+### Firebase 이름 저장
+
+최초 사용자 프로필 생성 시 이름은 다음 우선순위로 저장합니다.
+
+1. 요청 본문의 `name`
+2. Firebase ID Token의 `name` 클레임
+3. 이름이 없으면 `null`
+
+Firebase `displayName`은 ID Token에서 일반적으로 `name` 클레임으로 전달됩니다.
+호환성을 위해 `displayName` 클레임도 fallback으로 확인합니다.
+
+이름은 앞뒤 공백을 제거하며, 유효한 Firebase 이름이 없으면 `null`을 저장합니다.
+기존 `POST /api/v1/users/me/bootstrap` 요청 계약은 유지됩니다.
+이후 `PATCH /api/v1/users/me`로 이름을 수정하거나 삭제할 수 있습니다.

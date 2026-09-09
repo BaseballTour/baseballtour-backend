@@ -454,3 +454,51 @@ def test_active_user_dependency_rejects_missing_profile(
         response.json()["error"]["code"]
         == "USER_NOT_FOUND"
     )
+
+
+
+@pytest.mark.parametrize(
+    ("claims", "expected"),
+    [
+        ({"name": "  서민준  "}, "서민준"),
+        ({"name": "토큰 이름", "displayName": "보조 이름"}, "토큰 이름"),
+        ({"name": " ", "displayName": "  김민준  "}, "김민준"),
+        ({"name": 123, "displayName": "서민준"}, "서민준"),
+        ({"name": "x" * 51}, None),
+        ({}, None),
+    ],
+)
+def test_firebase_display_name_claim_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+    claims: dict[str, object],
+    expected: str | None,
+) -> None:
+    monkeypatch.setattr(
+        auth_dependency.firebase_auth,
+        "verify_id_token",
+        lambda *args, **kwargs: {
+            "uid": "firebase-user-123",
+            "email": "fan@example.com",
+            **claims,
+        },
+    )
+
+    app = FastAPI()
+
+    @app.get("/identity")
+    async def identity(
+        user: Annotated[
+            auth_dependency.AuthenticatedUser,
+            Depends(auth_dependency.get_current_user),
+        ],
+    ) -> dict[str, str | None]:
+        return {"displayName": user.display_name}
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/identity",
+            headers={"Authorization": "Bearer valid-token"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"displayName": expected}

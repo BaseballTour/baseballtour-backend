@@ -34,6 +34,7 @@ class AuthenticatedUser:
 
     uid: str
     email: str | None
+    display_name: str | None = None
 
 
 def create_auth_exception(
@@ -137,9 +138,19 @@ async def get_current_user(
         else None
     )
 
+    normalized_display_name = None
+    for claim in ("name", "displayName"):
+        value = decoded_token.get(claim)
+        if isinstance(value, str):
+            candidate = value.strip()
+            if 1 <= len(candidate) <= 50:
+                normalized_display_name = candidate
+                break
+
     return AuthenticatedUser(
         uid=uid.strip(),
         email=normalized_email,
+        display_name=normalized_display_name,
     )
 
 
