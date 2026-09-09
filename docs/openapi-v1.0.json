@@ -5051,6 +5051,351 @@
         ]
       }
     },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "내 알림 목록 조회",
+        "description": "인증된 사용자의 알림을 최신순으로 조회합니다.",
+        "operationId": "get_notifications_api_v1_notifications_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "한 페이지에 조회할 알림 수",
+              "default": 20,
+              "title": "Pagesize"
+            },
+            "description": "한 페이지에서 반환할 최대 장소 수",
+            "examples": {
+              "default": {
+                "value": 20
+              }
+            },
+            "example": 20
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "이전 목록 응답의 nextPageToken",
+              "title": "Pagetoken"
+            },
+            "description": "이전 응답의 nextPageToken. 첫 요청에서는 생략",
+            "examples": {
+              "default": {
+                "value": "notification_001"
+              }
+            },
+            "example": "2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_NotificationResponse_"
+                },
+                "examples": {
+                  "default": {
+                    "summary": "성공 응답 예시",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "notificationId": "notification_001",
+                          "type": "TRIP_REMINDER",
+                          "title": "여행 일정 안내",
+                          "body": "여행 일정을 확인해 주세요.",
+                          "createdAt": "2026-09-09T12:00:00+09:00",
+                          "targetType": "TRIP",
+                          "targetId": "trip_001",
+                          "isRead": false
+                        }
+                      ],
+                      "meta": {
+                        "count": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "내 미읽음 알림 개수 조회",
+        "description": "인증된 사용자의 읽지 않은 알림 개수를 조회합니다.",
+        "operationId": "get_unread_count_api_v1_notifications_unread_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NotificationUnreadCountResponse_"
+                },
+                "examples": {
+                  "default": {
+                    "summary": "성공 응답 예시",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "unreadCount": 3
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notifications/{notificationId}/read": {
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "내 알림 읽음 처리",
+        "description": "인증된 사용자의 알림을 읽음 처리합니다. 이미 읽은 알림은 기존 읽음 시간을 유지합니다.",
+        "operationId": "mark_notification_read_api_v1_notifications__notificationId__read_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "읽음 처리할 알림 ID",
+              "title": "Notificationid"
+            },
+            "description": "읽음 처리할 알림 ID",
+            "examples": {
+              "default": {
+                "value": "notification_001"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_NotificationResponse_"
+                },
+                "examples": {
+                  "default": {
+                    "summary": "성공 응답 예시",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "notificationId": "notification_001",
+                        "type": "TRIP_REMINDER",
+                        "title": "여행 일정 안내",
+                        "body": "여행 일정을 확인해 주세요.",
+                        "createdAt": "2026-09-09T12:00:00+09:00",
+                        "readAt": "2026-09-09T12:05:00+09:00",
+                        "targetType": "TRIP",
+                        "targetId": "trip_001",
+                        "isRead": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/teams": {
       "get": {
         "tags": [
@@ -21725,6 +22070,33 @@
         ],
         "title": "ListSuccessResponse[NotificationConsentHistoryResponse]"
       },
+      "ListSuccessResponse_NotificationResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[NotificationResponse]"
+      },
       "ListSuccessResponse_PlaceSelectionResponse_": {
         "properties": {
           "success": {
@@ -22538,6 +22910,84 @@
         ],
         "title": "NotificationConsentType"
       },
+      "NotificationResponse": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Body"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "readAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readat"
+          },
+          "targetType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid"
+          },
+          "notificationId": {
+            "type": "string",
+            "title": "Notificationid"
+          },
+          "isRead": {
+            "type": "boolean",
+            "title": "Isread",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "body",
+          "createdAt",
+          "notificationId",
+          "isRead"
+        ],
+        "title": "NotificationResponse"
+      },
       "NotificationSettingsResponse": {
         "properties": {
           "gameReminderEnabled": {
@@ -22616,6 +23066,21 @@
             "tripReminderEnabled": true
           }
         ]
+      },
+      "NotificationUnreadCountResponse": {
+        "properties": {
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unreadcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unreadCount"
+        ],
+        "title": "NotificationUnreadCountResponse"
       },
       "PendingAttendanceLogTripResponse": {
         "properties": {
@@ -23973,6 +24438,25 @@
         ],
         "title": "SuccessResponse[NoticeDetailResponse]"
       },
+      "SuccessResponse_NotificationResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[NotificationResponse]"
+      },
       "SuccessResponse_NotificationSettingsResponse_": {
         "properties": {
           "success": {
@@ -23991,6 +24475,25 @@
           "data"
         ],
         "title": "SuccessResponse[NotificationSettingsResponse]"
+      },
+      "SuccessResponse_NotificationUnreadCountResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationUnreadCountResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[NotificationUnreadCountResponse]"
       },
       "SuccessResponse_PlaceSelectionResponse_": {
         "properties": {

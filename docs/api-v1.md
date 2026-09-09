@@ -922,7 +922,7 @@ Firebase `displayName`은 ID Token에서 일반적으로 `name` 클레임으로 
 
 응답 데이터는 `shareToken`, `shareUrl`입니다. `SHARE_WEB_ORIGIN`이
 설정되지 않았으면 `shareUrl`은 null입니다. 설정된 경우
-`{SHARE_WEB_ORIGIN}/shared-trips/{shareToken}` 형식으로 반환합니다.
+`{SHARE_WEB_ORIGIN}/s/{shareToken}` 형식으로 반환합니다.
 
 ### DELETE /api/v1/trips/{tripId}/share
 
@@ -968,5 +968,5 @@ Firebase `displayName`은 ID Token에서 일반적으로 `name` 클레임으로 
 - 409 `TRIP_SHARE_STATE_CHANGED`: 발급 중 여행 또는 일정 상태 변경
 
 `SHARE_WEB_ORIGIN`에는 확정된 공유 웹사이트의 HTTPS Origin을 설정합니다.
-웹 프론트엔드는 `/shared-trips/{shareToken}` 페이지를 제공해야 합니다.
+웹 프론트엔드는 `/s/{shareToken}` 페이지를 제공해야 합니다.
 실제 웹 도메인과 CORS 허용 Origin은 프론트엔드와 확정한 뒤 설정합니다.
