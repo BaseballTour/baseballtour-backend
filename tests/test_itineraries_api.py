@@ -286,6 +286,27 @@ def test_create_itinerary_has_no_request_body(
     service.generate.assert_awaited_once()
 
 
+def test_regenerate_itinerary_day_passes_target_date(
+    authenticated_client: TestClient,
+) -> None:
+    service = Mock()
+    service.generate = AsyncMock(return_value=make_plan())
+    with patch(
+        "app.api.v1.endpoints.trips.ItineraryGenerationService",
+        return_value=service,
+    ):
+        response = authenticated_client.post(
+            f"/api/v1/trips/{TRIP_ID}/plan/days/2026-08-15/regenerate"
+        )
+
+    assert response.status_code == 200
+    service.generate.assert_awaited_once_with(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        target_date=datetime(2026, 8, 15).date(),
+    )
+
+
 def test_create_itinerary_requires_authentication() -> None:
     app.dependency_overrides.clear()
 

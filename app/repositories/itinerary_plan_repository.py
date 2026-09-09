@@ -239,3 +239,51 @@ class ItineraryPlanRepository:
         return self.get_by_id(
             plan_id
         )
+
+    def commit_regenerated_day(
+        self,
+        *,
+        trip_id: str,
+        plan_id: str,
+        days: list[ItineraryPlanDay],
+        updated_at: datetime,
+    ) -> ItineraryPlanRecord:
+        """같은 활성 Plan의 하루만 교체하고 생성 잠금을 해제합니다."""
+        plan_reference = self._collection.document(plan_id)
+        trip_reference = self._trip_collection.document(trip_id)
+        total_travel_minutes = sum(
+            item.travel_minutes_from_previous
+            for day in days
+            for item in day.items
+        )
+        total_distance = sum(
+            item.travel_distance_meters_from_previous
+            for day in days
+            for item in day.items
+        )
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction) -> None:
+            transaction.update(
+                plan_reference,
+                {
+                    "days": _serialize_days_for_firestore(days),
+                    "totalTravelMinutes": total_travel_minutes,
+                    "totalTravelDistanceMeters": total_distance,
+                    "updatedAt": updated_at,
+                },
+            )
+            transaction.update(
+                trip_reference,
+                {
+                    "status": TripStatus.GENERATED.value,
+                    "updatedAt": updated_at,
+                },
+            )
+
+        commit(transaction)
+        updated = self.get_by_id(plan_id)
+        if updated is None:
+            raise RuntimeError("재생성한 일정 Plan을 조회할 수 없습니다.")
+        return updated

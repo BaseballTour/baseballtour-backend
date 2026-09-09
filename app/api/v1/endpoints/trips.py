@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import (
@@ -755,6 +756,31 @@ async def create_itinerary(
     return SuccessResponse(
         data=to_itinerary_plan_response(plan)
     )
+
+
+@router.post(
+    "/{tripId}/plan/days/{date}/regenerate",
+    response_model=SuccessResponse[ItineraryPlanResponse],
+    summary="여행 일정 하루 재생성",
+    description=(
+        "같은 활성 Plan에서 선택한 날짜만 다시 생성합니다. "
+        "고정 PLACE와 Anchor는 유지하고, 다른 날짜와 그 itemId는 변경하지 않습니다."
+    ),
+)
+async def regenerate_itinerary_day(
+    trip_id: Annotated[str, Path(alias="tripId", description="여행 ID")],
+    target_date: Annotated[
+        date,
+        Path(alias="date", description="한국시간 기준 재생성 날짜"),
+    ],
+    user_id: Annotated[str, Depends(get_current_active_user_id)],
+) -> SuccessResponse[ItineraryPlanResponse]:
+    plan = await ItineraryGenerationService().generate(
+        user_id=user_id,
+        trip_id=trip_id,
+        target_date=target_date,
+    )
+    return SuccessResponse(data=to_itinerary_plan_response(plan))
 
 
 
