@@ -309,7 +309,9 @@ async def test_generate_saves_active_plan() -> None:
 
     assert result.plan_id == "plan_001"
     assert result.status == ItineraryPlanStatus.ACTIVE
-    assert result.days[0].items[0].item_id == "item_1_1"
+    generated_item_id = result.days[0].items[0].item_id
+    assert generated_item_id.startswith("item_")
+    assert generated_item_id != "item_1_1"
 
     updates = context.trip_repository.update.call_args_list
 
@@ -976,6 +978,29 @@ async def test_generate_restores_status_when_request_is_cancelled() -> None:
     updates = context.trip_repository.update.call_args_list
     context.trip_repository.claim_generation.assert_called_once()
     assert updates[-1].args[1]["status"] == "PLANNING"
+
+
+def test_new_plan_item_ids_are_unique_and_not_sequence_based() -> None:
+    result = make_result()
+    # 같은 결과를 다시 저장 모델로 변환해도 새 항목 ID가 재사용되면 안 됩니다.
+    first = ItineraryGenerationService._build_plan_document(
+        user_id=USER_ID,
+        result=result,
+        now=datetime.now(timezone.utc),
+    )
+    second = ItineraryGenerationService._build_plan_document(
+        user_id=USER_ID,
+        result=result,
+        now=datetime.now(timezone.utc),
+    )
+
+    first_ids = [item.item_id for day in first.days for item in day.items]
+    second_ids = [item.item_id for day in second.days for item in day.items]
+
+    assert len(first_ids) == len(set(first_ids))
+    assert set(first_ids).isdisjoint(second_ids)
+    assert all(item_id.startswith("item_") for item_id in first_ids)
+    assert "item_1_1" not in first_ids
 
 
 @pytest.mark.anyio
