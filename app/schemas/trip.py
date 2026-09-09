@@ -9,7 +9,12 @@ from pydantic import (
 )
 
 from app.core.accommodation_ids import ACCOMMODATION_ID_PATTERN
-from app.models.travel_preferences import ScheduleDensity, TravelStyle
+from app.models.place import build_kakao_map_url
+from app.models.travel_preferences import (
+    PreferredCategory,
+    ScheduleDensity,
+    TravelStyle,
+)
 
 from app.schemas.base import ApiModel
 
@@ -31,6 +36,7 @@ class TripPoint(ApiModel):
         min_length=1,
         description="장소 이름",
     )
+    address: str = Field(default="", description="주소")
     latitude: float = Field(
         ge=-90,
         le=90,
@@ -41,6 +47,17 @@ class TripPoint(ApiModel):
         le=180,
         description="경도",
     )
+    place_url: str | None = Field(default=None, description="외부 지도 링크")
+
+    @model_validator(mode="after")
+    def ensure_place_url(self) -> "TripPoint":
+        if not self.place_url:
+            self.place_url = build_kakao_map_url(
+                name=self.name,
+                latitude=self.latitude,
+                longitude=self.longitude,
+            )
+        return self
 
 
 class AccommodationInfo(ApiModel):
@@ -95,6 +112,7 @@ class TripCreateRequest(ApiModel):
                     "tripEndAt": "2026-08-15T23:00:00+09:00",
                     "travelStyle": "BALANCED",
                     "scheduleDensity": "MODERATE",
+                    "preferredCategories": ["FOOD", "CULTURE"],
                     "arrivalPoint": {
                         "name": "서울역",
                         "latitude": 37.5547,
@@ -142,6 +160,7 @@ class TripCreateRequest(ApiModel):
     accommodation: AccommodationInfo | None = None
     travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
+    preferred_categories: list[PreferredCategory] = Field(default_factory=list)
 
     @field_validator("subtitle", mode="before")
     @classmethod
@@ -216,6 +235,7 @@ class TripUpdateRequest(ApiModel):
     accommodation: AccommodationInfo | None = None
     travel_style: TravelStyle | None = None
     schedule_density: ScheduleDensity | None = None
+    preferred_categories: list[PreferredCategory] | None = None
 
     @field_validator("subtitle", mode="before")
     @classmethod
@@ -274,6 +294,7 @@ class TripDocument(ApiModel):
     accommodation: AccommodationInfo | None = None
     travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
+    preferred_categories: list[PreferredCategory] = Field(default_factory=list)
 
     status: TripStatus = TripStatus.PLANNING
     active_plan_id: str | None = None
@@ -329,5 +350,6 @@ class TripDetailResponse(TripSummaryResponse):
     accommodation: AccommodationInfo | None = None
     travel_style: TravelStyle
     schedule_density: ScheduleDensity
+    preferred_categories: list[PreferredCategory]
     active_plan_id: str | None = None
     updated_at: AwareDatetime

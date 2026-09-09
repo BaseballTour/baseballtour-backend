@@ -999,22 +999,16 @@ class ItineraryGenerationService:
                     KOREA_TIMEZONE
                 ),
                 arrival_point=GeoPoint(
-                    place_url=build_kakao_map_url(
-                        name=trip.arrival_point.name,
-                        latitude=trip.arrival_point.latitude,
-                        longitude=trip.arrival_point.longitude,
-                    ),
+                    place_url=trip.arrival_point.place_url,
                     name=trip.arrival_point.name,
+                    address=trip.arrival_point.address,
                     latitude=trip.arrival_point.latitude,
                     longitude=trip.arrival_point.longitude,
                 ),
                 departure_point=GeoPoint(
-                    place_url=build_kakao_map_url(
-                        name=trip.departure_point.name,
-                        latitude=trip.departure_point.latitude,
-                        longitude=trip.departure_point.longitude,
-                    ),
+                    place_url=trip.departure_point.place_url,
                     name=trip.departure_point.name,
+                    address=trip.departure_point.address,
                     latitude=trip.departure_point.latitude,
                     longitude=trip.departure_point.longitude,
                 ),
@@ -1045,6 +1039,7 @@ class ItineraryGenerationService:
                 ],
                 travel_style=trip.travel_style,
                 schedule_density=trip.schedule_density,
+                preferred_categories=trip.preferred_categories,
             )
 
         except ValidationError as error:

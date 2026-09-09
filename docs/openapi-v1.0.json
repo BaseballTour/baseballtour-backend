@@ -1493,7 +1493,10 @@
                     "value": {
                       "success": true,
                       "data": {
-                        "status": "healthy"
+                        "status": "healthy",
+                        "version": "0.1.0",
+                        "commitSha": "a372d55",
+                        "deployedAt": "2026-09-09T11:00:00+09:00"
                       }
                     }
                   }
@@ -5203,7 +5206,11 @@
                       "placeUrl": "https://place.map.kakao.com/123456789"
                     },
                     "travelStyle": "BALANCED",
-                    "scheduleDensity": "MODERATE"
+                    "scheduleDensity": "DENSE",
+                    "preferredCategories": [
+                      "FOOD",
+                      "CULTURE"
+                    ]
                   }
                 }
               }
@@ -6329,7 +6336,11 @@
                           "placeUrl": "https://place.map.kakao.com/123456789"
                         },
                         "travelStyle": "BALANCED",
-                        "scheduleDensity": "MODERATE",
+                        "scheduleDensity": "DENSE",
+                        "preferredCategories": [
+                          "FOOD",
+                          "CULTURE"
+                        ],
                         "activePlanId": "plan_001",
                         "updatedAt": "2026-08-15T11:00:00+09:00"
                       }
@@ -6911,7 +6922,11 @@
                           "placeUrl": "https://place.map.kakao.com/123456789"
                         },
                         "travelStyle": "BALANCED",
-                        "scheduleDensity": "MODERATE",
+                        "scheduleDensity": "DENSE",
+                        "preferredCategories": [
+                          "FOOD",
+                          "CULTURE"
+                        ],
                         "activePlanId": "plan_001",
                         "updatedAt": "2026-08-15T11:00:00+09:00"
                       }
@@ -10802,7 +10817,8 @@
               "default": "RECOMMENDED",
               "title": "Sort"
             },
-            "description": "추천 적합도·거리·이름 정렬"
+            "description": "추천 적합도·거리·이름 정렬",
+            "example": "RECOMMENDED"
           }
         ],
         "responses": {
@@ -20547,10 +20563,39 @@
             "title": "Status",
             "description": "서버 상태",
             "default": "healthy"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "deployedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployedat"
           }
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "version"
+        ],
         "title": "HealthData"
       },
       "ItineraryItemAddedBy": {
@@ -22634,6 +22679,20 @@
         ],
         "title": "PlayerPickResponse"
       },
+      "PreferredCategory": {
+        "type": "string",
+        "enum": [
+          "FOOD",
+          "ACTIVITY",
+          "SHOPPING",
+          "EXPERIENCE",
+          "RELAXATION",
+          "HISTORY",
+          "NATURE",
+          "CULTURE"
+        ],
+        "title": "PreferredCategory"
+      },
       "RecommendationSummary": {
         "properties": {
           "fetchedCount": {
@@ -23713,6 +23772,13 @@
           "scheduleDensity": {
             "$ref": "#/components/schemas/ScheduleDensity",
             "default": "MODERATE"
+          },
+          "preferredCategories": {
+            "items": {
+              "$ref": "#/components/schemas/PreferredCategory"
+            },
+            "type": "array",
+            "title": "Preferredcategories"
           }
         },
         "additionalProperties": false,
@@ -23746,6 +23812,10 @@
               "name": "서울역"
             },
             "gameId": "game_20260815_lg_doosan",
+            "preferredCategories": [
+              "FOOD",
+              "CULTURE"
+            ],
             "scheduleDensity": "MODERATE",
             "title": "잠실 원정 직관 여행",
             "travelStyle": "BALANCED",
@@ -23837,6 +23907,13 @@
           "scheduleDensity": {
             "$ref": "#/components/schemas/ScheduleDensity"
           },
+          "preferredCategories": {
+            "items": {
+              "$ref": "#/components/schemas/PreferredCategory"
+            },
+            "type": "array",
+            "title": "Preferredcategories"
+          },
           "activePlanId": {
             "anyOf": [
               {
@@ -23867,6 +23944,7 @@
           "createdAt",
           "travelStyle",
           "scheduleDensity",
+          "preferredCategories",
           "updatedAt"
         ],
         "title": "TripDetailResponse",
@@ -23879,6 +23957,12 @@
             "minLength": 1,
             "title": "Name",
             "description": "장소 이름"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "주소",
+            "default": ""
           },
           "latitude": {
             "type": "number",
@@ -23893,6 +23977,18 @@
             "minimum": -180.0,
             "title": "Longitude",
             "description": "경도"
+          },
+          "placeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeurl",
+            "description": "외부 지도 링크"
           }
         },
         "additionalProperties": false,
@@ -24092,6 +24188,20 @@
                 "type": "null"
               }
             ]
+          },
+          "preferredCategories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PreferredCategory"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferredcategories"
           }
         },
         "additionalProperties": false,

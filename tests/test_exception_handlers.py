@@ -53,6 +53,9 @@ def test_health_success_response() -> None:
         "success": True,
         "data": {
             "status": "healthy",
+            "version": "0.1.0",
+            "commitSha": None,
+            "deployedAt": None,
         },
     }
 

@@ -225,6 +225,7 @@ def to_detail_response(
         accommodation=trip.accommodation,
         travel_style=trip.travel_style,
         schedule_density=trip.schedule_density,
+        preferred_categories=trip.preferred_categories,
         active_plan_id=trip.active_plan_id,
         updated_at=trip.updated_at,
     )

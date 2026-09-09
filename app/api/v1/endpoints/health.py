@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.response import SuccessResponse
 from app.schemas.system import HealthData
+from app.core.config import settings
 
 
 router = APIRouter()
@@ -15,5 +16,9 @@ router = APIRouter()
 )
 async def health_check() -> SuccessResponse[HealthData]:
     return SuccessResponse(
-        data=HealthData(),
+        data=HealthData(
+            version=settings.app_version,
+            commit_sha=settings.app_commit_sha,
+            deployed_at=settings.app_deployed_at,
+        ),
     )

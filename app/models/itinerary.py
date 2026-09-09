@@ -15,7 +15,11 @@ from pydantic import (
 
 from app.core.time import to_korea_datetime
 from app.models.place import PlaceCategory
-from app.models.travel_preferences import ScheduleDensity, TravelStyle
+from app.models.travel_preferences import (
+    PreferredCategory,
+    ScheduleDensity,
+    TravelStyle,
+)
 
 
 def to_camel(value: str) -> str:
@@ -143,6 +147,7 @@ class TripInput(AlgorithmModel):
     auto_fill_recommendations: bool = True
     travel_style: TravelStyle = TravelStyle.BALANCED
     schedule_density: ScheduleDensity = ScheduleDensity.MODERATE
+    preferred_categories: list[PreferredCategory] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_period_and_timezone(self) -> "TripInput":

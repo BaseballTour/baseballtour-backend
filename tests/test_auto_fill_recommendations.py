@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from app.algorithms.itinerary_generator import (
     _has_consecutive_restaurants,
+    _preference_rank,
     generate_itinerary,
 )
 from app.algorithms.travel_time import TravelTimeMatrix
@@ -25,7 +26,11 @@ from app.models.place import (
     PlaceSource,
     Weekday,
 )
-from app.models.travel_preferences import ScheduleDensity, TravelStyle
+from app.models.travel_preferences import (
+    PreferredCategory,
+    ScheduleDensity,
+    TravelStyle,
+)
 
 
 UTC = ZoneInfo("Asia/Seoul")
@@ -53,6 +58,24 @@ def place(place_id: str, **updates) -> Place:
     }
     values.update(updates)
     return Place(**values)
+
+
+def test_preferred_category_rank_uses_new_classification_codes() -> None:
+    food = place(
+        "food", category=PlaceCategory.RESTAURANT,
+        lcls_system1="FD", lcls_system2="FD01",
+    )
+    wellness = place(
+        "wellness", lcls_system1="EX", lcls_system2="EX05"
+    )
+    experience = place(
+        "experience", lcls_system1="EX", lcls_system2="EX02"
+    )
+
+    assert _preference_rank(food, [PreferredCategory.FOOD]) == 0
+    assert _preference_rank(wellness, [PreferredCategory.RELAXATION]) == 0
+    assert _preference_rank(wellness, [PreferredCategory.EXPERIENCE]) == 1
+    assert _preference_rank(experience, [PreferredCategory.EXPERIENCE]) == 0
 
 
 def trip(selected: list[SelectedPlaceInput] | None = None) -> TripInput:

@@ -109,6 +109,7 @@ class TripService:
             accommodation=request.accommodation,
             travel_style=request.travel_style,
             schedule_density=request.schedule_density,
+            preferred_categories=request.preferred_categories,
             status=TripStatus.PLANNING,
             active_plan_id=None,
             idempotency_request_hash=request_hash,

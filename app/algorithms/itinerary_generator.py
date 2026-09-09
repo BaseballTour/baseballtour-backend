@@ -34,7 +34,7 @@ from app.models.place import (
     PlaceCategory,
     Weekday,
 )
-from app.models.travel_preferences import ScheduleDensity, TravelStyle
+from app.models.travel_preferences import PreferredCategory, ScheduleDensity
 
 
 logger = logging.getLogger(__name__)
@@ -53,11 +53,36 @@ AUTO_FILL_DENSITY_POLICIES = {
     ScheduleDensity.MODERATE: (0.50, 30),
     ScheduleDensity.DENSE: (0.60, 15),
 }
-AUTO_FILL_STYLE_POLICIES = {
-    TravelStyle.RELAXED: (0.35, 45),
-    TravelStyle.BALANCED: (0.50, 30),
-    TravelStyle.EXPLORER: (0.60, 15),
-}
+
+
+def _matches_preference(place: Place, preference: PreferredCategory) -> bool:
+    code1 = place.lcls_system1 or ""
+    code2 = place.lcls_system2 or ""
+    if preference == PreferredCategory.FOOD:
+        return code1.startswith("FD") or place.category in {
+            PlaceCategory.RESTAURANT, PlaceCategory.CAFE
+        }
+    if preference == PreferredCategory.ACTIVITY:
+        return code1.startswith("LS") or code2.startswith(
+            ("VE02", "VE04", "VE10")
+        ) or place.category == PlaceCategory.ACTIVITY
+    if preference == PreferredCategory.SHOPPING:
+        return code1.startswith("SH") or place.category == PlaceCategory.SHOPPING
+    if preference == PreferredCategory.EXPERIENCE:
+        return code1.startswith("EX") and not code2.startswith("EX05")
+    if preference == PreferredCategory.RELAXATION:
+        return code1.startswith("EX05") or code2.startswith("EX05")
+    if preference == PreferredCategory.HISTORY:
+        return code1.startswith("HS")
+    if preference == PreferredCategory.NATURE:
+        return code1.startswith("NA")
+    return code1.startswith("EV") or code2.startswith("VE07")
+
+
+def _preference_rank(place: Place, preferences: list[PreferredCategory]) -> int:
+    if not preferences:
+        return 0
+    return 0 if any(_matches_preference(place, item) for item in preferences) else 1
 
 
 def generate_itinerary(
@@ -585,11 +610,8 @@ def _fill_routes_with_recommendations(
     density_efficiency, density_slack = (
         AUTO_FILL_DENSITY_POLICIES[trip.schedule_density]
     )
-    style_efficiency, style_slack = AUTO_FILL_STYLE_POLICIES[
-        trip.travel_style
-    ]
-    maximum_travel_ratio = min(density_efficiency, style_efficiency)
-    minimum_non_game_slack = max(density_slack, style_slack)
+    maximum_travel_ratio = density_efficiency
+    minimum_non_game_slack = density_slack
 
     while remaining:
         best: tuple[tuple, date, list[Place], Place] | None = None
@@ -729,20 +751,12 @@ def _fill_routes_with_recommendations(
                     same_category_count = sum(
                         item.category == place.category for item in current
                     )
-                    style_priority = (
-                        same_category_count
-                        if trip.travel_style == TravelStyle.EXPLORER
-                        else (
-                            marginal
-                            if trip.travel_style == TravelStyle.RELAXED
-                            else 0
-                        )
-                    )
                     score = (
                         scheduled_per_day[target_date],
                         day_fill_priority,
                         -meal_gain,
-                        style_priority,
+                        _preference_rank(place, trip.preferred_categories),
+                        same_category_count,
                         _meal_time_category_priority(
                             place, visit.start.time()
                         ),

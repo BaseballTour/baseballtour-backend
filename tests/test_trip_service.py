@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from app.core.exceptions import AppException
+from app.models.travel_preferences import PreferredCategory, ScheduleDensity
 from app.repositories.trip_repository import (
     TripIdempotencyConflictError,
 )
@@ -265,6 +266,31 @@ def test_create_trip_saves_owner_and_initial_status() -> None:
     assert trip.game_id == GAME_ID
     assert trip.status.value == "PLANNING"
     assert trip.active_plan_id is None
+
+
+def test_create_trip_saves_category_and_density_preferences() -> None:
+    service, _ = create_service()
+    request = create_request().model_copy(
+        update={
+            "preferred_categories": [
+                PreferredCategory.FOOD,
+                PreferredCategory.CULTURE,
+            ],
+            "schedule_density": ScheduleDensity.DENSE,
+        }
+    )
+
+    trip = service.create_trip(
+        user_id="user-001",
+        request=request,
+        idempotency_key="preference-request-key",
+    )
+
+    assert trip.preferred_categories == [
+        PreferredCategory.FOOD,
+        PreferredCategory.CULTURE,
+    ]
+    assert trip.schedule_density == ScheduleDensity.DENSE
 
 
 def test_create_trip_requires_prefixed_accommodation_id() -> None:
