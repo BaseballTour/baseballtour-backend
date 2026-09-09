@@ -13,6 +13,7 @@ from app.api.dependencies.auth import (
 )
 from app.schemas.attendance_log import (
     AttendanceLogArchiveItemResponse,
+    AttendanceLogRequiredResponse,
     AttendanceLogCreateRequest,
     AttendanceLogDetailResponse,
     AttendanceLogResponse,
@@ -156,6 +157,36 @@ def list_attendance_logs(
             next_page_token=next_page_token,
         ),
     )
+
+
+@router.get(
+    "/pending-trips",
+    response_model=SuccessResponse[
+        AttendanceLogRequiredResponse
+    ],
+    summary="직관 로그 미작성 여행 조회",
+    description=(
+        "한국시간 기준 여행 종료 다음 날부터, "
+        "아직 직관 로그가 없는 내 여행을 조회합니다. "
+        "홈 화면의 직관 로그 생성 유도 팝업에 사용합니다."
+    ),
+)
+def get_pending_attendance_log_trips(
+    user_id: Annotated[
+        str,
+        Depends(get_current_active_user_id),
+    ],
+) -> SuccessResponse[
+    AttendanceLogRequiredResponse
+]:
+    data = (
+        AttendanceLogService()
+        .get_pending_attendance_log_trips(
+            user_id=user_id,
+        )
+    )
+
+    return SuccessResponse(data=data)
 
 
 @router.get(

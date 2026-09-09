@@ -25,6 +25,8 @@ from app.repositories.trip_repository import TripRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.attendance_log import (
     AttendanceLogArchiveItemResponse,
+    AttendanceLogRequiredResponse,
+    PendingAttendanceLogTripResponse,
     AttendanceLogDetailResponse,
     AttendanceLogDocument,
     AttendanceLogGameResult,
@@ -45,7 +47,7 @@ from app.schemas.itinerary_plan import (
     ItineraryPlanRecord,
     ItineraryPlanStatus,
 )
-from app.schemas.trip import TripRecord
+from app.schemas.trip import TripRecord, TripStatus
 from app.services.attendance_result import (
     resolve_game_result,
     resolve_home_side,
@@ -194,6 +196,81 @@ class AttendanceLogService:
         )
 
         return attendance_log
+
+    def get_pending_attendance_log_trips(
+        self,
+        *,
+        user_id: str,
+    ) -> AttendanceLogRequiredResponse:
+        """
+        여행 종료 다음 날부터 직관 로그 생성이 필요한 여행을 반환합니다.
+
+        취소된 여행, 활성 일정이 없는 여행, 이미 삭제되지 않은
+        직관 로그가 존재하는 여행은 제외합니다.
+        """
+        trips = self._trip_repository.get_by_user_id(
+            user_id
+        )
+        attendance_logs = (
+            self._attendance_log_repository.get_by_user_id(
+                user_id
+            )
+        )
+
+        logged_trip_ids = {
+            attendance_log.trip_id
+            for attendance_log in attendance_logs
+        }
+
+        pending_trips: list[
+            PendingAttendanceLogTripResponse
+        ] = []
+
+        for trip in trips:
+            if trip.status == TripStatus.CANCELLED:
+                continue
+
+            if trip.active_plan_id is None:
+                continue
+
+            if not self._is_trip_completed(trip):
+                continue
+
+            if trip.trip_id in logged_trip_ids:
+                continue
+
+            plan = (
+                self._itinerary_plan_repository.get_by_id(
+                    trip.active_plan_id
+                )
+            )
+
+            if (
+                plan is None
+                or plan.status
+                != ItineraryPlanStatus.ACTIVE
+            ):
+                continue
+
+            pending_trips.append(
+                PendingAttendanceLogTripResponse(
+                    trip_id=trip.trip_id,
+                    title=trip.title,
+                    trip_end_at=trip.trip_end_at,
+                )
+            )
+
+        pending_trips.sort(
+            key=lambda trip: trip.trip_end_at,
+            reverse=True,
+        )
+
+        return AttendanceLogRequiredResponse(
+            attendance_log_required=bool(
+                pending_trips
+            ),
+            trips=pending_trips,
+        )
 
     def get_itinerary(
         self,
@@ -1205,17 +1282,31 @@ class AttendanceLogService:
         return trip
 
     @staticmethod
-    def _validate_trip_completed(
+    def _is_trip_completed(
         trip: TripRecord,
-    ) -> None:
-        """한국시간 기준 여행 종료 다음 날부터 로그 생성을 허용합니다."""
+    ) -> bool:
+        """
+        한국시간 기준 여행 종료 다음 날인지 판단합니다.
+
+        여행 종료 시각으로부터 24시간 경과 여부가 아니라,
+        KST 달력 날짜를 기준으로 합니다.
+        """
         korean_timezone = ZoneInfo("Asia/Seoul")
         today = datetime.now(korean_timezone).date()
         trip_end_date = trip.trip_end_at.astimezone(
             korean_timezone
         ).date()
 
-        if today <= trip_end_date:
+        return today > trip_end_date
+
+    @staticmethod
+    def _validate_trip_completed(
+        trip: TripRecord,
+    ) -> None:
+        """한국시간 기준 여행 종료 다음 날부터 로그 생성을 허용합니다."""
+        if not AttendanceLogService._is_trip_completed(
+            trip
+        ):
             raise AppException(
                 status_code=status.HTTP_409_CONFLICT,
                 code="ATTENDANCE_LOG_TRIP_NOT_COMPLETED",
