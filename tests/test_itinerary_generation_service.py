@@ -583,6 +583,7 @@ async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
     context.plan_repository.get_by_id.return_value = SimpleNamespace(
         days=[
             SimpleNamespace(
+                date=START_AT.date(),
                 items=[
                     SimpleNamespace(
                         item_type=ItineraryItemType.PLACE,
@@ -616,6 +617,7 @@ async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
     assert set(request["selected_place_ids"]) == {
         "tour_older_rejected",
         "tour_rejected",
+        "tour_user",
     }
     commit_request = (
         context.plan_repository.commit_generated_plan.call_args.kwargs
@@ -623,6 +625,93 @@ async def test_regenerate_excludes_previous_unfixed_recommendations() -> None:
     assert commit_request["rejected_recommendation_place_ids"] == [
         "tour_older_rejected",
         "tour_rejected",
+    ]
+
+
+@pytest.mark.anyio
+async def test_regenerate_day_replaces_only_target_day_nonfixed_places() -> None:
+    target_date = START_AT.date()
+    other_date = target_date + timedelta(days=1)
+    generator = Mock(return_value=make_result())
+    selections = [
+        SimpleNamespace(place_id="tour_target_user", is_required=True),
+        SimpleNamespace(place_id="tour_other_user", is_required=True),
+        SimpleNamespace(place_id="tour_new", is_required=False),
+    ]
+    context = make_service(
+        trip=make_trip(
+            trip_status=TripStatus.GENERATED,
+            active_plan_id="plan_old",
+        ),
+        selections=selections,
+        generator=generator,
+    )
+    previous = SimpleNamespace(
+        plan_id="plan_old",
+        days=[
+            SimpleNamespace(
+                date=target_date,
+                items=[
+                    SimpleNamespace(
+                        item_type=ItineraryItemType.PLACE,
+                        place_id="tour_target_user",
+                        added_by=ItineraryItemAddedBy.USER,
+                        is_fixed=False,
+                    ),
+                    SimpleNamespace(
+                        item_type=ItineraryItemType.PLACE,
+                        place_id="tour_target_auto",
+                        added_by=ItineraryItemAddedBy.ALGORITHM,
+                        is_fixed=False,
+                    ),
+                ],
+            ),
+            SimpleNamespace(
+                date=other_date,
+                items=[
+                    SimpleNamespace(
+                        item_type=ItineraryItemType.PLACE,
+                        place_id="tour_other_user",
+                        added_by=ItineraryItemAddedBy.USER,
+                        is_fixed=False,
+                    )
+                ],
+            ),
+        ],
+    )
+    context.plan_repository.get_by_id.return_value = previous
+    context.place_adapter.get_place_detail.return_value = Place(
+        place_id="tour_new",
+        name="새 추천 후보",
+        category=PlaceCategory.TOURIST_SPOT,
+        latitude=35.18,
+        longitude=129.07,
+        source=PlaceSource.TOUR_API,
+        source_content_id="new",
+    )
+    context.plan_repository.commit_regenerated_day.side_effect = (
+        lambda **kwargs: previous
+    )
+
+    await context.service.generate(
+        user_id=USER_ID,
+        trip_id=TRIP_ID,
+        target_date=target_date,
+    )
+
+    request = context.recommendation_service.get_candidates.await_args.kwargs
+    assert set(request["selected_place_ids"]) == {
+        "tour_target_user",
+        "tour_target_auto",
+        "tour_other_user",
+        "tour_new",
+    }
+    trip_input = generator.call_args.args[0]
+    assert [place.place_id for place in trip_input.selected_places] == [
+        "tour_new"
+    ]
+    assert [place.place_id for place in generator.call_args.args[1]] == [
+        "tour_new"
     ]
 
 

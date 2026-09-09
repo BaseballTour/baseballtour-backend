@@ -234,11 +234,17 @@ class ItineraryGenerationService:
                     for item in day.items
                     if item.place_id is not None
                 }
-                selections = [
-                    selection
-                    for selection in selections
-                    if selection.place_id not in occupied_other_day_ids
-                ]
+
+            replaceable_place_ids = self._get_previous_replaceable_place_ids(
+                previous_plan,
+                target_date=target_date,
+            )
+            selections = [
+                selection
+                for selection in selections
+                if selection.place_id not in occupied_other_day_ids
+                and selection.place_id not in replaceable_place_ids
+            ]
 
             trip_input = self._build_trip_input(
                 trip=trip,
@@ -266,12 +272,18 @@ class ItineraryGenerationService:
             )
             rejected_recommendation_ids.update(
                 self._get_previous_unfixed_recommendation_ids(
-                    trip.active_plan_id
+                    previous_plan,
+                    target_date=target_date,
                 )
             )
             recommendation_excluded_ids = {
                 selection.place_id for selection in selections
-            } | rejected_recommendation_ids | fixed_place_ids | occupied_other_day_ids
+            } | (
+                rejected_recommendation_ids
+                | fixed_place_ids
+                | occupied_other_day_ids
+                | replaceable_place_ids
+            )
 
             try:
                 recommendation_diagnostics: dict[str, object] = {}
@@ -639,24 +651,43 @@ class ItineraryGenerationService:
             supplemental.get("candidateCount", 0)
         )
 
+    @staticmethod
     def _get_previous_unfixed_recommendation_ids(
-        self,
-        plan_id: str | None,
+        previous_plan,
+        *,
+        target_date: date | None = None,
     ) -> set[str]:
         """재생성 시 사용자가 고정하지 않은 이전 자동 추천을 반복하지 않는다."""
-        if plan_id is None:
-            return set()
-
-        plan = self._itinerary_plan_repository.get_by_id(plan_id)
-        if plan is None:
+        if previous_plan is None:
             return set()
 
         return {
             item.place_id
-            for day in plan.days
+            for day in previous_plan.days
+            if target_date is None or day.date == target_date
             for item in day.items
             if item.item_type == ItineraryItemType.PLACE
             and item.added_by == ItineraryItemAddedBy.ALGORITHM
+            and not item.is_fixed
+            and item.place_id is not None
+        }
+
+    @staticmethod
+    def _get_previous_replaceable_place_ids(
+        previous_plan,
+        *,
+        target_date: date | None = None,
+    ) -> set[str]:
+        """재생성 대상에서 고정되지 않은 기존 장소를 일시적으로 제외한다."""
+        if previous_plan is None:
+            return set()
+
+        return {
+            item.place_id
+            for day in previous_plan.days
+            if target_date is None or day.date == target_date
+            for item in day.items
+            if item.item_type == ItineraryItemType.PLACE
             and not item.is_fixed
             and item.place_id is not None
         }

@@ -730,7 +730,9 @@ async def get_recommendation_candidates(
     summary="여행 일정 생성 및 저장",
     description=(
         "저장된 여행·경기·구장·선택 장소 정보를 조합하여 "
-        "여행 일정을 생성하고 ACTIVE Plan으로 저장합니다."
+        "여행 일정을 생성하고 ACTIVE Plan으로 저장합니다. "
+        "기존 일정 재생성 시 Anchor와 고정 장소는 유지하며, 고정되지 않은 "
+        "기존 사용자 선택·자동 추천 장소는 이번 재생성 후보에서 제외합니다."
     ),
 )
 async def create_itinerary(
@@ -764,7 +766,9 @@ async def create_itinerary(
     summary="여행 일정 하루 재생성",
     description=(
         "같은 활성 Plan에서 선택한 날짜만 다시 생성합니다. "
-        "고정 PLACE와 Anchor는 유지하고, 다른 날짜와 그 itemId는 변경하지 않습니다."
+        "고정 PLACE와 Anchor는 유지하고, 다른 날짜와 그 itemId는 변경하지 않습니다. "
+        "선택한 날짜의 고정되지 않은 기존 사용자 선택·자동 추천 장소는 "
+        "이번 재생성 후보에서 제외합니다."
     ),
 )
 async def regenerate_itinerary_day(
