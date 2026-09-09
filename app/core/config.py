@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     cors_origins: str = (
-        "http://localhost:5173,http://localhost:3000"
+        "http://localhost:5173,http://localhost:3000,capacitor://localhost"
     )
 
     tour_api_key: str = ""
