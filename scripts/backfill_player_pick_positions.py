@@ -61,14 +61,14 @@ POSITIONS: dict[tuple[str, str], PlayerPosition] = {
     )},
     # LG 트윈스·두산 베어스
     **{("jamsil", name): P for name in (
-        "김영우", "김윤식", "이정용", "임찬규", "장현식", "이현승", "장원준"
+        "김영우", "김윤식", "김진수", "이정용", "임찬규", "장현식", "이현승", "장원준"
     )},
     **{("jamsil", name): I for name in (
         "구본혁", "문보경", "문정빈", "송찬의", "신민재", "이영빈", "천성호"
     )},
     **{("jamsil", name): O for name in ("문성주", "박해민")},
     ("jamsil", "이주헌"): C,
-    **{("jamsil", name): STAFF for name in ("준혁", "석우", "김진수")},
+    **{("jamsil", name): STAFF for name in ("준혁", "석우")},
     **{("jamsil", name): GROUP for name in ("LG 전체 선수", "두산 베어스 선수단")},
     # 롯데 자이언츠
     **{("sajik", name): P for name in (
