@@ -535,6 +535,23 @@ REQUEST_EXAMPLES.update({
 SUCCESS_EXAMPLES.update({
     (
         "get",
+        "/api/v1/attendance-logs/pending-trips",
+        "200",
+    ): _success({
+        "attendanceLogRequired": True,
+        "trips": [
+            {
+                "tripId": "trip_001",
+                "title": "부산 원정 여행",
+                "tripEndAt": "2026-08-15T23:00:00+09:00",
+            },
+        ],
+    }),
+})
+
+SUCCESS_EXAMPLES.update({
+    (
+        "get",
         "/api/v1/attendance-logs",
         "200",
     ): _list([

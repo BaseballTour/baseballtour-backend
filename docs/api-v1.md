@@ -835,3 +835,41 @@ TourAPI 원본 응답은 같은 Cloud Run 인스턴스의 메모리 캐시와
 - 대상 날짜가 현재 Plan에 없으면 `404 ITINERARY_DAY_NOT_FOUND`를 반환한다.
 - 대상 날짜에 동일한 장소가 이미 있으면 `400 ITINERARY_EDIT_INVALID`를 반환한다.
 - ARRIVAL_POINT, DEPARTURE_POINT, STADIUM, ACCOMMODATION Anchor는 이동할 수 없다.
+
+### 직관 로그 미작성 여행 조회
+
+홈 화면에서 직관 로그 생성 안내 여부를 판단하기 위한 API입니다.
+
+**GET /api/v1/attendance-logs/pending-trips**
+
+- 인증: Firebase ID Token 필요
+- 응답: `SuccessResponse[AttendanceLogRequiredResponse]`
+- `attendanceLogRequired`: 생성 가능한 미작성 여행이 하나 이상이면 `true`
+- `trips`: 최근 종료된 여행부터 반환
+
+응답 예시:
+
+    {
+      "success": true,
+      "data": {
+        "attendanceLogRequired": true,
+        "trips": [
+          {
+            "tripId": "trip_001",
+            "title": "부산 원정 여행",
+            "tripEndAt": "2026-08-15T23:00:00+09:00"
+          }
+        ]
+      }
+    }
+
+대상 조건:
+
+- 현재 로그인 사용자의 여행
+- 취소되지 않은 여행
+- 한국시간 기준 여행 종료 다음 날 00:00 이후
+- `activePlanId`가 존재하고 해당 Plan이 `ACTIVE` 상태
+- 삭제되지 않은 직관 로그가 없는 여행
+
+삭제된 직관 로그는 존재하지 않는 것으로 취급합니다.
+취소 경기의 빈 티켓 생성 정책은 별도 요구사항으로 처리합니다.

@@ -491,3 +491,18 @@ class AttendanceLogDetailResponse(
     entries: list[LogEntryResponse] = Field(
         default_factory=list,
     )
+
+
+class PendingAttendanceLogTripResponse(ApiModel):
+    """직관 로그 생성이 필요한 종료 여행 요약."""
+
+    trip_id: str
+    title: str
+    trip_end_at: AwareDatetime
+
+
+class AttendanceLogRequiredResponse(ApiModel):
+    """홈 화면의 직관 로그 생성 필요 여부 응답."""
+
+    attendance_log_required: bool
+    trips: list[PendingAttendanceLogTripResponse]

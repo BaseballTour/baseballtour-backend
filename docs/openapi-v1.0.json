@@ -262,6 +262,100 @@
         }
       }
     },
+    "/api/v1/attendance-logs/pending-trips": {
+      "get": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 미작성 여행 조회",
+        "description": "한국시간 기준 여행 종료 다음 날부터, 아직 직관 로그가 없는 내 여행을 조회합니다. 홈 화면의 직관 로그 생성 유도 팝업에 사용합니다.",
+        "operationId": "get_pending_attendance_log_trips_api_v1_attendance_logs_pending_trips_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_AttendanceLogRequiredResponse_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "attendanceLogRequired": true,
+                        "trips": [
+                          {
+                            "tripId": "trip_001",
+                            "title": "부산 원정 여행",
+                            "tripEndAt": "2026-08-15T23:00:00+09:00"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/attendance-logs/{attendanceLogId}": {
       "get": {
         "tags": [
@@ -18483,6 +18577,29 @@
         "title": "AttendanceLogHomeSide",
         "description": "응원팀 기준 해당 경기의 홈/원정 구분."
       },
+      "AttendanceLogRequiredResponse": {
+        "properties": {
+          "attendanceLogRequired": {
+            "type": "boolean",
+            "title": "Attendancelogrequired"
+          },
+          "trips": {
+            "items": {
+              "$ref": "#/components/schemas/PendingAttendanceLogTripResponse"
+            },
+            "type": "array",
+            "title": "Trips"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attendanceLogRequired",
+          "trips"
+        ],
+        "title": "AttendanceLogRequiredResponse",
+        "description": "홈 화면의 직관 로그 생성 필요 여부 응답."
+      },
       "AttendanceLogResponse": {
         "properties": {
           "attendanceLogId": {
@@ -20826,6 +20943,32 @@
           }
         ]
       },
+      "PendingAttendanceLogTripResponse": {
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "title": "Tripid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "tripEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tripendat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tripId",
+          "title",
+          "tripEndAt"
+        ],
+        "title": "PendingAttendanceLogTripResponse",
+        "description": "직관 로그 생성이 필요한 종료 여행 요약."
+      },
       "Place": {
         "properties": {
           "placeId": {
@@ -21531,6 +21674,25 @@
           "data"
         ],
         "title": "SuccessResponse[AttendanceLogDetailResponse]"
+      },
+      "SuccessResponse_AttendanceLogRequiredResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AttendanceLogRequiredResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[AttendanceLogRequiredResponse]"
       },
       "SuccessResponse_AttendanceLogResponse_": {
         "properties": {
