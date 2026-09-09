@@ -26,7 +26,7 @@ def build_share_url(token: str) -> str | None:
     origin = settings.share_web_origin.strip().rstrip("/")
     if not origin:
         return None
-    return f"{origin}/shared-trips/{token}"
+    return f"{origin}/s/{token}"
 
 
 @router.post(
