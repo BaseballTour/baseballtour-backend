@@ -971,73 +971,47 @@ async def test_generate_requires_arrival_and_departure() -> None:
 @pytest.mark.anyio
 async def test_generate_restores_status_when_game_missing() -> None:
     context = make_service()
+    _prepare_generation_lease_test(context)
     context.game_repository.get_by_id.return_value = None
-
     with pytest.raises(AppException) as captured:
-        await context.service.generate(
-            user_id=USER_ID,
-            trip_id=TRIP_ID,
-        )
-
-    assert captured.value.code == "GAME_NOT_FOUND"
-
-    updates = context.trip_repository.update.call_args_list
-
+        await context.service.generate(user_id=USER_ID, trip_id=TRIP_ID)
+    assert captured.value.code == 'GAME_NOT_FOUND'
+    updates = context.trip_repository.restore_generation_if_owned.call_args_list
     context.trip_repository.claim_generation.assert_called_once()
-    assert updates[-1].args[1]["status"] == "PLANNING"
+    assert updates[-1].kwargs['original_status'] == TripStatus.PLANNING
+
 
 
 @pytest.mark.anyio
 async def test_generate_rejects_game_outside_trip_period() -> None:
     context = make_service()
-    context.game_repository.get_by_id.return_value = SimpleNamespace(
-        game_id="game_001",
-        stadium_id="sajik",
-        game_start_at=END_AT + timedelta(hours=1),
-    )
-
+    _prepare_generation_lease_test(context)
+    context.game_repository.get_by_id.return_value = SimpleNamespace(game_id='game_001', stadium_id='sajik', game_start_at=END_AT + timedelta(hours=1))
     with pytest.raises(AppException) as captured:
-        await context.service.generate(
-            user_id=USER_ID,
-            trip_id=TRIP_ID,
-        )
-
+        await context.service.generate(user_id=USER_ID, trip_id=TRIP_ID)
     assert captured.value.status_code == 400
-    assert captured.value.code == "GAME_OUTSIDE_TRIP_PERIOD"
-    assert captured.value.details["gameId"] == "game_001"
-    assert (
-        captured.value.details["gameStartAt"]
-        == (END_AT + timedelta(hours=1)).isoformat()
-    )
+    assert captured.value.code == 'GAME_OUTSIDE_TRIP_PERIOD'
+    assert captured.value.details['gameId'] == 'game_001'
+    assert captured.value.details['gameStartAt'] == (END_AT + timedelta(hours=1)).isoformat()
     context.stadium_repository.get_by_id.assert_not_called()
     context.recommendation_service.get_candidates.assert_not_awaited()
-    updates = context.trip_repository.update.call_args_list
-    assert updates[-1].args[1]["status"] == "PLANNING"
+    updates = context.trip_repository.restore_generation_if_owned.call_args_list
+    assert updates[-1].kwargs['original_status'] == TripStatus.PLANNING
+
 
 
 @pytest.mark.anyio
 async def test_generate_restores_generated_status_on_regeneration_failure() -> None:
-    context = make_service(
-        trip=make_trip(
-            trip_status=TripStatus.GENERATED,
-            active_plan_id="plan_old",
-        )
-    )
-
+    context = make_service(trip=make_trip(trip_status=TripStatus.GENERATED, active_plan_id='plan_old'))
+    _prepare_generation_lease_test(context)
     context.stadium_repository.get_by_id.return_value = None
-
     with pytest.raises(AppException) as captured:
-        await context.service.generate(
-            user_id=USER_ID,
-            trip_id=TRIP_ID,
-        )
-
-    assert captured.value.code == "STADIUM_NOT_FOUND"
-
-    updates = context.trip_repository.update.call_args_list
-
+        await context.service.generate(user_id=USER_ID, trip_id=TRIP_ID)
+    assert captured.value.code == 'STADIUM_NOT_FOUND'
+    updates = context.trip_repository.restore_generation_if_owned.call_args_list
     context.trip_repository.claim_generation.assert_called_once()
-    assert updates[-1].args[1]["status"] == "GENERATED"
+    assert updates[-1].kwargs['original_status'] == TripStatus.GENERATED
+
 
 
 @pytest.mark.anyio
@@ -1092,19 +1066,14 @@ async def test_generate_falls_back_after_recommendation_external_failure() -> No
 @pytest.mark.anyio
 async def test_generate_restores_status_when_request_is_cancelled() -> None:
     context = make_service()
-    context.recommendation_service.get_candidates.side_effect = (
-        asyncio.CancelledError
-    )
-
+    _prepare_generation_lease_test(context)
+    context.recommendation_service.get_candidates.side_effect = asyncio.CancelledError
     with pytest.raises(asyncio.CancelledError):
-        await context.service.generate(
-            user_id=USER_ID,
-            trip_id=TRIP_ID,
-        )
-
-    updates = context.trip_repository.update.call_args_list
+        await context.service.generate(user_id=USER_ID, trip_id=TRIP_ID)
+    updates = context.trip_repository.restore_generation_if_owned.call_args_list
     context.trip_repository.claim_generation.assert_called_once()
-    assert updates[-1].args[1]["status"] == "PLANNING"
+    assert updates[-1].kwargs['original_status'] == TripStatus.PLANNING
+
 
 
 def test_new_plan_item_ids_are_unique_and_not_sequence_based() -> None:
@@ -1163,3 +1132,32 @@ async def test_generate_rejects_concurrent_generation_claim() -> None:
     )
 
     context.plan_repository.commit_generated_plan.assert_not_called()
+
+
+def _prepare_generation_lease_test(context):
+    """기존 생성 Mock이 실제 Repository처럼 lease를 반환하게 합니다."""
+    lease_id = "test-generation-lease-001"
+    claim = context.trip_repository.claim_generation
+    original_side_effect = claim.side_effect
+
+    def with_lease(record):
+        if not hasattr(record, "model_copy"):
+            raise AssertionError(
+                "claim_generation Mock은 TripRecord를 반환해야 합니다."
+            )
+        return record.model_copy(
+            update={"generation_lease_id": lease_id}
+        )
+
+    if original_side_effect is None:
+        claim.return_value = with_lease(claim.return_value)
+    elif callable(original_side_effect):
+        def claim_with_lease(**kwargs):
+            return with_lease(original_side_effect(**kwargs))
+        claim.side_effect = claim_with_lease
+    else:
+        raise AssertionError(
+            "예상하지 못한 claim_generation Mock 설정입니다."
+        )
+
+    context.trip_repository.restore_generation_if_owned.return_value = True

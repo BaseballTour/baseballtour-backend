@@ -208,36 +208,25 @@ class TripRepository:
         trip_id: str,
         expected_status: TripStatus,
         updated_at: datetime,
+        generation_lease_id: str | None = None,
     ) -> TripRecord | None:
-        """
-        일정 생성 권한을 원자적으로 획득합니다.
+        """상태 전환과 generation lease 획득을 원자적으로 처리합니다."""
+        from uuid import uuid4
 
-        현재 상태가 expected_status와 일치하는 경우에만
-        GENERATING으로 변경합니다. 상태가 이미 변경된 경우
-        None을 반환합니다.
-        """
-
-        document_reference = self._collection.document(
-            trip_id
-        )
+        lease_id = generation_lease_id or uuid4().hex
+        document_reference = self._collection.document(trip_id)
         transaction = self._client.transaction()
 
         @transactional
         def commit(transaction) -> TripRecord | None:
-            snapshot = document_reference.get(
-                transaction=transaction,
-            )
-
+            snapshot = document_reference.get(transaction=transaction)
             if not snapshot.exists:
                 return None
 
-            data = snapshot.to_dict() or {}
-
             current = self._to_record(
                 trip_id=snapshot.id,
-                data=data,
+                data=snapshot.to_dict() or {},
             )
-
             if current.status != expected_status:
                 return None
 
@@ -245,13 +234,14 @@ class TripRepository:
                 document_reference,
                 {
                     "status": TripStatus.GENERATING.value,
+                    "generationLeaseId": lease_id,
                     "updatedAt": updated_at,
                 },
             )
-
             return current.model_copy(
                 update={
                     "status": TripStatus.GENERATING,
+                    "generation_lease_id": lease_id,
                     "updated_at": updated_at,
                 }
             )
@@ -266,8 +256,7 @@ class TripRepository:
         stale_before: datetime,
         updated_at: datetime,
     ) -> TripRecord | None:
-        """오래 멈춘 GENERATING 상태를 원자적으로 이전 정상 상태로 복구합니다."""
-
+        """오래된 생성 잠금을 복구하고 기존 lease를 폐기합니다."""
         document_reference = self._collection.document(trip_id)
         transaction = self._client.transaction()
 
@@ -277,8 +266,10 @@ class TripRepository:
             if not snapshot.exists:
                 return None
 
-            data = snapshot.to_dict() or {}
-            current = self._to_record(trip_id=snapshot.id, data=data)
+            current = self._to_record(
+                trip_id=snapshot.id,
+                data=snapshot.to_dict() or {},
+            )
             if (
                 current.status != TripStatus.GENERATING
                 or current.updated_at > stale_before
@@ -294,15 +285,64 @@ class TripRepository:
                 document_reference,
                 {
                     "status": restored_status.value,
+                    "generationLeaseId": None,
                     "updatedAt": updated_at,
                 },
             )
             return current.model_copy(
                 update={
                     "status": restored_status,
+                    "generation_lease_id": None,
                     "updated_at": updated_at,
                 }
             )
+
+        return commit(transaction)
+
+    def restore_generation_if_owned(
+        self,
+        *,
+        trip_id: str,
+        generation_lease_id: str,
+        original_status: TripStatus,
+        updated_at: datetime,
+    ) -> bool:
+        """현재 lease가 일치할 때만 생성 상태를 복구합니다."""
+        document_reference = self._collection.document(trip_id)
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction) -> bool:
+            snapshot = document_reference.get(transaction=transaction)
+            if not snapshot.exists:
+                return False
+
+            current = self._to_record(
+                trip_id=snapshot.id,
+                data=snapshot.to_dict() or {},
+            )
+            if (
+                not generation_lease_id
+                or current.status != TripStatus.GENERATING
+                or current.generation_lease_id != generation_lease_id
+            ):
+                return False
+
+            # 실제 활성 Plan을 기준으로 정상 상태를 결정합니다.
+            restored_status = (
+                TripStatus.GENERATED
+                if current.active_plan_id
+                else TripStatus.PLANNING
+            )
+            transaction.update(
+                document_reference,
+                {
+                    "status": restored_status.value,
+                    "generationLeaseId": None,
+                    "updatedAt": updated_at,
+                },
+            )
+            return True
 
         return commit(transaction)
 

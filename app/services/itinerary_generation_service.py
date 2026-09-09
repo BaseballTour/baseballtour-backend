@@ -183,11 +183,13 @@ class ItineraryGenerationService:
 
         original_status = trip.status
         generation_started = False
+        generation_lease_id = None
 
         try:
             trip = self._claim_generation_or_raise(
                 trip=trip,
             )
+            generation_lease_id = trip.generation_lease_id
             generation_started = True
 
             game = self._get_game_or_raise(
@@ -497,6 +499,7 @@ class ItineraryGenerationService:
                     plan_id=previous_plan.plan_id,
                     days=merged_days,
                     updated_at=now,
+                    generation_lease_id=generation_lease_id,
                 )
 
             return (
@@ -508,6 +511,7 @@ class ItineraryGenerationService:
                     rejected_recommendation_place_ids=sorted(
                         rejected_recommendation_ids
                     ),
+                    generation_lease_id=generation_lease_id,
                 )
             )
 
@@ -516,6 +520,7 @@ class ItineraryGenerationService:
                 self._restore_trip_status(
                     trip_id=trip_id,
                     original_status=original_status,
+                    generation_lease_id=generation_lease_id,
                 )
             raise
         except Exception:
@@ -523,6 +528,7 @@ class ItineraryGenerationService:
                 self._restore_trip_status(
                     trip_id=trip_id,
                     original_status=original_status,
+                    generation_lease_id=generation_lease_id,
                 )
             raise
 
@@ -1241,18 +1247,31 @@ class ItineraryGenerationService:
         *,
         trip_id: str,
         original_status: TripStatus,
+        generation_lease_id: str | None,
     ) -> None:
-        try:
-            self._trip_repository.update(
+        """실패한 생성 요청이 아직 잠금을 소유한 경우에만 복구합니다."""
+        if not generation_lease_id:
+            logger.error(
+                "일정 생성 복구를 위한 lease가 없습니다: trip_id=%s",
                 trip_id,
-                {
-                    "status": original_status.value,
-                    "updatedAt": datetime.now(timezone.utc),
-                },
             )
+            return
+
+        try:
+            restored = self._trip_repository.restore_generation_if_owned(
+                trip_id=trip_id,
+                generation_lease_id=generation_lease_id,
+                original_status=original_status,
+                updated_at=datetime.now(timezone.utc),
+            )
+            if not restored:
+                logger.warning(
+                    "일정 생성 복구를 건너뛰었습니다: "
+                    "trip_id=%s lease=%s",
+                    trip_id,
+                    generation_lease_id,
+                )
         except Exception:
-            # 원래 예외를 덮어쓰지는 않되 운영자가 고착 상태를 찾을 수 있게
-            # 복구 실패 사실과 여행 ID를 반드시 남깁니다.
             logger.exception(
                 "일정 생성 실패 후 여행 상태 복구에 실패했습니다: "
                 "trip_id=%s target_status=%s",

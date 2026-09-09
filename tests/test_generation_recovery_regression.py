@@ -29,65 +29,23 @@ def make_trip(*, status, active_plan_id=None):
     )
 
 
-@pytest.mark.parametrize(
-    "original_status,active_plan_id",
-    [
-        (TripStatus.PLANNING, None),
-        (TripStatus.GENERATED, "plan_001"),
-    ],
-)
-def test_generation_failure_requests_original_status_restore(
-    monkeypatch,
-    original_status,
-    active_plan_id,
-):
-    trip = make_trip(
-        status=original_status,
-        active_plan_id=active_plan_id,
-    )
+@pytest.mark.parametrize('original_status,active_plan_id', [(TripStatus.PLANNING, None), (TripStatus.GENERATED, 'plan_001')])
+def test_generation_failure_requests_original_status_restore(monkeypatch, original_status, active_plan_id):
+    trip = make_trip(status=original_status, active_plan_id=active_plan_id)
     repository = Mock()
-    repository.claim_generation.side_effect = lambda **kwargs: (
-        trip.model_copy(
-            update={
-                "status": TripStatus.GENERATING,
-                "updated_at": kwargs["updated_at"],
-            }
-        )
-    )
-
+    repository.claim_generation.side_effect = lambda **kwargs: trip.model_copy(update={'status': TripStatus.GENERATING, 'updated_at': kwargs['updated_at'], 'generation_lease_id': 'test-generation-lease-001'})
     service = object.__new__(ItineraryGenerationService)
     service._trip_repository = repository
-
-    monkeypatch.setattr(
-        service,
-        "_get_owned_trip_or_raise",
-        lambda **kwargs: trip,
-    )
-    monkeypatch.setattr(
-        service,
-        "_validate_required_points",
-        lambda trip: None,
-    )
-    monkeypatch.setattr(
-        service,
-        "_get_game_or_raise",
-        Mock(side_effect=RuntimeError("generation failed")),
-    )
-
+    monkeypatch.setattr(service, '_get_owned_trip_or_raise', lambda **kwargs: trip)
+    monkeypatch.setattr(service, '_validate_required_points', lambda trip: None)
+    monkeypatch.setattr(service, '_get_game_or_raise', Mock(side_effect=RuntimeError('generation failed')))
     restore = Mock()
-    monkeypatch.setattr(service, "_restore_trip_status", restore)
-
-    with pytest.raises(RuntimeError, match="generation failed"):
-        asyncio.run(service.generate(
-            user_id="owner_001",
-            trip_id="trip_001",
-        ))
-
-    restore.assert_called_once_with(
-        trip_id="trip_001",
-        original_status=original_status,
-    )
+    monkeypatch.setattr(service, '_restore_trip_status', restore)
+    with pytest.raises(RuntimeError, match='generation failed'):
+        asyncio.run(service.generate(user_id='owner_001', trip_id='trip_001'))
+    restore.assert_called_once_with(trip_id='trip_001', original_status=original_status, generation_lease_id='test-generation-lease-001')
     repository.claim_generation.assert_called_once()
+
 
 
 def test_stale_generation_uses_configured_recovery_window():
