@@ -70,6 +70,18 @@ def to_itinerary_plan_response(
         AttendanceLogResponse
     ],
     summary="직관 로그 초안 생성",
+    description=(
+        "여행 종료 다음 날 00:00 KST부터 사용자가 직접 생성합니다."
+    ),
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "여행 종료 전이거나 이미 직관 로그가 존재합니다. "
+                "ATTENDANCE_LOG_TRIP_NOT_COMPLETED 또는 "
+                "ATTENDANCE_LOG_ALREADY_EXISTS"
+            ),
+        },
+    },
 )
 def create_attendance_log(
     request: AttendanceLogCreateRequest,

@@ -12,6 +12,7 @@
           "Attendance Logs"
         ],
         "summary": "직관 로그 초안 생성",
+        "description": "여행 종료 다음 날 00:00 KST부터 사용자가 직접 생성합니다.",
         "operationId": "create_attendance_log_api_v1_attendance_logs_post",
         "security": [
           {
@@ -57,6 +58,7 @@
                         "planId": "plan_001",
                         "logTitle": "사직 원정 직관 기록",
                         "summaryText": "역전승을 직접 본 날",
+                        "mate": "친구",
                         "logStatus": "PUBLISHED",
                         "visibility": "PUBLIC",
                         "createdAt": "2026-08-19T12:00:00+09:00",
@@ -116,6 +118,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "여행 종료 전이거나 이미 직관 로그가 존재합니다. ATTENDANCE_LOG_TRIP_NOT_COMPLETED 또는 ATTENDANCE_LOG_ALREADY_EXISTS"
           }
         }
       },
@@ -188,6 +193,7 @@
                           "planId": "plan_001",
                           "logTitle": "사직 원정 직관 기록",
                           "summaryText": "역전승을 직접 본 날",
+                          "mate": "친구",
                           "logStatus": "PUBLISHED",
                           "visibility": "PUBLIC",
                           "createdAt": "2026-08-19T12:00:00+09:00",
@@ -302,6 +308,7 @@
                         "planId": "plan_001",
                         "logTitle": "사직 원정 직관 기록",
                         "summaryText": "역전승을 직접 본 날",
+                        "mate": "친구",
                         "logStatus": "PUBLISHED",
                         "visibility": "PUBLIC",
                         "createdAt": "2026-08-19T12:00:00+09:00",
@@ -424,6 +431,7 @@
                   "summary": "정상 요청",
                   "value": {
                     "summaryText": "역전승을 직접 본 날",
+                    "mate": "친구",
                     "logStatus": "PUBLISHED",
                     "visibility": "PUBLIC"
                   }
@@ -452,6 +460,7 @@
                         "planId": "plan_001",
                         "logTitle": "사직 원정 직관 기록",
                         "summaryText": "역전승을 직접 본 날",
+                        "mate": "친구",
                         "logStatus": "PUBLISHED",
                         "visibility": "PUBLIC",
                         "createdAt": "2026-08-19T12:00:00+09:00",
@@ -18205,6 +18214,17 @@
             ],
             "title": "Seat"
           },
+          "mate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mate"
+          },
           "gameStartAt": {
             "type": "string",
             "format": "date-time",
@@ -18393,6 +18413,17 @@
             ],
             "title": "Seat"
           },
+          "mate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mate"
+          },
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
           },
@@ -18503,6 +18534,17 @@
             ],
             "title": "Seat"
           },
+          "mate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mate"
+          },
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
           },
@@ -18584,6 +18626,19 @@
             ],
             "title": "Seat",
             "description": "관람 좌석 정보. 예: 3루 내야 B블록 15열. null이면 삭제합니다."
+          },
+          "mate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mate",
+            "description": "함께 직관한 사람. null이면 삭제합니다."
           },
           "logStatus": {
             "anyOf": [

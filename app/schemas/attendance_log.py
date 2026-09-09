@@ -95,6 +95,11 @@ class AttendanceLogUpdateRequest(ApiModel):
             "null이면 삭제합니다."
         ),
     )
+    mate: str | None = Field(
+        default=None,
+        max_length=100,
+        description="함께 직관한 사람. null이면 삭제합니다.",
+    )
 
     log_status: AttendanceLogStatus | None = None
 
@@ -183,6 +188,11 @@ class AttendanceLogDocument(ApiModel):
         default=None,
         max_length=100,
         description="관람 좌석 정보",
+    )
+    mate: str | None = Field(
+        default=None,
+        max_length=100,
+        description="함께 직관한 사람",
     )
 
     log_status: AttendanceLogStatus = (
@@ -415,6 +425,7 @@ class AttendanceLogResponse(ApiModel):
     log_title: str
     summary_text: str | None = None
     seat: str | None = None
+    mate: str | None = None
     log_status: AttendanceLogStatus
 
     visibility: AttendanceLogVisibility
@@ -449,6 +460,7 @@ class AttendanceLogArchiveItemResponse(ApiModel):
     log_title: str
     summary_text: str | None = None
     seat: str | None = None
+    mate: str | None = None
 
     game_start_at: AwareDatetime
     stadium_name: str

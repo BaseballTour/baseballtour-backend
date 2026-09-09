@@ -1638,3 +1638,183 @@ def test_archive_rejects_malformed_page_token(
         captured.value.code
         == "INVALID_PAGE_TOKEN"
     )
+
+
+@pytest.mark.parametrize(
+    "mate_value",
+    ["민준, 친구", None],
+)
+def test_update_log_updates_or_clears_mate(mate_value) -> None:
+    from app.schemas.attendance_log import AttendanceLogUpdateRequest
+
+    repository = Mock()
+    current = make_archive_record()
+    repository.get_by_id.return_value = current
+    repository.update.return_value = current.model_copy(
+        update={"mate": mate_value}
+    )
+
+    service = AttendanceLogService(
+        trip_repository=Mock(),
+        game_repository=Mock(),
+        itinerary_plan_repository=Mock(),
+        attendance_log_repository=repository,
+        log_entry_repository=Mock(),
+    )
+
+    result = service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=AttendanceLogUpdateRequest(mate=mate_value),
+    )
+
+    assert result.mate == mate_value
+    updates = repository.update.call_args.args[1]
+    assert updates["mate"] == mate_value
+    assert "updatedAt" in updates
+
+
+def test_update_log_omits_mate_when_not_requested() -> None:
+    from app.schemas.attendance_log import AttendanceLogUpdateRequest
+
+    repository = Mock()
+    current = make_archive_record().model_copy(
+        update={"mate": "기존 동행"}
+    )
+    repository.get_by_id.return_value = current
+    repository.update.return_value = current
+
+    service = AttendanceLogService(
+        trip_repository=Mock(),
+        game_repository=Mock(),
+        itinerary_plan_repository=Mock(),
+        attendance_log_repository=repository,
+        log_entry_repository=Mock(),
+    )
+
+    result = service.update_log(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+        request=AttendanceLogUpdateRequest(log_title="제목 수정"),
+    )
+
+    assert result.mate == "기존 동행"
+    updates = repository.update.call_args.args[1]
+    assert "mate" not in updates
+
+
+def test_log_response_includes_mate() -> None:
+    record = make_archive_record().model_copy(
+        update={"mate": "친구"}
+    )
+
+    result = AttendanceLogService._to_log_response(record)
+
+    assert result.mate == "친구"
+    assert result.model_dump(by_alias=True)["mate"] == "친구"
+
+
+def test_detail_log_includes_mate() -> None:
+    context = make_crud_service()
+    record = make_attendance_log().model_copy(
+        update={"mate": "친구"}
+    )
+    context.attendance_repository.get_by_id.return_value = record
+    context.log_entry_repository.get_all.return_value = []
+
+    result = context.service.get_detail(
+        user_id=USER_ID,
+        attendance_log_id="log_001",
+    )
+
+    assert result.mate == "친구"
+
+
+def test_archive_log_includes_mate() -> None:
+    record = make_archive_record().model_copy(
+        update={"mate": "친구"}
+    )
+    context = make_archive_service(records=[record])
+
+    data, _ = context.service.list_archive_logs(user_id=USER_ID)
+
+    assert data[0].mate == "친구"
+
+
+def test_legacy_log_without_mate_defaults_to_none() -> None:
+    from app.schemas.attendance_log import AttendanceLogRecord
+
+    data = make_archive_record().model_dump()
+    data.pop("mate", None)
+
+    record = AttendanceLogRecord.model_validate(data)
+
+    assert record.mate is None
+    assert AttendanceLogService._to_log_response(record).mate is None
+
+
+@pytest.mark.parametrize(
+    ("now_utc", "end_at", "allowed"),
+    [
+        (
+            "2026-08-15T14:59:59+00:00",
+            "2026-08-15T23:00:00+09:00",
+            False,
+        ),
+        (
+            "2026-08-15T15:00:00+00:00",
+            "2026-08-15T23:00:00+09:00",
+            True,
+        ),
+        (
+            "2026-08-15T16:00:00+00:00",
+            "2026-08-16T00:30:00+09:00",
+            False,
+        ),
+        (
+            "2026-08-16T15:00:00+00:00",
+            "2026-08-16T00:30:00+09:00",
+            True,
+        ),
+    ],
+)
+def test_create_draft_requires_next_korean_day(
+    now_utc,
+    end_at,
+    allowed,
+) -> None:
+    from unittest.mock import patch
+
+    trip = make_trip().model_copy(
+        update={"trip_end_at": datetime.fromisoformat(end_at)}
+    )
+    context = make_service(trip=trip)
+
+    real_datetime = datetime
+
+    class FrozenDateTime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime.fromisoformat(now_utc).astimezone(tz)
+
+    with patch(
+        "app.services.attendance_log_service.datetime",
+        FrozenDateTime,
+    ):
+        if allowed:
+            result = context.service.create_draft(
+                user_id=USER_ID,
+                trip_id=TRIP_ID,
+            )
+            assert result.attendance_log_id == "log_001"
+        else:
+            with pytest.raises(AppException) as captured:
+                context.service.create_draft(
+                    user_id=USER_ID,
+                    trip_id=TRIP_ID,
+                )
+            assert captured.value.status_code == 409
+            assert captured.value.code == (
+                "ATTENDANCE_LOG_TRIP_NOT_COMPLETED"
+            )
+            context.attendance_log_repository.create.assert_not_called()
