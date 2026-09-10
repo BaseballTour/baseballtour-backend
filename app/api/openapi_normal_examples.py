@@ -351,11 +351,6 @@ SUCCESS_EXAMPLES = {
     ("get", "/api/v1/tour/nearby", "200"): _list([PLACE]),
     ("get", "/api/v1/tour/places/{placeId}", "200"): _success(PLACE),
     ("get", "/api/v1/tour/search", "200"): _list([PLACE]),
-    ("get", "/api/v1/tour/classifications", "200"): _list([{
-        "lclsSystem1": "FD", "lclsSystem1Name": "음식",
-        "lclsSystem2": "FD02", "lclsSystem2Name": "외국식",
-        "lclsSystem3": "FD020200", "lclsSystem3Name": "일식",
-    }]),
     ("get", "/api/v1/tour/player-picks", "200"): _list([{
         "playerPickId": "player_pick_001", "stadiumId": "gocheok",
         "playerName": "홍길동", "playerPosition": "INFIELDER", "place": PLACE,
@@ -666,7 +661,6 @@ PARAMETER_DOCS = {
     "longitude": ("검색 기준 경도(WGS84)", 127.0719),
     "latitude": ("검색 기준 위도(WGS84)", 37.5122),
     "radius": ("검색 반경(미터, 최대 20000)", 2000),
-    "category": ("내부 장소 카테고리 필터", "RESTAURANT"),
     "pageSize": ("한 페이지에서 반환할 최대 장소 수", 20),
     "pageToken": ("이전 응답의 nextPageToken. 첫 요청에서는 생략", "2"),
     "keyword": ("검색할 장소명 또는 키워드", "잠실 맛집"),
@@ -674,7 +668,7 @@ PARAMETER_DOCS = {
     "lclsSystem2": ("TourAPI 신분류 중분류 코드", "FD02"),
     "lclsSystem3": ("TourAPI 신분류 소분류 코드", "FD020200"),
     "filterId": (
-        "프론트 통합 필터 ID. category 및 lclsSystem 코드와 함께 사용하지 않음",
+        "프론트 통합 필터 ID. lclsSystem 코드와 함께 사용하지 않음",
         "CAFE",
     ),
     "playerName": ("선수 이름 선택 필터. 생략하면 구장의 전체 선수 추천", "홍길동"),

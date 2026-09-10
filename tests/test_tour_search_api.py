@@ -99,6 +99,14 @@ def test_search_rejects_filter_id_and_raw_codes_together() -> None:
     assert response.json()["error"]["code"] == "FILTER_CONFLICT"
 
 
+def test_search_does_not_publish_legacy_category_parameter() -> None:
+    operation = app.openapi()["paths"]["/api/v1/tour/search"]["get"]
+    parameter_names = {
+        parameter["name"] for parameter in operation["parameters"]
+    }
+    assert "category" not in parameter_names
+
+
 def test_filter_options_exposes_compound_fishing_codes() -> None:
     response = client.get("/api/v1/tour/filter-options")
     assert response.status_code == 200

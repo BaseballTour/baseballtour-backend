@@ -56,7 +56,6 @@ def test_nearby_returns_place_and_meta(
             "longitude": 127.0719,
             "latitude": 37.5122,
             "radius": 2000,
-            "category": "RESTAURANT",
             "pageSize": 10,
             "pageToken": "2",
         },
@@ -77,7 +76,7 @@ def test_nearby_returns_place_and_meta(
 
     assert received["page_no"] == 2
     assert received["num_of_rows"] == 10
-    assert received["category"] == PlaceCategory.RESTAURANT
+    assert received["category"] is None
 
 
 def test_nearby_rejects_invalid_coordinate() -> None:
@@ -113,16 +112,12 @@ def test_nearby_rejects_invalid_page_token() -> None:
     )
 
 
-def test_nearby_rejects_other_category() -> None:
-    response = client.get(
-        "/api/v1/tour/nearby",
-        params={
-            "category": "OTHER",
-        },
-    )
-
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+def test_nearby_does_not_publish_legacy_category_parameter() -> None:
+    operation = app.openapi()["paths"]["/api/v1/tour/nearby"]["get"]
+    parameter_names = {
+        parameter["name"] for parameter in operation["parameters"]
+    }
+    assert "category" not in parameter_names
 
 
 def test_nearby_propagates_tour_api_error(
