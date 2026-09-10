@@ -9,6 +9,7 @@ from fastapi import status
 from app.core.exceptions import AppException
 from app.models.itinerary import ItineraryItemType
 from app.repositories.attendance_log_repository import (
+    AttendanceLogCoverImageAccessDeniedError,
     AttendanceLogRepository,
 )
 from app.repositories.game_repository import GameRepository
@@ -348,7 +349,7 @@ class AttendanceLogService:
     ) -> AttendanceLogResponse:
         """직관 로그 Record를 API 응답으로 변환합니다."""
 
-        return self._to_log_response(
+        return self._to_log_response_with_cover(
             record
         )
 
@@ -365,7 +366,7 @@ class AttendanceLogService:
         )
 
         return [
-            self._to_log_response(record)
+            self._to_log_response_with_cover(record)
             for record in records
         ]
 
@@ -588,7 +589,7 @@ class AttendanceLogService:
                 ),
             )
 
-        return self._to_log_response(
+        return self._to_log_response_with_cover(
             updated
         )
 
@@ -1033,6 +1034,57 @@ class AttendanceLogService:
                 ),
             ) from exc
 
+    def delete_cover_image(
+        self,
+        *,
+        user_id: str,
+        attendance_log_id: str,
+    ) -> None:
+        """직관 로그 자체의 대표이미지 연결을 제거합니다."""
+        try:
+            result = (
+                self._attendance_log_repository
+                .clear_cover_image(
+                    attendance_log_id=attendance_log_id,
+                    user_id=user_id,
+                    updated_at=datetime.now(timezone.utc),
+                )
+            )
+        except (
+            AttendanceLogCoverImageAccessDeniedError
+        ) as exc:
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="ATTENDANCE_LOG_ACCESS_DENIED",
+                message=(
+                    "해당 직관 로그에 접근할 "
+                    "권한이 없습니다."
+                ),
+            ) from exc
+
+        if result is None:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="ATTENDANCE_LOG_NOT_FOUND",
+                message="직관 로그를 찾을 수 없습니다.",
+            )
+
+        _, previous_storage_path = result
+
+        # Firestore 참조 제거가 삭제의 기준입니다.
+        # 참조가 성공적으로 제거된 뒤 이전 Storage 객체도
+        # best-effort로 정리합니다.
+        #
+        # Storage 삭제 실패 때문에 이미 성공한 DB 삭제를
+        # 다시 실패 처리하지는 않습니다.
+        if previous_storage_path is not None:
+            try:
+                self._get_storage_service().delete_storage_path(
+                    previous_storage_path
+                )
+            except AppException:
+                pass
+
     def _get_user_repository(
         self,
     ) -> UserRepository:
@@ -1071,10 +1123,8 @@ class AttendanceLogService:
             away_score=game.away_score,
         )
 
-        cover_image_url = self._find_cover_image_url(
-            attendance_log_id=(
-                record.attendance_log_id
-            )
+        cover_image_url = self._resolve_cover_image_url(
+            record
         )
 
         return AttendanceLogArchiveItemResponse(
@@ -1129,43 +1179,20 @@ class AttendanceLogService:
             away_score=away_score,
         )
 
-    def _find_cover_image_url(
+    def _resolve_cover_image_url(
         self,
-        *,
-        attendance_log_id: str,
+        record: AttendanceLogRecord,
     ) -> str | None:
-        entries = self._log_entry_repository.get_all(
-            attendance_log_id
+        """로그 자체 대표이미지의 signed URL을 생성합니다."""
+        storage_path = record.cover_image_storage_path
+
+        if storage_path is None:
+            return None
+
+        return (
+            self._get_storage_service()
+            .create_download_url(storage_path)
         )
-
-        for entry in entries:
-            media_items = (
-                self._get_log_media_repository()
-                .get_all(
-                    attendance_log_id,
-                    entry.log_entry_id,
-                )
-            )
-
-            for media in media_items:
-                if (
-                    media.media_type
-                    != LogMediaType.IMAGE
-                ):
-                    continue
-
-                if media.storage_path:
-                    return (
-                        self._get_storage_service()
-                        .create_download_url(
-                            media.storage_path
-                        )
-                    )
-
-                if media.media_url:
-                    return media.media_url
-
-        return None
 
     def _to_entry_response(
         self,
@@ -1234,9 +1261,22 @@ class AttendanceLogService:
             updated_at=entry.updated_at,
         )
 
+    def _to_log_response_with_cover(
+        self,
+        record: AttendanceLogRecord,
+    ) -> AttendanceLogResponse:
+        return self._to_log_response(
+            record,
+            cover_image_url=(
+                self._resolve_cover_image_url(record)
+            ),
+        )
+
     @staticmethod
     def _to_log_response(
         record: AttendanceLogRecord,
+        *,
+        cover_image_url: str | None = None,
     ) -> AttendanceLogResponse:
         return AttendanceLogResponse(
             attendance_log_id=(
@@ -1249,6 +1289,7 @@ class AttendanceLogService:
             summary_text=record.summary_text,
             seat=record.seat,
             mate=record.mate,
+            cover_image_url=cover_image_url,
             log_status=record.log_status,
             visibility=record.visibility,
             created_at=record.created_at,

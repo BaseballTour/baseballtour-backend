@@ -195,6 +195,14 @@ class AttendanceLogDocument(ApiModel):
         description="함께 직관한 사람",
     )
 
+    cover_image_storage_path: str | None = Field(
+        default=None,
+        max_length=1024,
+        description=(
+            "직관 로그 대표이미지의 "
+            "Firebase Storage 객체 경로"
+        ),
+    )
     log_status: AttendanceLogStatus = (
         AttendanceLogStatus.DRAFT
     )
@@ -426,6 +434,7 @@ class AttendanceLogResponse(ApiModel):
     summary_text: str | None = None
     seat: str | None = None
     mate: str | None = None
+    cover_image_url: str | None = None
     log_status: AttendanceLogStatus
 
     visibility: AttendanceLogVisibility

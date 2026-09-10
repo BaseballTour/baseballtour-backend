@@ -1297,44 +1297,23 @@ def test_archive_log_result_matrix(
         assert item.result.value == expected_result
 
 
-def test_archive_log_uses_first_image_as_cover() -> None:
+def test_archive_log_uses_log_cover_image() -> None:
+    record = make_archive_record().model_copy(
+        update={
+            "cover_image_storage_path": (
+                "users/test/attendance-logs/"
+                "log_001/cover/photo.png"
+            )
+        }
+    )
+
     context = make_archive_service(
-        records=[make_archive_record()],
+        records=[record],
         entries=[
             SimpleNamespace(
                 log_entry_id="entry_001",
             ),
-            SimpleNamespace(
-                log_entry_id="entry_002",
-            ),
         ],
-    )
-
-    context.log_media_repository.get_all.side_effect = (
-        lambda attendance_log_id, entry_id: {
-            "entry_001": [
-                SimpleNamespace(
-                    media_type=(
-                        context.LogMediaType.VIDEO
-                    ),
-                    storage_path=(
-                        "users/test/video.mp4"
-                    ),
-                    media_url=None,
-                ),
-            ],
-            "entry_002": [
-                SimpleNamespace(
-                    media_type=(
-                        context.LogMediaType.IMAGE
-                    ),
-                    storage_path=(
-                        "users/test/photo.png"
-                    ),
-                    media_url=None,
-                ),
-            ],
-        }.get(entry_id, [])
     )
 
     data, _ = context.service.list_archive_logs(
@@ -1345,13 +1324,13 @@ def test_archive_log_uses_first_image_as_cover() -> None:
         data[0].cover_image_url
         == (
             "https://signed.example/"
-            "users/test/photo.png"
+            "users/test/attendance-logs/"
+            "log_001/cover/photo.png"
         )
     )
 
-    context.storage_service.create_download_url.assert_called_once_with(
-        "users/test/photo.png"
-    )
+    # 대표사진은 더 이상 Entry media에서 찾지 않습니다.
+    context.log_media_repository.get_all.assert_not_called()
 
 
 def test_archive_log_pagination() -> None:

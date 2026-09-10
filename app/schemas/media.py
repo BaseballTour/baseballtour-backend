@@ -16,6 +16,7 @@ class MediaPurpose(str, Enum):
     PROFILE_IMAGE = "PROFILE_IMAGE"
     TRIP_COVER_IMAGE = "TRIP_COVER_IMAGE"
     ATTENDANCE_LOG = "ATTENDANCE_LOG"
+    ATTENDANCE_LOG_COVER_IMAGE = "ATTENDANCE_LOG_COVER_IMAGE"
 
 
 class MediaUploadUrlRequest(ApiModel):
@@ -108,14 +109,41 @@ class MediaUploadUrlRequest(ApiModel):
             )
 
         if self.purpose == MediaPurpose.ATTENDANCE_LOG:
-            if any(getattr(self, name) is None for name in ('attendance_log_id', 'log_entry_id')):
+            if (
+                self.attendance_log_id is None
+                or self.log_entry_id is None
+            ):
                 raise ValueError(
-                    "직관 로그 미디어에는 대상 ID와 순서 정보가 필요합니다."
+                    "직관 로그 미디어에는 "
+                    "attendanceLogId와 logEntryId가 필요합니다."
                 )
-        elif any(getattr(self, name) is not None for name in ('attendance_log_id', 'log_entry_id')):
+
+        elif (
+            self.purpose
+            == MediaPurpose.ATTENDANCE_LOG_COVER_IMAGE
+        ):
+            if self.attendance_log_id is None:
+                raise ValueError(
+                    "직관 로그 대표이미지에는 "
+                    "attendanceLogId가 필요합니다."
+                )
+
+            if self.log_entry_id is not None:
+                raise ValueError(
+                    "직관 로그 대표이미지에는 "
+                    "logEntryId를 전달할 수 없습니다."
+                )
+
+        elif any(
+            getattr(self, name) is not None
+            for name in (
+                "attendance_log_id",
+                "log_entry_id",
+            )
+        ):
             raise ValueError(
-                "프로필 이미지와 여행 커버이미지에는 "
-                "직관 로그 정보를 전달할 수 없습니다."
+                "이 용도에는 직관 로그 정보를 "
+                "전달할 수 없습니다."
             )
 
         return self
@@ -231,33 +259,82 @@ class MediaCompleteRequest(ApiModel):
     def validate_target(
         self,
     ) -> "MediaCompleteRequest":
+        cover_purposes = {
+            MediaPurpose.TRIP_COVER_IMAGE,
+            MediaPurpose.ATTENDANCE_LOG_COVER_IMAGE,
+        }
+
+        if self.purpose in cover_purposes:
+            if (
+                "expected_cover_image_storage_path"
+                not in self.model_fields_set
+            ):
+                raise ValueError(
+                    "커버이미지에는 "
+                    "expectedCoverImageStoragePath가 필요합니다."
+                )
+        elif (
+            "expected_cover_image_storage_path"
+            in self.model_fields_set
+        ):
+            raise ValueError(
+                "이 용도에는 "
+                "expectedCoverImageStoragePath를 "
+                "전달할 수 없습니다."
+            )
+
         if self.purpose == MediaPurpose.TRIP_COVER_IMAGE:
             if self.trip_id is None:
                 raise ValueError(
                     "여행 커버이미지에는 tripId가 필요합니다."
                 )
-            if "expected_cover_image_storage_path" not in self.model_fields_set:
-                raise ValueError(
-                    "여행 커버이미지에는 expectedCoverImageStoragePath가 필요합니다."
-                )
-        elif "expected_cover_image_storage_path" in self.model_fields_set:
-            raise ValueError(
-                "이 용도에는 expectedCoverImageStoragePath를 전달할 수 없습니다."
-            )
         elif self.trip_id is not None:
             raise ValueError(
                 "이 용도에는 tripId를 전달할 수 없습니다."
             )
 
         if self.purpose == MediaPurpose.ATTENDANCE_LOG:
-            if any(getattr(self, name) is None for name in ('attendance_log_id', 'log_entry_id', 'sequence_no')):
+            if (
+                self.attendance_log_id is None
+                or self.log_entry_id is None
+                or self.sequence_no is None
+            ):
                 raise ValueError(
-                    "직관 로그 미디어에는 대상 ID와 순서 정보가 필요합니다."
+                    "직관 로그 미디어에는 대상 ID와 "
+                    "순서 정보가 필요합니다."
                 )
-        elif any(getattr(self, name) is not None for name in ('attendance_log_id', 'log_entry_id', 'sequence_no')):
+
+        elif (
+            self.purpose
+            == MediaPurpose.ATTENDANCE_LOG_COVER_IMAGE
+        ):
+            if self.attendance_log_id is None:
+                raise ValueError(
+                    "직관 로그 대표이미지에는 "
+                    "attendanceLogId가 필요합니다."
+                )
+
+            if (
+                self.log_entry_id is not None
+                or self.sequence_no is not None
+            ):
+                raise ValueError(
+                    "직관 로그 대표이미지에는 "
+                    "logEntryId와 sequenceNo를 "
+                    "전달할 수 없습니다."
+                )
+
+        elif any(
+            getattr(self, name) is not None
+            for name in (
+                "attendance_log_id",
+                "log_entry_id",
+                "sequence_no",
+            )
+        ):
             raise ValueError(
-                "프로필 이미지와 여행 커버이미지에는 "
-                "직관 로그 정보를 전달할 수 없습니다."
+                "이 용도에는 직관 로그 정보를 "
+                "전달할 수 없습니다."
             )
 
         return self
