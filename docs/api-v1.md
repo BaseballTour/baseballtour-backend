@@ -26,7 +26,6 @@
 | POST | `/media/upload-urls` | 미디어 업로드 URL 발급 |
 | GET | `/teams` | KBO 구단 목록 조회 |
 | GET | `/terms` | 활성 약관 목록 조회 |
-| GET | `/tour/classifications` | TourAPI 신분류 코드 목록 조회 |
 | GET | `/tour/nearby` | Read Nearby Places |
 | GET | `/tour/places/{placeId}` | Read Place Detail |
 | GET | `/tour/player-picks` | 구장·선수별 추천 장소 조회 |

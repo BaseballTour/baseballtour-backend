@@ -21,8 +21,8 @@
 
 - 검색과 필터는 `/trips/{tripId}/recommendation-candidates`가 만든 추천 후보 안에서 적용한다.
 - `pageSize`, `pageToken`, `filterId`, `keyword`를 지원한다.
-- 내부 `category` 필터는 외부 장소 조회 API에서 제거한다.
-- 중복 기능인 TourAPI `classifications` 공개 엔드포인트는 제거한다.
+- 내부 `category` 필터는 외부 장소 조회 API에서 제거했다.
+- 중복 기능인 TourAPI `classifications` 공개 엔드포인트를 제거했다.
 - 선수 추천은 통합 필터의 `PLAYER_PICK`으로 조회할 수 있다.
 
 ## 4. 경기 월별 조회

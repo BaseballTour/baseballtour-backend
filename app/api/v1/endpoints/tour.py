@@ -1,5 +1,3 @@
-from typing import Literal
-
 from fastapi import APIRouter, Path, Query
 
 from app.core.exceptions import AppException
@@ -11,14 +9,14 @@ from app.external.tour_api.filters import (
     FILTER_DEFINITIONS,
     TourFilterId,
 )
-from app.models.place import Place, PlaceCategory
+from app.models.place import Place
 from app.schemas.player_pick import PlayerPickResponse
 from app.schemas.response import (
     ListMeta,
     ListSuccessResponse,
     SuccessResponse,
 )
-from app.schemas.tour import TourClassification, TourFilterOption
+from app.schemas.tour import TourFilterOption
 from app.services.place_enrichment import (
     enrich_place_with_kakao,
 )
@@ -30,18 +28,6 @@ router = APIRouter(
     tags=["TourAPI"],
     responses=TOUR_API_ERROR_RESPONSES,
 )
-
-
-TourNearbyCategory = Literal[
-    "TOURIST_SPOT",
-    "RESTAURANT",
-    "CAFE",
-    "ACCOMMODATION",
-    "CULTURAL_FACILITY",
-    "SHOPPING",
-    "FESTIVAL",
-    "ACTIVITY",
-]
 
 
 def _parse_page_token(
@@ -99,7 +85,6 @@ def _validate_lcls_filters(
 def _validate_filter_contract(
     filter_id: TourFilterId | None,
     *,
-    category: str | None = None,
     lcls_system1: str | None = None,
     lcls_system2: str | None = None,
     lcls_system3: str | None = None,
@@ -109,7 +94,6 @@ def _validate_filter_contract(
     if any(
         value is not None
         for value in (
-            category,
             lcls_system1,
             lcls_system2,
             lcls_system3,
@@ -119,7 +103,7 @@ def _validate_filter_contract(
             status_code=400,
             code="FILTER_CONFLICT",
             message=(
-                "filterId는 category 또는 TourAPI 신분류 코드와 "
+                "filterId는 TourAPI 신분류 코드와 "
                 "함께 사용할 수 없습니다."
             ),
         )
@@ -175,59 +159,6 @@ async def read_player_picks(
 
 
 @router.get(
-    "/classifications",
-    response_model=ListSuccessResponse[TourClassification],
-    summary="TourAPI 신분류 코드 목록 조회",
-)
-async def read_classifications(
-    lcls_system1: str | None = Query(
-        default=None,
-        alias="lclsSystem1",
-        pattern=r"^[A-Z]{2}$",
-    ),
-    lcls_system2: str | None = Query(
-        default=None,
-        alias="lclsSystem2",
-        pattern=r"^[A-Z]{2}[0-9]{2}$",
-    ),
-    lcls_system3: str | None = Query(
-        default=None,
-        alias="lclsSystem3",
-        pattern=r"^[A-Z]{2}[0-9]{6}$",
-    ),
-    page_size: int = Query(
-        default=100,
-        alias="pageSize",
-        ge=1,
-        le=1000,
-    ),
-    page_token: str | None = Query(
-        default=None,
-        alias="pageToken",
-    ),
-) -> ListSuccessResponse[TourClassification]:
-    _validate_lcls_filters(
-        lcls_system1,
-        lcls_system2,
-        lcls_system3,
-    )
-    page = await tour_api_adapter.get_classification_page(
-        page_no=_parse_page_token(page_token),
-        num_of_rows=page_size,
-        lcls_system1=lcls_system1,
-        lcls_system2=lcls_system2,
-        lcls_system3=lcls_system3,
-    )
-    return ListSuccessResponse(
-        data=page.classifications,
-        meta=ListMeta(
-            count=len(page.classifications),
-            next_page_token=page.next_page_token,
-        ),
-    )
-
-
-@router.get(
     "/nearby",
     response_model=ListSuccessResponse[Place],
 )
@@ -253,13 +184,6 @@ async def read_nearby_places(
         description="검색 반경, 미터 단위",
         examples=[2000],
     ),
-    category: (
-        TourNearbyCategory | None
-    ) = Query(
-        default=None,
-        description="내부 장소 카테고리 필터",
-        examples=["RESTAURANT"],
-    ),
     filter_id: TourFilterId | None = Query(
         default=None,
         alias="filterId",
@@ -282,7 +206,6 @@ async def read_nearby_places(
         examples=["2"],
     ),
 ) -> ListSuccessResponse[Place]:
-    _validate_filter_contract(filter_id, category=category)
     page_no = _parse_page_token(
         page_token
     )
@@ -303,11 +226,7 @@ async def read_nearby_places(
             radius=radius,
             page_no=page_no,
             num_of_rows=page_size,
-            category=(
-                PlaceCategory(category)
-                if category is not None
-                else None
-            ),
+            category=None,
         )
 
     return ListSuccessResponse(
@@ -381,7 +300,6 @@ async def read_place_detail(
 )
 async def search_places(
     keyword: str = Query(min_length=1, max_length=100, examples=["잠실 맛집"]),
-    category: TourNearbyCategory | None = Query(default=None),
     filter_id: TourFilterId | None = Query(
         default=None,
         alias="filterId",
@@ -420,7 +338,6 @@ async def search_places(
 ) -> ListSuccessResponse[Place]:
     _validate_filter_contract(
         filter_id,
-        category=category,
         lcls_system1=lcls_system1,
         lcls_system2=lcls_system2,
         lcls_system3=lcls_system3,
@@ -440,7 +357,7 @@ async def search_places(
     else:
         page = await tour_api_adapter.search_place_page(
             keyword=keyword,
-            category=PlaceCategory(category) if category is not None else None,
+            category=None,
             lcls_system1=lcls_system1,
             lcls_system2=lcls_system2,
             lcls_system3=lcls_system3,
