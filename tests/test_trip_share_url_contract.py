@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from fastapi import Response
@@ -30,6 +31,9 @@ def test_share_url_is_none_without_web_origin(monkeypatch):
 
 def test_issue_share_returns_short_url(monkeypatch):
     token = "sample-share-token"
+    created_at = datetime(
+        2026, 9, 7, tzinfo=timezone.utc
+    )
 
     monkeypatch.setattr(
         trip_shares,
@@ -39,7 +43,13 @@ def test_issue_share_returns_short_url(monkeypatch):
     monkeypatch.setattr(
         trip_shares,
         "TripShareService",
-        lambda: SimpleNamespace(issue=lambda **kwargs: token),
+        lambda: SimpleNamespace(
+            issue_with_metadata=lambda **kwargs: (
+                token,
+                created_at,
+                None,
+            )
+        ),
     )
 
     response = Response()
@@ -53,4 +63,6 @@ def test_issue_share_returns_short_url(monkeypatch):
     assert result.data.share_url == (
         "https://travel.example/s/sample-share-token"
     )
+    assert result.data.created_at == created_at
+    assert result.data.revoked_at is None
     assert response.headers["Cache-Control"] == "no-store"

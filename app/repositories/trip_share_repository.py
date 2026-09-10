@@ -113,6 +113,42 @@ class TripShareRepository:
 
         return commit(transaction)
 
+    def get_metadata(
+        self,
+        *,
+        trip_id: str,
+        user_id: str,
+        token: str,
+    ) -> tuple[datetime, datetime | None] | None:
+        """현재 활성 토큰의 생성·해제 시각을 반환합니다."""
+        snapshot = self._shares.document(trip_id).get()
+        if not snapshot.exists:
+            return None
+
+        data = snapshot.to_dict() or {}
+        if (
+            data.get("userId") != user_id
+            or not data.get("isActive")
+            or data.get("token") != token
+            or data.get("tokenHash") != self._token_hash(token)
+        ):
+            return None
+
+        created_at = data.get("createdAt")
+        revoked_at = data.get("revokedAt")
+
+        if (
+            not isinstance(created_at, datetime)
+            or created_at.tzinfo is None
+            or created_at.utcoffset() is None
+        ):
+            return None
+
+        if revoked_at is not None:
+            return None
+
+        return created_at, revoked_at
+
     def revoke(self, *, trip_id: str, user_id: str) -> bool:
         """현재 활성 공유를 해제합니다. 이미 해제되었으면 False입니다."""
         share_ref = self._shares.document(trip_id)

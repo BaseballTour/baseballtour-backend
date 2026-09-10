@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from copy import deepcopy
 from hashlib import sha256
 from types import SimpleNamespace
@@ -484,3 +485,75 @@ def test_trip_delete_failed_commit_preserves_all_documents(
         TripRepository(client=context.store.client).delete(TRIP_ID)
 
     assert context.store.records == before
+
+
+def test_issue_metadata_matches_active_token(context, monkeypatch):
+    generator = Mock(side_effect=["first-token", "second-token"])
+    monkeypatch.setattr(
+        share_module.secrets,
+        "token_urlsafe",
+        generator,
+    )
+
+    first = context.repository.issue(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+    )
+    metadata = context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+        token=first,
+    )
+
+    assert metadata is not None
+    created_at, revoked_at = metadata
+    assert isinstance(created_at, datetime)
+    assert created_at.tzinfo is not None
+    assert revoked_at is None
+
+    assert context.repository.issue(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+    ) == first
+    assert context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+        token=first,
+    ) == metadata
+
+    assert context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OTHER_ID,
+        token=first,
+    ) is None
+    assert context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+        token="different-token",
+    ) is None
+
+    assert context.repository.revoke(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+    ) is True
+    assert context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+        token=first,
+    ) is None
+
+    second = context.repository.issue(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+    )
+    assert second != first
+    assert context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+        token=first,
+    ) is None
+    assert context.repository.get_metadata(
+        trip_id=TRIP_ID,
+        user_id=OWNER_ID,
+        token=second,
+    ) is not None

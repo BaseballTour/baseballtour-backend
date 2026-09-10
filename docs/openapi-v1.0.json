@@ -17176,7 +17176,9 @@
                       "success": true,
                       "data": {
                         "shareToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                        "shareUrl": null
+                        "shareUrl": null,
+                        "createdAt": "2026-09-07T12:00:00+09:00",
+                        "revokedAt": null
                       }
                     }
                   }
@@ -17240,7 +17242,7 @@
           "Trip Sharing"
         ],
         "summary": "여행 공유 해제",
-        "description": "로그인 사용자가 본인 여행의 공유를 해제합니다. 이미 해제된 경우 revoked=false를 반환합니다.",
+        "description": "로그인 사용자가 본인 여행의 공유를 해제합니다. 이미 해제된 경우에도 204를 반환합니다.",
         "operationId": "revoke_trip_share_api_v1_trips__tripId__share_delete",
         "security": [
           {
@@ -17262,26 +17264,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse_TripShareRevokeResponse_"
-                },
-                "examples": {
-                  "normal": {
-                    "summary": "정상 응답",
-                    "value": {
-                      "success": true,
-                      "data": {
-                        "revoked": true
-                      }
-                    }
-                  }
-                }
-              }
-            }
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "요청 필드 검증 실패",
@@ -24628,25 +24612,6 @@
         ],
         "title": "SuccessResponse[TripShareResponse]"
       },
-      "SuccessResponse_TripShareRevokeResponse_": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "const": true,
-            "title": "Success",
-            "default": true
-          },
-          "data": {
-            "$ref": "#/components/schemas/TripShareRevokeResponse"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "SuccessResponse[TripShareRevokeResponse]"
-      },
       "SuccessResponse_TripSummaryResponse_": {
         "properties": {
           "success": {
@@ -25453,28 +25418,32 @@
               }
             ],
             "title": "Shareurl"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revokedat"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "shareToken"
+          "shareToken",
+          "createdAt"
         ],
         "title": "TripShareResponse"
-      },
-      "TripShareRevokeResponse": {
-        "properties": {
-          "revoked": {
-            "type": "boolean",
-            "title": "Revoked"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "revoked"
-        ],
-        "title": "TripShareRevokeResponse"
       },
       "TripStatus": {
         "type": "string",

@@ -920,23 +920,19 @@ Firebase `displayName`은 ID Token에서 일반적으로 `name` 클레임으로 
 - 이미 활성 공유가 있으면 동일한 토큰을 반환합니다.
 - 해제 후 재발급하면 새로운 토큰을 생성합니다.
 
-응답 데이터는 `shareToken`, `shareUrl`입니다. `SHARE_WEB_ORIGIN`이
+응답 데이터는 `shareToken`, `shareUrl`, `createdAt`, `revokedAt`입니다. `SHARE_WEB_ORIGIN`이
 설정되지 않았으면 `shareUrl`은 null입니다. 설정된 경우
 `{SHARE_WEB_ORIGIN}/s/{shareToken}` 형식으로 반환합니다.
 
 ### DELETE /api/v1/trips/{tripId}/share
 
-- 인증: Firebase 로그인 필요
-- 응답: 200 OK
-- 활성 공유를 해제하면 `revoked: true`입니다.
-- 이미 해제된 경우 `revoked: false`입니다.
-- 해제된 토큰은 다시 사용할 수 없습니다.
+인증이 필요하며 여행 소유자만 공유를 해제할 수 있습니다. 성공 시 **204 No Content**를 반환하고 응답 본문은 없습니다. 이미 해제된 공유를 다시 해제해도 204를 반환합니다.
 
 ### GET /api/v1/shared-trips/{shareToken}
 
 - 인증: 필요 없음
 - 응답: 200 OK
-- 유효하지 않거나 해제된 토큰은 404 `TRIP_SHARE_NOT_FOUND`입니다.
+- 유효하지 않거나 해제된 토큰은 404 `SHARE_NOT_FOUND`입니다.
 - 여행이 삭제·취소되었거나 활성 Plan이 없으면 조회할 수 없습니다.
 - 응답에는 `Cache-Control: no-store`가 적용됩니다.
 
@@ -963,7 +959,7 @@ Firebase `displayName`은 ID Token에서 일반적으로 `name` 클레임으로 
 - 401: 인증되지 않은 발급·해제 요청
 - 403 `TRIP_ACCESS_DENIED`: 다른 사용자의 여행
 - 404 `TRIP_NOT_FOUND`: 소유자용 요청의 여행이 없음
-- 404 `TRIP_SHARE_NOT_FOUND`: 공개 공유를 찾을 수 없음
+- 404 `SHARE_NOT_FOUND`: 공개 공유를 찾을 수 없음
 - 409 `TRIP_SHARE_NOT_AVAILABLE`: 공유 가능한 활성 일정이 없음
 - 409 `TRIP_SHARE_STATE_CHANGED`: 발급 중 여행 또는 일정 상태 변경
 

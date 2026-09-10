@@ -59,18 +59,20 @@ def make_shared_trip():
 
 def test_issue_share_requires_authenticated_user(monkeypatch):
     fake = SimpleNamespace(
-        issue=lambda **kwargs: TOKEN,
+        issue_with_metadata=lambda **kwargs: (
+            TOKEN,
+            NOW,
+            None,
+        ),
     )
     monkeypatch.setattr(
         endpoint,
         "TripShareService",
         lambda: fake,
     )
-
     app.dependency_overrides[get_current_active_user_id] = (
         lambda: USER_ID
     )
-
     try:
         with TestClient(app) as client:
             response = client.post(
@@ -81,37 +83,47 @@ def test_issue_share_requires_authenticated_user(monkeypatch):
 
     assert response.status_code == 200
     body = response.json()
-
     assert body["success"] is True
     assert body["data"]["shareToken"] == TOKEN
+    assert (
+        datetime.fromisoformat(body["data"]["createdAt"])
+        == NOW
+    )
+    assert body["data"]["revokedAt"] is None
 
 
 def test_revoke_share(monkeypatch):
-    fake = SimpleNamespace(
-        revoke=lambda **kwargs: True,
-    )
+    calls = []
+
+    def revoke(**kwargs):
+        calls.append(kwargs)
+        return len(calls) == 1
+
     monkeypatch.setattr(
         endpoint,
         "TripShareService",
-        lambda: fake,
+        lambda: SimpleNamespace(revoke=revoke),
     )
-
     app.dependency_overrides[get_current_active_user_id] = (
         lambda: USER_ID
     )
-
     try:
         with TestClient(app) as client:
-            response = client.delete(
+            first = client.delete(
+                f"/api/v1/trips/{TRIP_ID}/share"
+            )
+            second = client.delete(
                 f"/api/v1/trips/{TRIP_ID}/share"
             )
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 200
-    assert response.json()["data"] == {
-        "revoked": True,
-    }
+    for response in (first, second):
+        assert response.status_code == 204
+        assert response.content == b""
+        assert response.headers["cache-control"] == "no-store"
+
+    assert len(calls) == 2
 
 
 def test_public_share_does_not_require_auth(monkeypatch):
@@ -142,3 +154,12 @@ def test_share_routes_are_registered():
     assert "post" in paths["/api/v1/trips/{tripId}/share"]
     assert "delete" in paths["/api/v1/trips/{tripId}/share"]
     assert "get" in paths["/api/v1/shared-trips/{shareToken}"]
+
+
+def test_share_response_openapi_contract():
+    paths = app.openapi()["paths"]
+    responses = paths["/api/v1/trips/{tripId}/share"]["delete"]["responses"]
+
+    assert "204" in responses
+    assert "200" not in responses
+    assert "content" not in responses["204"]
