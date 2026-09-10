@@ -36,6 +36,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="지정할 때만 Firestore에 저장합니다. 기본값은 dry-run입니다.",
     )
+    parser.add_argument(
+        "--force-status-sync",
+        action="store_true",
+        help=(
+            "status 모드에서 경기 유무·시간·종료 상태 검사 없이 "
+            "KBO API를 강제로 호출합니다."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -48,10 +56,12 @@ async def main() -> None:
             if args.date
             else datetime.now(KOREA_TIMEZONE).date()
         )
-        result = await service.sync_day_status(
-            target_date,
-            dry_run=not args.write,
+        sync_method = (
+            service.sync_day_status
+            if args.force_status_sync
+            else service.sync_day_status_if_needed
         )
+        result = await sync_method(target_date, dry_run=not args.write)
         target_label = target_date.isoformat()
     elif args.month is not None:
         result = await service.sync_month(
@@ -69,6 +79,12 @@ async def main() -> None:
         )
         target_label = f"{start_date:%Y-%m} +{args.months_ahead}개월"
     mode = "DRY-RUN" if result.dry_run else "WRITE"
+    if result.skip_reason is not None:
+        print(
+            f"[{mode}] {target_label}: KBO 상태 조회 생략 "
+            f"reason={result.skip_reason}"
+        )
+        return
     print(
         f"[{mode}] {target_label}: "
         f"수집 {result.fetched}, 생성 {result.created}, 갱신 {result.updated}, "

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from app.external.kbo.client import KboScheduleClient
 from app.external.kbo.parser import (
@@ -7,7 +8,16 @@ from app.external.kbo.parser import (
     parse_schedule_response,
 )
 from app.repositories.game_repository import GameRepository
-from app.schemas.game import GameDocument
+from app.schemas.game import GameDocument, GameStatus
+
+
+KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
+STATUS_MONITORING_LEAD_TIME = timedelta(hours=2)
+TERMINAL_GAME_STATUSES = {
+    GameStatus.COMPLETED,
+    GameStatus.CANCELLED,
+    GameStatus.POSTPONED,
+}
 
 
 @dataclass(frozen=True)
@@ -18,6 +28,7 @@ class KboScheduleSyncResult:
     unchanged: int
     skipped_rows: list[str]
     dry_run: bool
+    skip_reason: str | None = None
 
 
 class KboScheduleSyncService:
@@ -165,6 +176,73 @@ class KboScheduleSyncService:
             unchanged=unchanged,
             skipped_rows=parsed.skipped_rows,
             dry_run=False,
+        )
+
+    async def sync_day_status_if_needed(
+        self,
+        game_date: date,
+        *,
+        dry_run: bool = True,
+        now: datetime | None = None,
+    ) -> KboScheduleSyncResult:
+        """Firestore 경기 상태를 보고 필요할 때만 KBO를 조회한다."""
+        repository = self._repository or GameRepository()
+        day_start = datetime.combine(
+            game_date,
+            time.min,
+            tzinfo=KOREA_TIMEZONE,
+        )
+        day_end = day_start + timedelta(days=1)
+        games = repository.get_by_date_range(
+            start_at=day_start,
+            end_at=day_end,
+        )
+
+        if not games:
+            return self._skipped_status_result(
+                dry_run=dry_run,
+                reason="NO_GAMES_TODAY",
+            )
+
+        pending_games = [
+            game
+            for game in games
+            if game.status not in TERMINAL_GAME_STATUSES
+        ]
+        if not pending_games:
+            return self._skipped_status_result(
+                dry_run=dry_run,
+                reason="ALL_GAMES_TERMINAL",
+            )
+
+        current = now or datetime.now(KOREA_TIMEZONE)
+        current = current.astimezone(KOREA_TIMEZONE)
+        earliest_start = min(
+            game.game_start_at.astimezone(KOREA_TIMEZONE)
+            for game in pending_games
+        )
+        if current < earliest_start - STATUS_MONITORING_LEAD_TIME:
+            return self._skipped_status_result(
+                dry_run=dry_run,
+                reason="BEFORE_MONITORING_WINDOW",
+            )
+
+        return await self.sync_day_status(game_date, dry_run=dry_run)
+
+    @staticmethod
+    def _skipped_status_result(
+        *,
+        dry_run: bool,
+        reason: str,
+    ) -> KboScheduleSyncResult:
+        return KboScheduleSyncResult(
+            fetched=0,
+            created=0,
+            updated=0,
+            unchanged=0,
+            skipped_rows=[],
+            dry_run=dry_run,
+            skip_reason=reason,
         )
 
     @staticmethod

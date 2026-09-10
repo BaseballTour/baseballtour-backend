@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import httpx
@@ -77,6 +77,7 @@ async def test_kbo_schedule_client_rejects_changed_response() -> None:
 class _FixtureClient:
     def __init__(self) -> None:
         self.month_calls: list[tuple[int, int]] = []
+        self.day_calls: list[str] = []
 
     async def get_month_schedule(self, year: int, month: int) -> dict:
         self.month_calls.append((year, month))
@@ -84,6 +85,7 @@ class _FixtureClient:
 
     async def get_day_games(self, game_date: str) -> dict:
         assert game_date == "20260801"
+        self.day_calls.append(game_date)
         return json.loads(DAY_FIXTURE.read_text(encoding="utf-8"))
 
 
@@ -96,6 +98,16 @@ class _MemoryGameRepository:
 
     def set_game(self, game_id: str, game) -> None:
         self.games[game_id] = game
+
+    def get_by_date_range(self, *, start_at, end_at):
+        return sorted(
+            (
+                game
+                for game in self.games.values()
+                if start_at <= game.game_start_at < end_at
+            ),
+            key=lambda game: game.game_start_at,
+        )
 
 
 @pytest.mark.anyio
@@ -192,3 +204,82 @@ async def test_day_sync_updates_final_result_without_live_scores() -> None:
     assert live.status is GameStatus.IN_PROGRESS
     assert live.home_score is None
     assert live.away_score is None
+
+
+@pytest.mark.anyio
+async def test_smart_status_sync_skips_day_without_games() -> None:
+    client = _FixtureClient()
+    service = KboScheduleSyncService(client, _MemoryGameRepository())
+
+    result = await service.sync_day_status_if_needed(date(2026, 8, 1))
+
+    assert result.skip_reason == "NO_GAMES_TODAY"
+    assert client.day_calls == []
+
+
+@pytest.mark.anyio
+async def test_smart_status_sync_skips_before_monitoring_window() -> None:
+    client = _FixtureClient()
+    repository = _MemoryGameRepository()
+    await KboScheduleSyncService(client, repository).sync_month(
+        2026,
+        8,
+        dry_run=False,
+    )
+    for game in repository.games.values():
+        game.status = GameStatus.SCHEDULED
+    client.day_calls.clear()
+    service = KboScheduleSyncService(client, repository)
+
+    result = await service.sync_day_status_if_needed(
+        date(2026, 8, 1),
+        now=datetime.fromisoformat("2026-08-01T10:00:00+09:00"),
+    )
+
+    assert result.skip_reason == "BEFORE_MONITORING_WINDOW"
+    assert client.day_calls == []
+
+
+@pytest.mark.anyio
+async def test_smart_status_sync_calls_kbo_inside_monitoring_window() -> None:
+    client = _FixtureClient()
+    repository = _MemoryGameRepository()
+    await KboScheduleSyncService(client, repository).sync_month(
+        2026,
+        8,
+        dry_run=False,
+    )
+    for game in repository.games.values():
+        game.status = GameStatus.SCHEDULED
+    client.day_calls.clear()
+    service = KboScheduleSyncService(client, repository)
+
+    result = await service.sync_day_status_if_needed(
+        date(2026, 8, 1),
+        now=datetime.fromisoformat("2026-08-01T17:00:00+09:00"),
+    )
+
+    assert result.skip_reason is None
+    assert client.day_calls == ["20260801"]
+
+
+@pytest.mark.anyio
+async def test_smart_status_sync_skips_when_all_games_are_terminal() -> None:
+    client = _FixtureClient()
+    repository = _MemoryGameRepository()
+    await KboScheduleSyncService(client, repository).sync_day_status(
+        date(2026, 8, 1),
+        dry_run=False,
+    )
+    for game in repository.games.values():
+        game.status = GameStatus.COMPLETED
+    client.day_calls.clear()
+    service = KboScheduleSyncService(client, repository)
+
+    result = await service.sync_day_status_if_needed(
+        date(2026, 8, 1),
+        now=datetime.fromisoformat("2026-08-01T23:00:00+09:00"),
+    )
+
+    assert result.skip_reason == "ALL_GAMES_TERMINAL"
+    assert client.day_calls == []
