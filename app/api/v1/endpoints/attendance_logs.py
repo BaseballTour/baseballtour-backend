@@ -277,6 +277,66 @@ def delete_attendance_log(
     )
 
 
+@router.delete(
+    "/{attendanceLogId}/cover-image",
+    response_model=SuccessResponse[
+        dict[str, bool]
+    ],
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "success": {
+                            "summary": (
+                                "직관 로그 대표이미지 삭제 성공"
+                            ),
+                            "value": {
+                                "success": True,
+                                "data": {
+                                    "deleted": True,
+                                },
+                            },
+                        }
+                    }
+                }
+            }
+        }
+    },
+    summary="직관 로그 대표이미지 삭제",
+    description=(
+        "직관 로그 자체에 연결된 대표이미지를 제거합니다. "
+        "Entry별 미디어에는 영향을 주지 않습니다."
+    ),
+)
+def delete_attendance_log_cover_image(
+    attendance_log_id: Annotated[
+        str,
+        Path(
+            alias="attendanceLogId",
+            description="대표이미지를 삭제할 직관 로그 ID",
+            openapi_examples={
+                "default": {
+                    "value": "log_001",
+                }
+            },
+        ),
+    ],
+    user_id: Annotated[
+        str,
+        Depends(get_current_active_user_id),
+    ],
+) -> SuccessResponse[dict[str, bool]]:
+    AttendanceLogService().delete_cover_image(
+        user_id=user_id,
+        attendance_log_id=attendance_log_id,
+    )
+
+    return SuccessResponse(
+        data={"deleted": True}
+    )
+
+
 @router.patch(
     "/{attendanceLogId}/entries/{entryId}",
     response_model=SuccessResponse[

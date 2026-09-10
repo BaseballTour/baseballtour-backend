@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from google.cloud.firestore_v1 import transactional
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client
 
@@ -11,6 +12,14 @@ from app.schemas.attendance_log import (
     AttendanceLogRecord,
     AttendanceLogStatus,
 )
+
+
+class AttendanceLogCoverImageConflictError(Exception):
+    """대표이미지가 발급 당시 상태와 달라진 경우."""
+
+
+class AttendanceLogCoverImageAccessDeniedError(Exception):
+    """다른 사용자의 직관 로그인 경우."""
 
 
 class AttendanceLogRepository:
@@ -182,6 +191,138 @@ class AttendanceLogRepository:
             logs,
             key=lambda log: log.created_at,
         )
+
+    def replace_cover_image(
+        self,
+        *,
+        attendance_log_id: str,
+        user_id: str,
+        expected_storage_path: str | None,
+        storage_path: str,
+        updated_at: datetime,
+    ) -> tuple[AttendanceLogRecord, str | None] | None:
+        """직관 로그 대표이미지를 원자적으로 교체합니다."""
+        reference = self._collection.document(
+            attendance_log_id
+        )
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction):
+            snapshot = reference.get(
+                transaction=transaction
+            )
+
+            if not snapshot.exists:
+                return None
+
+            current = AttendanceLogRecord(
+                attendance_log_id=snapshot.id,
+                **(snapshot.to_dict() or {}),
+            )
+
+            if current.deleted_at is not None:
+                return None
+
+            if current.user_id != user_id:
+                raise (
+                    AttendanceLogCoverImageAccessDeniedError()
+                )
+
+            previous_path = (
+                current.cover_image_storage_path
+            )
+
+            # 동일 complete 재요청은 idempotent하게 처리합니다.
+            if previous_path == storage_path:
+                return current, None
+
+            if previous_path != expected_storage_path:
+                raise AttendanceLogCoverImageConflictError()
+
+            transaction.update(
+                reference,
+                {
+                    "coverImageStoragePath": storage_path,
+                    "updatedAt": updated_at,
+                },
+            )
+
+            return (
+                current.model_copy(
+                    update={
+                        "cover_image_storage_path": (
+                            storage_path
+                        ),
+                        "updated_at": updated_at,
+                    }
+                ),
+                previous_path,
+            )
+
+        return commit(transaction)
+
+    def clear_cover_image(
+        self,
+        *,
+        attendance_log_id: str,
+        user_id: str,
+        updated_at: datetime,
+    ) -> tuple[AttendanceLogRecord, str | None] | None:
+        """직관 로그 대표이미지 연결을 제거합니다."""
+        reference = self._collection.document(
+            attendance_log_id
+        )
+        transaction = self._client.transaction()
+
+        @transactional
+        def commit(transaction):
+            snapshot = reference.get(
+                transaction=transaction
+            )
+
+            if not snapshot.exists:
+                return None
+
+            current = AttendanceLogRecord(
+                attendance_log_id=snapshot.id,
+                **(snapshot.to_dict() or {}),
+            )
+
+            if current.deleted_at is not None:
+                return None
+
+            if current.user_id != user_id:
+                raise (
+                    AttendanceLogCoverImageAccessDeniedError()
+                )
+
+            previous_path = (
+                current.cover_image_storage_path
+            )
+
+            if previous_path is None:
+                return current, None
+
+            transaction.update(
+                reference,
+                {
+                    "coverImageStoragePath": None,
+                    "updatedAt": updated_at,
+                },
+            )
+
+            return (
+                current.model_copy(
+                    update={
+                        "cover_image_storage_path": None,
+                        "updated_at": updated_at,
+                    }
+                ),
+                previous_path,
+            )
+
+        return commit(transaction)
 
     def update(
         self,

@@ -25,26 +25,36 @@ class MediaUploadSessionRepository:
         self,
         *,
         user_id: str,
-        trip_id: str,
         storage_path: str,
         expected_storage_path: str | None,
         content_type: str,
         created_at: datetime,
         expires_at: datetime,
+        trip_id: str | None = None,
+        attendance_log_id: str | None = None,
     ) -> None:
+        data = {
+            "userId": user_id,
+            "storagePath": storage_path,
+            "expectedCoverImageStoragePath": (
+                expected_storage_path
+            ),
+            "contentType": content_type,
+            "createdAt": created_at,
+            "expiresAt": expires_at,
+        }
+
+        if trip_id is not None:
+            data["tripId"] = trip_id
+
+        if attendance_log_id is not None:
+            data["attendanceLogId"] = (
+                attendance_log_id
+            )
+
         self._collection.document(
             self._document_id(storage_path)
-        ).create(
-            {
-                "userId": user_id,
-                "tripId": trip_id,
-                "storagePath": storage_path,
-                "expectedCoverImageStoragePath": expected_storage_path,
-                "contentType": content_type,
-                "createdAt": created_at,
-                "expiresAt": expires_at,
-            }
-        )
+        ).create(data)
 
     def get_by_storage_path(
         self,
