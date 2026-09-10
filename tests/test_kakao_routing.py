@@ -119,3 +119,26 @@ async def test_route_cache_avoids_repeating_recent_failure(monkeypatch) -> None:
             )
 
     getter.assert_awaited_once()
+
+
+def test_route_cache_prunes_expired_and_oldest_entries(monkeypatch) -> None:
+    routing._route_cache.clear()
+    monkeypatch.setattr(routing, "KAKAO_ROUTE_CACHE_MAX_ENTRIES", 2)
+    routing._route_cache[(1.0, 1.0, 1.0, 1.0)] = (
+        0.0,
+        RuntimeError("expired"),
+    )
+    valid = ProviderTravelTime(
+        10,
+        TravelMode.WALK,
+        TravelTimeSource.KAKAO,
+    )
+    routing._route_cache[(2.0, 2.0, 2.0, 2.0)] = (9_999_999_999.0, valid)
+    routing._route_cache[(3.0, 3.0, 3.0, 3.0)] = (9_999_999_999.0, valid)
+    routing._route_cache[(4.0, 4.0, 4.0, 4.0)] = (9_999_999_999.0, valid)
+
+    routing._prune_route_cache(1.0)
+
+    assert len(routing._route_cache) == 2
+    assert (1.0, 1.0, 1.0, 1.0) not in routing._route_cache
+    assert (2.0, 2.0, 2.0, 2.0) not in routing._route_cache

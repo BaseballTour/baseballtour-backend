@@ -1,4 +1,5 @@
 import asyncio
+from time import monotonic
 
 import pytest
 
@@ -16,6 +17,27 @@ def response_with(item):
             }
         }
     }
+
+
+def test_memory_cache_prunes_expired_and_oldest_entries(monkeypatch) -> None:
+    monkeypatch.setattr(adapter_module, "TOUR_API_MEMORY_CACHE_MAX_ENTRIES", 2)
+    adapter = TourApiAdapter()
+    now = monotonic()
+    adapter._cache[("expired",)] = adapter_module._CacheEntry(
+        expires_at=now - 1,
+        value="expired",
+    )
+    for index in range(3):
+        adapter._cache[(index,)] = adapter_module._CacheEntry(
+            expires_at=now + 60,
+            value=index,
+        )
+
+    adapter._prune_memory_caches(now)
+
+    assert len(adapter._cache) == 2
+    assert ("expired",) not in adapter._cache
+    assert (0,) not in adapter._cache
 
 
 @pytest.mark.anyio

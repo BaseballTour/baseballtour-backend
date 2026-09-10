@@ -18,10 +18,42 @@ KAKAO_PUBLIC_TRANSIT_URL = (
 KAKAO_WALK_URL = "https://dapi.kakao.com/v2/routing/walk"
 KAKAO_ROUTE_CACHE_TTL_SECONDS = 1800
 KAKAO_ROUTE_FAILURE_CACHE_TTL_SECONDS = 60
+KAKAO_ROUTE_CACHE_MAX_ENTRIES = 3_000
+KAKAO_HTTP_MAX_CONNECTIONS = 20
+KAKAO_HTTP_MAX_KEEPALIVE_CONNECTIONS = 10
 _route_cache: dict[
     tuple[float, float, float, float],
     tuple[float, ProviderTravelTime | RuntimeError],
 ] = {}
+_shared_http_client: httpx.AsyncClient | None = None
+
+
+def _get_shared_http_client() -> httpx.AsyncClient:
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        _shared_http_client = httpx.AsyncClient(
+            timeout=8.0,
+            limits=httpx.Limits(
+                max_connections=KAKAO_HTTP_MAX_CONNECTIONS,
+                max_keepalive_connections=KAKAO_HTTP_MAX_KEEPALIVE_CONNECTIONS,
+            ),
+        )
+    return _shared_http_client
+
+
+async def close_shared_http_client() -> None:
+    global _shared_http_client
+    if _shared_http_client is not None and not _shared_http_client.is_closed:
+        await _shared_http_client.aclose()
+    _shared_http_client = None
+
+
+def _prune_route_cache(now: float) -> None:
+    for key, entry in list(_route_cache.items()):
+        if entry[0] <= now:
+            _route_cache.pop(key, None)
+    while len(_route_cache) > KAKAO_ROUTE_CACHE_MAX_ENTRIES:
+        _route_cache.pop(next(iter(_route_cache)))
 
 
 def parse_route_minutes(data: Any, *, mode: TravelMode) -> ProviderTravelTime:
@@ -122,8 +154,7 @@ async def get_fastest_route(
     if not api_key:
         raise RuntimeError("Kakao REST API 키가 설정되지 않았습니다.")
 
-    owns_client = client is None
-    active_client = client or httpx.AsyncClient(timeout=8.0)
+    active_client = client or _get_shared_http_client()
     headers = {"Authorization": f"KakaoAK {api_key}"}
     params = {
         "start_x": origin_longitude,
@@ -131,27 +162,23 @@ async def get_fastest_route(
         "end_x": destination_longitude,
         "end_y": destination_latitude,
     }
-    try:
-        results = await asyncio.gather(
-            _fetch_route(
-                active_client,
-                url=KAKAO_PUBLIC_TRANSIT_URL,
-                mode=TravelMode.TRANSIT,
-                headers=headers,
-                params=params,
-            ),
-            _fetch_route(
-                active_client,
-                url=KAKAO_WALK_URL,
-                mode=TravelMode.WALK,
-                headers=headers,
-                params=params,
-            ),
-            return_exceptions=True,
-        )
-    finally:
-        if owns_client:
-            await active_client.aclose()
+    results = await asyncio.gather(
+        _fetch_route(
+            active_client,
+            url=KAKAO_PUBLIC_TRANSIT_URL,
+            mode=TravelMode.TRANSIT,
+            headers=headers,
+            params=params,
+        ),
+        _fetch_route(
+            active_client,
+            url=KAKAO_WALK_URL,
+            mode=TravelMode.WALK,
+            headers=headers,
+            params=params,
+        ),
+        return_exceptions=True,
+    )
 
     valid = [
         result for result in results if isinstance(result, ProviderTravelTime)
@@ -181,6 +208,7 @@ async def get_cached_fastest_route(
         )
     )
     now = monotonic()
+    _prune_route_cache(now)
     cached = _route_cache.get(key)
     if cached is not None and cached[0] > now:
         if isinstance(cached[1], RuntimeError):
@@ -200,6 +228,8 @@ async def get_cached_fastest_route(
             now + KAKAO_ROUTE_FAILURE_CACHE_TTL_SECONDS,
             cached_error,
         )
+        _prune_route_cache(monotonic())
         raise cached_error from exc
     _route_cache[key] = (now + KAKAO_ROUTE_CACHE_TTL_SECONDS, result)
+    _prune_route_cache(monotonic())
     return result

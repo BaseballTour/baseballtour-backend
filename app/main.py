@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,6 +9,13 @@ from app.core.exception_handlers import register_exception_handlers
 from app.schemas.response import SuccessResponse
 from app.schemas.system import RootData
 from app.api.openapi_normal_examples import install_normal_openapi_examples
+from app.external.kakao.routing import close_shared_http_client
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    await close_shared_http_client()
 
 
 app = FastAPI(
@@ -14,6 +23,7 @@ app = FastAPI(
     description="KBO 원정 직관 여행 서비스 백엔드 API",
     version=settings.app_version,
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

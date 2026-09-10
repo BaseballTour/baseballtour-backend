@@ -3,6 +3,7 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import date, datetime, time, timedelta, timezone
 import logging
+import os
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -65,6 +66,39 @@ SUPPLEMENT_GAP_MINUTES = 150
 GENERATION_STALE_AFTER = timedelta(minutes=10)
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
+ITINERARY_GENERATION_MAX_CONCURRENCY = 2
+_generation_semaphore = asyncio.Semaphore(
+    ITINERARY_GENERATION_MAX_CONCURRENCY
+)
+
+
+def _rss_memory_mb() -> float | None:
+    """Linux/Cloud Run의 현재 RSS를 반환하고 로컬 미지원 환경은 건너뛴다."""
+
+    try:
+        with open("/proc/self/statm", encoding="ascii") as statm:
+            resident_pages = int(statm.read().split()[1])
+        return round(resident_pages * os.sysconf("SC_PAGE_SIZE") / 1_048_576, 1)
+    except (OSError, ValueError, IndexError, AttributeError):
+        return None
+
+
+def _log_generation_memory(
+    stage: str,
+    *,
+    trip_id: str,
+    candidate_count: int | None = None,
+    matrix_node_count: int | None = None,
+) -> None:
+    logger.info(
+        "일정 생성 메모리 진단: stage=%s trip_id=%s rss_mb=%s "
+        "candidate_count=%s matrix_node_count=%s",
+        stage,
+        trip_id,
+        _rss_memory_mb(),
+        candidate_count,
+        matrix_node_count,
+    )
 
 
 class ItineraryGenerationService:
@@ -164,6 +198,23 @@ class ItineraryGenerationService:
         return self._merge_player_pick_candidates(tour_candidates, player_picks)
 
     async def generate(
+        self,
+        *,
+        user_id: str,
+        trip_id: str,
+        target_date: date | None = None,
+    ) -> ItineraryPlanRecord:
+        """한 인스턴스의 동시 생성 수를 제한해 메모리 급증을 막습니다."""
+
+        async with _generation_semaphore:
+            _log_generation_memory("STARTED", trip_id=trip_id)
+            return await self._generate(
+                user_id=user_id,
+                trip_id=trip_id,
+                target_date=target_date,
+            )
+
+    async def _generate(
         self,
         *,
         user_id: str,
@@ -344,6 +395,12 @@ class ItineraryGenerationService:
                 player_pick_places,
             )
 
+            _log_generation_memory(
+                "RECOMMENDATIONS_RESOLVED",
+                trip_id=trip_id,
+                candidate_count=len(recommended_places),
+            )
+
             matrix_places = list(
                 {
                     place.place_id: place
@@ -357,6 +414,12 @@ class ItineraryGenerationService:
                     matrix_places,
                     provider=self._travel_time_provider,
                 )
+            )
+            _log_generation_memory(
+                "MATRIX_COMPLETED",
+                trip_id=trip_id,
+                candidate_count=len(recommended_places),
+                matrix_node_count=len(matrix_places) + 4,
             )
 
             result = self._generator(
@@ -419,6 +482,15 @@ class ItineraryGenerationService:
                             }.values()
                         ),
                         provider=self._travel_time_provider,
+                        existing_matrix=matrix,
+                    )
+                    _log_generation_memory(
+                        "SUPPLEMENT_MATRIX_COMPLETED",
+                        trip_id=trip_id,
+                        candidate_count=(
+                            len(recommended_places) + len(supplemental_places)
+                        ),
+                        matrix_node_count=len(matrix_places) + 4,
                     )
                     result = self._generator(
                         trip_input,
@@ -494,15 +566,17 @@ class ItineraryGenerationService:
                     regenerated_day if day.date == target_date else day
                     for day in previous_plan.days
                 ]
-                return self._itinerary_plan_repository.commit_regenerated_day(
+                committed = self._itinerary_plan_repository.commit_regenerated_day(
                     trip_id=trip_id,
                     plan_id=previous_plan.plan_id,
                     days=merged_days,
                     updated_at=now,
                     generation_lease_id=generation_lease_id,
                 )
+                _log_generation_memory("PLAN_SAVED", trip_id=trip_id)
+                return committed
 
-            return (
+            committed = (
                 self._itinerary_plan_repository
                 .commit_generated_plan(
                     trip_id=trip_id,
@@ -514,6 +588,8 @@ class ItineraryGenerationService:
                     generation_lease_id=generation_lease_id,
                 )
             )
+            _log_generation_memory("PLAN_SAVED", trip_id=trip_id)
+            return committed
 
         except asyncio.CancelledError:
             if generation_started:
