@@ -148,12 +148,17 @@ async def build_travel_time_matrix(
     ),
     matrix_timeout_seconds: float = TRAVEL_TIME_MATRIX_TIMEOUT_SECONDS,
     provider_route_keys: set[tuple[str, str]] | None = None,
+    existing_matrix: TravelTimeMatrix | None = None,
 ) -> TravelTimeMatrix:
     unique = {node.node_id: node for node in nodes}
-    minutes: dict[tuple[str, str], int] = {}
-    modes: dict[tuple[str, str], TravelMode] = {}
-    sources: dict[tuple[str, str], TravelTimeSource] = {}
-    distances_meters: dict[tuple[str, str], int] = {}
+    minutes = dict(existing_matrix.minutes) if existing_matrix else {}
+    modes = dict(existing_matrix.modes or {}) if existing_matrix else {}
+    sources = dict(existing_matrix.sources or {}) if existing_matrix else {}
+    distances_meters = (
+        dict(existing_matrix.distances_meters or {})
+        if existing_matrix
+        else {}
+    )
 
     routes: list[tuple[str, MatrixNode, str, MatrixNode]] = []
 
@@ -234,10 +239,27 @@ async def build_travel_time_matrix(
                 modes[key] = TravelMode.TRANSIT
                 sources[key] = TravelTimeSource.ESTIMATED
 
-        tasks = [
-            resolve_route(*route)
-            for route in routes
-        ]
+        queue: asyncio.Queue[
+            tuple[str, MatrixNode, str, MatrixNode] | None
+        ] = asyncio.Queue()
+        for route in routes:
+            queue.put_nowait(route)
+
+        worker_count = min(max_concurrency, len(routes))
+        for _ in range(worker_count):
+            queue.put_nowait(None)
+
+        async def worker() -> None:
+            while True:
+                route = await queue.get()
+                try:
+                    if route is None:
+                        return
+                    await resolve_route(*route)
+                finally:
+                    queue.task_done()
+
+        tasks = [asyncio.create_task(worker()) for _ in range(worker_count)]
         try:
             await asyncio.wait_for(
                 asyncio.gather(*tasks),
@@ -278,6 +300,8 @@ async def build_itinerary_travel_time_matrix(
     trip: TripInput,
     places: list[Place],
     provider: TravelTimeProvider | None = None,
+    *,
+    existing_matrix: TravelTimeMatrix | None = None,
 ) -> TravelTimeMatrix:
     nodes = [
         MatrixNode(
@@ -317,6 +341,7 @@ async def build_itinerary_travel_time_matrix(
         nodes,
         provider,
         provider_route_keys=provider_route_keys,
+        existing_matrix=existing_matrix,
     )
 
 

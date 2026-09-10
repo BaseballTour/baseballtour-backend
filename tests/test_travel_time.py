@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -179,3 +180,26 @@ def test_itinerary_provider_routes_are_reduced() -> None:
     assert len(keys) < len(nodes) * (len(nodes) - 1)
     assert ("arrival", "tour_0") in keys
     assert ("tour_0", "stadium") in keys
+
+
+@pytest.mark.anyio
+async def test_existing_matrix_only_fetches_new_routes() -> None:
+    first_nodes = [
+        MatrixNode("arrival", 37.5, 127.0),
+        MatrixNode("stadium", 37.51, 127.01),
+    ]
+    provider = AsyncMock(return_value=7)
+    initial = await build_travel_time_matrix(first_nodes, provider)
+    initial_call_count = provider.await_count
+
+    extended = await build_travel_time_matrix(
+        [*first_nodes, MatrixNode("tour_new", 37.52, 127.02)],
+        provider,
+        existing_matrix=initial,
+    )
+
+    assert provider.await_count - initial_call_count == 4
+    assert extended.get("arrival", "stadium") == initial.get(
+        "arrival", "stadium"
+    )
+    assert extended.get("arrival", "tour_new") == 7

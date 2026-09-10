@@ -43,6 +43,8 @@ SEARCH_CACHE_TTL_SECONDS = 1800
 DETAIL_CACHE_TTL_SECONDS = 3600
 CLASSIFICATION_CACHE_TTL_SECONDS = 86400
 RATE_LIMIT_FAILURE_TTL_SECONDS = 60
+TOUR_API_MEMORY_CACHE_MAX_ENTRIES = 2_000
+TOUR_API_FAILURE_CACHE_MAX_ENTRIES = 200
 
 
 @dataclass
@@ -84,6 +86,21 @@ class TourApiAdapter:
         default_factory=dict
     )
 
+    def _prune_memory_caches(self, now: float) -> None:
+        """만료 항목과 오래된 항목을 제거해 프로세스 메모리를 제한한다."""
+
+        for key, entry in list(self._cache.items()):
+            if entry.expires_at <= now:
+                self._cache.pop(key, None)
+        for key, entry in list(self._failures.items()):
+            if entry.expires_at <= now:
+                self._failures.pop(key, None)
+
+        while len(self._cache) > TOUR_API_MEMORY_CACHE_MAX_ENTRIES:
+            self._cache.pop(next(iter(self._cache)))
+        while len(self._failures) > TOUR_API_FAILURE_CACHE_MAX_ENTRIES:
+            self._failures.pop(next(iter(self._failures)))
+
     async def _cached(
         self,
         key: tuple[Any, ...],
@@ -92,8 +109,9 @@ class TourApiAdapter:
         ttl_seconds: int | None = None,
         failure_ttl_seconds: int = 0,
     ) -> Any:
-        entry = self._cache.get(key)
         now = monotonic()
+        self._prune_memory_caches(now)
+        entry = self._cache.get(key)
         if entry is not None and entry.expires_at > now:
             return entry.value
         failure = self._failures.get(key)
@@ -115,6 +133,7 @@ class TourApiAdapter:
                     expires_at=monotonic() + failure_ttl_seconds,
                     error=exc,
                 )
+                self._prune_memory_caches(monotonic())
             raise
         finally:
             if self._inflight.get(key) is task:
@@ -125,6 +144,7 @@ class TourApiAdapter:
             value=value,
         )
         self._failures.pop(key, None)
+        self._prune_memory_caches(monotonic())
         return value
 
     async def get_nearby_place_page(
