@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -179,5 +180,64 @@ def test_public_trip_rejects_unknown_token():
     with pytest.raises(AppException) as exc_info:
         context.service.get_public_trip(token="unknown-token")
 
-    assert exc_info.value.code == "TRIP_SHARE_NOT_FOUND"
+    assert exc_info.value.code == "SHARE_NOT_FOUND"
     assert exc_info.value.status_code == 404
+
+
+def test_issue_with_metadata_preserves_token_metadata():
+    from unittest.mock import Mock
+
+    from app.services.trip_share_service import TripShareService
+
+    repository = Mock()
+    created_at = datetime(
+        2026, 9, 7, tzinfo=timezone.utc
+    )
+    repository.get_metadata.return_value = (created_at, None)
+
+    service = TripShareService(
+        share_repository=repository,
+        trip_service=Mock(),
+        plan_repository=Mock(),
+        game_service=Mock(),
+    )
+    service.issue = Mock(return_value="first-token")
+
+    result = service.issue_with_metadata(
+        user_id="owner_001",
+        trip_id="trip_001",
+    )
+
+    assert result == ("first-token", created_at, None)
+    repository.get_metadata.assert_called_once_with(
+        trip_id="trip_001",
+        user_id="owner_001",
+        token="first-token",
+    )
+
+
+def test_issue_with_metadata_rejects_changed_token():
+    from unittest.mock import Mock
+
+    from app.core.exceptions import AppException
+    from app.services.trip_share_service import TripShareService
+
+    repository = Mock()
+    repository.get_metadata.return_value = None
+
+    service = TripShareService(
+        share_repository=repository,
+        trip_service=Mock(),
+        plan_repository=Mock(),
+        game_service=Mock(),
+    )
+    service.issue = Mock(return_value="old-token")
+
+    with pytest.raises(AppException) as captured:
+        service.issue_with_metadata(
+            user_id="owner_001",
+            trip_id="trip_001",
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == "TRIP_SHARE_STATE_CHANGED"

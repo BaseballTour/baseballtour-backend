@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import status
 
 from app.core.exceptions import AppException
@@ -91,6 +92,33 @@ class TripShareService:
 
         return token
 
+    def issue_with_metadata(
+        self,
+        *,
+        user_id: str,
+        trip_id: str,
+    ) -> tuple[str, datetime, datetime | None]:
+        """공유 토큰과 해당 토큰의 생성·해제 시각을 반환합니다."""
+        token = self.issue(
+            user_id=user_id,
+            trip_id=trip_id,
+        )
+
+        metadata = self._share_repository.get_metadata(
+            trip_id=trip_id,
+            user_id=user_id,
+            token=token,
+        )
+        if metadata is None:
+            raise AppException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="TRIP_SHARE_STATE_CHANGED",
+                message="공유 상태가 변경되었습니다. 다시 시도해 주세요.",
+            )
+
+        created_at, revoked_at = metadata
+        return token, created_at, revoked_at
+
     def revoke(self, *, user_id: str, trip_id: str) -> bool:
         """본인 여행의 공유를 해제합니다."""
         self._trip_service.get_trip(
@@ -113,7 +141,7 @@ class TripShareService:
         if bundle is None:
             raise AppException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                code="TRIP_SHARE_NOT_FOUND",
+                code="SHARE_NOT_FOUND",
                 message="공유된 여행을 찾을 수 없습니다.",
             )
 

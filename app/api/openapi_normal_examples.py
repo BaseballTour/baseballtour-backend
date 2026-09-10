@@ -776,18 +776,7 @@ SHARED_TRIP_EXAMPLE = SharedTripResponse.model_validate({
     },
 }).model_dump(mode="json", by_alias=True)
 
-SUCCESS_EXAMPLES.update({
-    ("post", "/api/v1/trips/{tripId}/share", "200"): _success({
-        "shareToken": SHARE_EXAMPLE_TOKEN,
-        "shareUrl": None,
-    }),
-    ("delete", "/api/v1/trips/{tripId}/share", "200"): _success({
-        "revoked": True,
-    }),
-    ("get", "/api/v1/shared-trips/{shareToken}", "200"): _success(
-        SHARED_TRIP_EXAMPLE
-    ),
-})
+SUCCESS_EXAMPLES.update({('post', '/api/v1/trips/{tripId}/share', '200'): _success({'shareToken': SHARE_EXAMPLE_TOKEN, 'shareUrl': None, 'createdAt': '2026-09-07T12:00:00+09:00', 'revokedAt': None}), ('get', '/api/v1/shared-trips/{shareToken}', '200'): _success(SHARED_TRIP_EXAMPLE)})
 
 
 # Trip sharing parameter documentation

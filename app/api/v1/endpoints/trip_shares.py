@@ -1,3 +1,4 @@
+from fastapi import status
 from typing import Annotated
 
 from fastapi import (
@@ -51,26 +52,30 @@ def issue_trip_share(
 ) -> SuccessResponse[TripShareResponse]:
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
-    token = TripShareService().issue(
-        user_id=user_id,
-        trip_id=trip_id,
-    )
 
+    token, created_at, revoked_at = (
+        TripShareService().issue_with_metadata(
+            user_id=user_id,
+            trip_id=trip_id,
+        )
+    )
     return SuccessResponse(
         data=TripShareResponse(
             share_token=token,
             share_url=build_share_url(token),
+            created_at=created_at,
+            revoked_at=revoked_at,
         )
     )
 
 
 @router.delete(
     "/trips/{tripId}/share",
-    response_model=SuccessResponse[TripShareRevokeResponse],
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="여행 공유 해제",
     description=(
         "로그인 사용자가 본인 여행의 공유를 해제합니다. "
-        "이미 해제된 경우 revoked=false를 반환합니다."
+        "이미 해제된 경우에도 204를 반환합니다."
     ),
 )
 def revoke_trip_share(
@@ -82,19 +87,17 @@ def revoke_trip_share(
         str,
         Depends(get_current_active_user_id),
     ],
-    response: Response,
-) -> SuccessResponse[TripShareRevokeResponse]:
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["Pragma"] = "no-cache"
-    revoked = TripShareService().revoke(
+) -> Response:
+    TripShareService().revoke(
         user_id=user_id,
         trip_id=trip_id,
     )
-
-    return SuccessResponse(
-        data=TripShareRevokeResponse(
-            revoked=revoked,
-        )
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT,
+        headers={
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
     )
 
 

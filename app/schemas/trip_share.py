@@ -17,6 +17,8 @@ from app.schemas.game import GameResponse
 class TripShareResponse(ApiModel):
     share_token: str
     share_url: str | None = None
+    created_at: AwareDatetime
+    revoked_at: AwareDatetime | None = None
 
 
 class TripShareRevokeResponse(ApiModel):
