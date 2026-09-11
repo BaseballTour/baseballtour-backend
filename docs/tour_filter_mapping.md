@@ -165,7 +165,10 @@ GET /api/v1/tour/nearby?longitude=127.0&latitude=37.5&filterId=FISHING
 | `playerName` | string | 화면에 표시할 선수명 |
 | `playerPosition` | string \| null | `PITCHER`, `CATCHER`, `INFIELDER`, `OUTFIELDER`, `COACH`, `STAFF`, `TEAM_GROUP` |
 | `placeId` | `tour_`, `kakao_`, `player_place_` 접두사 | 검증 방식에 따른 추천 장소 내부 ID |
-| `placeSnapshot` | Place | 외부 API 장애 시 사용할 저장 시점 장소 정보 |
+| `placeName` | string | 독립적으로 큐레이션한 장소명 |
+| `address` | string | 독립적인 출처로 확인한 주소 |
+| `category` | string | 서비스 내부 분류 |
+| `kakaoPlaceId` | string/null | 실시간 Kakao Local 응답 연결용 ID |
 | `recommendationNote` | string 또는 null | 부모님 운영·선수단 공통 추천 등 부가 설명 |
 | `createdAt` | timestamp | 등록 시각 |
 | `updatedAt` | timestamp | 마지막 갱신 시각 |

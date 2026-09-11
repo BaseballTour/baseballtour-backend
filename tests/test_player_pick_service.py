@@ -2,118 +2,72 @@ import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.models.place import Place, PlaceCategory, PlaceSource
+from app.external.kakao.client import KakaoPlacePage
 from app.schemas.player_pick import PlayerPickRecord
 from app.services.player_pick_service import PlayerPickService
 
 
-def make_place() -> Place:
-    return Place(
-        place_id="tour_123456",
-        name="테스트 음식점",
-        category=PlaceCategory.RESTAURANT,
-        latitude=37.5,
-        longitude=126.8,
-        address="서울특별시 구로구",
-        source=PlaceSource.TOUR_API,
-        source_content_id="123456",
+def make_record(kakao_place_id: str | None = "123") -> PlayerPickRecord:
+    return PlayerPickRecord(
+        player_pick_id="player_pick_001",
+        stadium_id="gocheok",
+        player_name="테스트 선수",
+        player_position="INFIELDER",
+        place_name="테스트 음식점",
+        address="서울특별시 구로구 테스트로 1",
+        category="RESTAURANT",
+        kakao_place_id=kakao_place_id,
+        created_at=datetime.now(ZoneInfo("Asia/Seoul")),
     )
 
 
-class FakePlayerPickRepository:
+class FakeRepository:
     def get_all(self, *, stadium_id: str, player_name: str | None = None):
-        assert stadium_id == "gocheok"
-        assert player_name in {None, "테스트 선수"}
-        return [
-            PlayerPickRecord(
-                player_pick_id="player_pick_001",
-                stadium_id=stadium_id,
-                player_name=player_name or "테스트 선수",
-                player_position="INFIELDER",
-                place_id="tour_123456",
-                created_at=datetime.now(ZoneInfo("Asia/Seoul")),
-            )
-        ]
+        return [make_record()]
 
     def get_by_id(self, player_pick_id: str):
-        [record] = self.get_all(
-            stadium_id="gocheok", player_name="테스트 선수"
-        )
-        return record if record.player_pick_id == player_pick_id else None
+        return make_record() if player_pick_id == "player_pick_001" else None
 
 
-class SnapshotPlayerPickRepository(FakePlayerPickRepository):
-    def get_all(self, *, stadium_id: str, player_name: str | None = None):
-        [record] = super().get_all(
-            stadium_id=stadium_id,
-            player_name=player_name or "테스트 선수",
-        )
-        return [record.model_copy(update={"place_snapshot": make_place()})]
-
-    def get_by_id(self, player_pick_id: str):
-        [record] = self.get_all(stadium_id="gocheok")
-        return record if record.player_pick_id == player_pick_id else None
-
-
-def test_player_pick_service_reads_saved_snapshot() -> None:
-    service = PlayerPickService(repository=SnapshotPlayerPickRepository())
-
-    [result] = asyncio.run(
-        service.get_player_picks(
-            stadium_id="gocheok",
-            player_name="테스트 선수",
-        )
+async def fake_searcher(query: str, **kwargs):
+    assert query == "테스트 음식점"
+    return KakaoPlacePage(
+        documents=[{
+            "id": "123", "place_name": query,
+            "road_address_name": "서울특별시 구로구 테스트로 1",
+            "address_name": "서울특별시 구로구",
+            "x": "126.81234567", "y": "37.51234567",
+            "phone": "02-123-4567",
+            "place_url": "https://place.map.kakao.com/123",
+        }],
+        is_end=True,
     )
 
-    assert result.player_pick_id == "player_pick_001"
-    assert result.player_position.value == "INFIELDER"
-    assert result.place.place_id == "tour_123456"
+
+def test_player_pick_service_resolves_kakao_live_without_hours() -> None:
+    service = PlayerPickService(repository=FakeRepository(), searcher=fake_searcher)
+    [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
+
+    assert result.place.place_id == "player_pick_001"
+    assert result.place.latitude == 37.512346
+    assert result.place.telephone == "02-123-4567"
+    assert result.place.business_hours_status == "MISSING"
+    assert result.place.business_hours_rules == []
+    assert result.place.is_player_pick is True
 
 
-def test_player_pick_service_uses_saved_snapshot_without_external_call() -> None:
-    class SnapshotRepository(FakePlayerPickRepository):
-        def get_all(self, *, stadium_id: str, player_name: str | None = None):
-            [record] = super().get_all(
-                stadium_id=stadium_id,
-                player_name=player_name or "테스트 선수",
-            )
-            return [record.model_copy(update={"place_snapshot": make_place()})]
+def test_player_pick_service_omits_unlinked_record() -> None:
+    class UnlinkedRepository(FakeRepository):
+        def get_all(self, **kwargs):
+            return [make_record(None)]
 
-    service = PlayerPickService(repository=SnapshotRepository())
-    [result] = asyncio.run(
-        service.get_player_picks(
-            stadium_id="gocheok",
-            player_name="테스트 선수",
-        )
-    )
-    assert result.place.name == "테스트 음식점"
-
-
-def test_player_pick_service_omits_only_failed_legacy_place() -> None:
-    service = PlayerPickService(repository=FakePlayerPickRepository())
-    result = asyncio.run(
-        service.get_player_picks(
-            stadium_id="gocheok",
-            player_name="테스트 선수",
-        )
-    )
-    assert result == []
+    service = PlayerPickService(repository=UnlinkedRepository(), searcher=fake_searcher)
+    assert asyncio.run(service.get_player_picks(stadium_id="gocheok")) == []
 
 
 def test_resolve_place_uses_player_pick_as_canonical_id() -> None:
-    service = PlayerPickService(repository=SnapshotPlayerPickRepository())
+    service = PlayerPickService(repository=FakeRepository(), searcher=fake_searcher)
     place = asyncio.run(service.resolve_place("player_pick_001"))
-
     assert place is not None
-    assert place.place_id == "player_pick_001"
-    assert place.is_player_pick is True
-    assert place.player_pick_id == "player_pick_001"
+    assert place.player_pick_id == place.place_id == "player_pick_001"
     assert place.recommended_by_players == ["테스트 선수"]
-
-
-def test_stadium_player_pick_places_are_tagged() -> None:
-    service = PlayerPickService(repository=SnapshotPlayerPickRepository())
-    places = asyncio.run(service.get_places_for_stadium("gocheok"))
-
-    assert [place.place_id for place in places] == ["player_pick_001"]
-    assert places[0].is_player_pick is True
