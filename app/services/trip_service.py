@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from hashlib import sha256
 import json
 
@@ -132,12 +132,13 @@ class TripService:
                 ),
             ) from error
 
-    def _recover_stale_generation(self, trip):
+    def _recover_stale_generation(
+        self,
+        trip: TripRecord,
+    ) -> TripRecord:
         """일반 여행 조회에서도 오래된 generation lease를 회수합니다."""
         if trip.status != TripStatus.GENERATING:
             return trip
-
-        from datetime import datetime, timezone
 
         now = datetime.now(timezone.utc)
         recovered = self._trip_repository.recover_stale_generation(
