@@ -14,6 +14,7 @@ from app.models.itinerary import (
     ExcludedPlace,
     ItineraryDay,
     ItineraryItem,
+    ItineraryQualitySummary,
     RecommendationSummary,
 )
 from app.schemas.base import ApiModel
@@ -55,6 +56,7 @@ class ItineraryPlanDocument(ApiModel):
         default_factory=list
     )
     recommendation_summary: RecommendationSummary | None = None
+    quality_summary: ItineraryQualitySummary | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
 
@@ -79,6 +81,7 @@ class ItineraryPlanResponse(ApiModel):
         default_factory=list
     )
     recommendation_summary: RecommendationSummary | None = None
+    quality_summary: ItineraryQualitySummary | None = None
 
 
 class ItineraryPlanReorderRequest(ApiModel):

@@ -715,6 +715,112 @@
         }
       }
     },
+    "/api/v1/attendance-logs/{attendanceLogId}/cover-image": {
+      "delete": {
+        "tags": [
+          "Attendance Logs"
+        ],
+        "summary": "직관 로그 대표이미지 삭제",
+        "description": "직관 로그 자체에 연결된 대표이미지를 제거합니다. Entry별 미디어에는 영향을 주지 않습니다.",
+        "operationId": "delete_attendance_log_cover_image_api_v1_attendance_logs__attendanceLogId__cover_image_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendanceLogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "대표이미지를 삭제할 직관 로그 ID",
+              "title": "Attendancelogid"
+            },
+            "description": "직관 로그 문서 ID",
+            "examples": {
+              "default": {
+                "value": "log_001"
+              }
+            },
+            "example": "log_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_dict_str__bool__"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "직관 로그 대표이미지 삭제 성공",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "deleted": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/attendance-logs/{attendanceLogId}/entries/{entryId}": {
       "patch": {
         "tags": [
@@ -1137,7 +1243,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ARCHIVED",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -1166,6 +1272,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -1183,6 +1292,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -11850,7 +11976,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -11879,6 +12005,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -11896,6 +12025,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -12449,7 +12595,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -12478,6 +12624,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -12495,6 +12644,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -13035,7 +13201,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -13064,6 +13230,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -13081,6 +13250,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -14160,7 +14346,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -14189,6 +14375,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -14206,6 +14395,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -14758,7 +14964,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -14787,6 +14993,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -14804,6 +15013,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -15363,7 +15589,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -15392,6 +15618,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -15409,6 +15638,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -15976,7 +16222,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -16005,6 +16251,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -16022,6 +16271,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -16592,7 +16858,7 @@
                         "planId": "plan_001",
                         "tripId": "trip_001",
                         "status": "ACTIVE",
-                        "algorithmVersion": "auto-fill-v0.6",
+                        "algorithmVersion": "auto-fill-v0.7",
                         "totalTravelMinutes": 25,
                         "totalTravelDistanceMeters": 8400,
                         "days": [
@@ -16621,6 +16887,9 @@
                                 "travelDistanceMetersFromPrevious": 8400,
                                 "travelMode": "TRANSIT",
                                 "travelTimeSource": "KAKAO",
+                                "businessHoursStatus": "MISSING",
+                                "businessHoursText": null,
+                                "closedDaysText": null,
                                 "isRequired": false,
                                 "addedBy": "ALGORITHM",
                                 "isFixed": false
@@ -16638,6 +16907,23 @@
                           },
                           "filteredCounts": {},
                           "placementRejectedAttempts": {}
+                        },
+                        "qualitySummary": {
+                          "status": "WARNING",
+                          "score": 96,
+                          "warningCount": 1,
+                          "errorCount": 0,
+                          "issues": [
+                            {
+                              "code": "BUSINESS_HOURS_UNVERIFIED",
+                              "severity": "WARNING",
+                              "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+                              "date": "2026-08-16",
+                              "itemId": null,
+                              "placeId": "tour_1603175",
+                              "mealPeriod": null
+                            }
+                          ]
                         }
                       }
                     }
@@ -18178,6 +18464,238 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/tour/favorite-counts": {
+      "get": {
+        "tags": [
+          "TourAPI"
+        ],
+        "summary": "장소별 찜 사용자 수 조회",
+        "description": "같은 사용자가 여러 컬렉션에 저장해도 한 명으로 집계합니다.",
+        "operationId": "read_place_favorite_counts_api_v1_tour_favorite_counts_get",
+        "parameters": [
+          {
+            "name": "placeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 50,
+              "description": "집계할 내부 장소 ID. 최대 50개를 반복 전달할 수 있습니다.",
+              "examples": [
+                [
+                  "tour_1603175",
+                  "player_pick_001"
+                ]
+              ],
+              "title": "Placeid"
+            },
+            "description": "내부 장소 ID. TourAPI 장소는 tour_{contentId} 형식",
+            "example": "tour_1603175"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSuccessResponse_PlaceFavoriteCount_"
+                },
+                "examples": {
+                  "normal": {
+                    "summary": "정상 응답",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "placeId": "tour_1603175",
+                          "favoriteCount": 12
+                        }
+                      ],
+                      "meta": {
+                        "count": 1,
+                        "nextPageToken": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "요청 필드 검증 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "입력값을 확인해 주세요.",
+                        "details": [
+                          {
+                            "field": "scheduledStartAt",
+                            "reason": "Input should be a valid datetime"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "처리되지 않은 서버 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "서버 내부 오류가 발생했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "장소 검색 요청 오류",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_page_token": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PAGE_TOKEN",
+                        "message": "페이지 토큰 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "invalid_place_id": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "INVALID_PLACE_ID",
+                        "message": "TourAPI 장소 ID 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TourAPI 호출 한도 초과",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limited": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_RATE_LIMITED",
+                        "message": "TourAPI 호출 제한을 초과했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TourAPI 오류 응답",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_response": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_INVALID_RESPONSE",
+                        "message": "TourAPI 응답 형식이 올바르지 않습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "tour_api_failed": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "TOUR_API_FAILED",
+                        "message": "TourAPI 요청 처리에 실패했습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "TourAPI 연결 실패",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_TIMEOUT",
+                        "message": "TourAPI 요청 시간이 초과되었습니다.",
+                        "details": []
+                      }
+                    }
+                  },
+                  "unavailable": {
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "EXTERNAL_API_UNAVAILABLE",
+                        "message": "TourAPI를 일시적으로 사용할 수 없습니다.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/tour/filter-options": {
@@ -20131,6 +20649,17 @@
             ],
             "title": "Mate"
           },
+          "coverImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageurl"
+          },
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
           },
@@ -20274,6 +20803,17 @@
               }
             ],
             "title": "Mate"
+          },
+          "coverImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimageurl"
           },
           "logStatus": {
             "$ref": "#/components/schemas/AttendanceLogStatus"
@@ -21266,6 +21806,41 @@
             "title": "Recommendationnote",
             "description": "선수 추천 설명"
           },
+          "businessHoursStatus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusinessRuleStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "장소 영업시간 해석 상태(PARSED/MISSING/UNPARSABLE/COMPLEX)"
+          },
+          "businessHoursText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Businesshourstext",
+            "description": "영업시간을 확정 해석하지 못했을 때 표시할 원문"
+          },
+          "closedDaysText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closeddaystext",
+            "description": "휴무일 안내 원문"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -21458,6 +22033,16 @@
                 "type": "null"
               }
             ]
+          },
+          "qualitySummary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItineraryQualitySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -21502,6 +22087,141 @@
             "scheduledStartAt": "2026-08-19T10:00:00+09:00"
           }
         ]
+      },
+      "ItineraryQualityCode": {
+        "type": "string",
+        "enum": [
+          "ITEM_OUTSIDE_TRIP_PERIOD",
+          "ITEM_TIME_OVERLAP",
+          "REQUIRED_ANCHOR_MISSING",
+          "STADIUM_ARRIVAL_TIME_INVALID",
+          "MEAL_MISSING",
+          "BUSINESS_HOURS_UNVERIFIED",
+          "LONG_IDLE_GAP",
+          "ESTIMATED_TRAVEL_TIME"
+        ],
+        "title": "ItineraryQualityCode"
+      },
+      "ItineraryQualityIssue": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ItineraryQualityCode"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/ItineraryQualitySeverity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "placeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeid"
+          },
+          "mealPeriod": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mealperiod"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "title": "ItineraryQualityIssue"
+      },
+      "ItineraryQualitySeverity": {
+        "type": "string",
+        "enum": [
+          "WARNING",
+          "ERROR"
+        ],
+        "title": "ItineraryQualitySeverity"
+      },
+      "ItineraryQualityStatus": {
+        "type": "string",
+        "enum": [
+          "PASS",
+          "WARNING",
+          "FAIL"
+        ],
+        "title": "ItineraryQualityStatus"
+      },
+      "ItineraryQualitySummary": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/ItineraryQualityStatus",
+            "default": "PASS"
+          },
+          "score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "default": 100
+          },
+          "warningCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Warningcount",
+            "default": 0
+          },
+          "errorCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Errorcount",
+            "default": 0
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ItineraryQualityIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ItineraryQualitySummary"
       },
       "ListMeta": {
         "properties": {
@@ -21719,6 +22439,33 @@
           "meta"
         ],
         "title": "ListSuccessResponse[NotificationResponse]"
+      },
+      "ListSuccessResponse_PlaceFavoriteCount_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceFavoriteCount"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListSuccessResponse[PlaceFavoriteCount]"
       },
       "ListSuccessResponse_PlaceSelectionResponse_": {
         "properties": {
@@ -22273,7 +23020,8 @@
         "enum": [
           "PROFILE_IMAGE",
           "TRIP_COVER_IMAGE",
-          "ATTENDANCE_LOG"
+          "ATTENDANCE_LOG",
+          "ATTENDANCE_LOG_COVER_IMAGE"
         ],
         "title": "MediaPurpose",
         "description": "미디어 업로드 용도."
@@ -23114,6 +23862,28 @@
           "OTHER"
         ],
         "title": "PlaceCategory"
+      },
+      "PlaceFavoriteCount": {
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "title": "Placeid",
+            "description": "내부 장소 ID"
+          },
+          "favoriteCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Favoritecount",
+            "description": "이 장소를 한 번 이상 찜한 고유 사용자 수"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "placeId",
+          "favoriteCount"
+        ],
+        "title": "PlaceFavoriteCount"
       },
       "PlaceSelectionCreateRequest": {
         "properties": {

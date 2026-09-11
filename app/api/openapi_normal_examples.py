@@ -64,7 +64,7 @@ TRIP_DETAIL = {
 }
 PLAN = {
     "planId": "plan_001", "tripId": "trip_001", "status": "ACTIVE",
-    "algorithmVersion": "auto-fill-v0.6", "totalTravelMinutes": 25,
+    "algorithmVersion": "auto-fill-v0.7", "totalTravelMinutes": 25,
     "totalTravelDistanceMeters": 8400,
     "days": [{"date": "2026-08-16", "dayType": "GAME_DAY", "items": [{
         "itemId": "item_1_1", "type": "PLACE", "sequence": 1,
@@ -80,12 +80,21 @@ PLAN = {
         "travelMinutesFromPrevious": 25, "transferBufferMinutes": 15,
         "travelDistanceMetersFromPrevious": 8400,
         "travelMode": "TRANSIT", "travelTimeSource": "KAKAO",
+        "businessHoursStatus": "MISSING",
+        "businessHoursText": None, "closedDaysText": None,
         "isRequired": False, "addedBy": "ALGORITHM", "isFixed": False,
     }]}],
     "excludedPlaces": [],
     "recommendationSummary": {"fetchedCount": 20, "candidateCount": 12,
         "scheduledCount": 1, "categoryDistribution": {"TOURIST_SPOT": 1},
         "filteredCounts": {}, "placementRejectedAttempts": {}},
+    "qualitySummary": {"status": "WARNING", "score": 96,
+        "warningCount": 1, "errorCount": 0, "issues": [{
+            "code": "BUSINESS_HOURS_UNVERIFIED", "severity": "WARNING",
+            "message": "자동 추천 장소의 영업시간을 확인해야 합니다.",
+            "date": "2026-08-16", "itemId": None,
+            "placeId": PLACE["placeId"], "mealPeriod": None,
+        }]},
 }
 USER = {
     "userId": "firebase_uid_example", "email": "user@example.com",

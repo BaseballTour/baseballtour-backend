@@ -11,6 +11,7 @@ from app.schemas.itinerary_plan import (
     ItineraryPlanDocument,
     ItineraryPlanRecord,
 )
+from app.models.itinerary import ItineraryQualitySummary
 from app.schemas.trip import TripStatus
 
 
@@ -267,6 +268,7 @@ class ItineraryPlanRepository:
         plan_id: str,
         days: list[ItineraryPlanDay],
         updated_at: datetime,
+        quality_summary: ItineraryQualitySummary | None = None,
         generation_lease_id: str | None = None,
     ) -> ItineraryPlanRecord:
         """현재 생성 요청만 활성 Plan의 하루를 교체할 수 있습니다."""
@@ -320,14 +322,20 @@ class ItineraryPlanRepository:
                     message="기존 활성 일정이 변경되었습니다.",
                 )
 
+            update_data = {
+                "days": _serialize_days_for_firestore(days),
+                "totalTravelMinutes": total_travel_minutes,
+                "totalTravelDistanceMeters": total_distance,
+                "updatedAt": updated_at,
+            }
+            if quality_summary is not None:
+                update_data["qualitySummary"] = quality_summary.model_dump(
+                    by_alias=True,
+                    mode="json",
+                )
             transaction.update(
                 plan_reference,
-                {
-                    "days": _serialize_days_for_firestore(days),
-                    "totalTravelMinutes": total_travel_minutes,
-                    "totalTravelDistanceMeters": total_distance,
-                    "updatedAt": updated_at,
-                },
+                update_data,
             )
             transaction.update(
                 trip_reference,

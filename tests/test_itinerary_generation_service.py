@@ -12,6 +12,11 @@ from app.models.itinerary import (
     ItineraryItem,
     ItineraryItemAddedBy,
     ItineraryItemType,
+    ItineraryQualityCode,
+    ItineraryQualityIssue,
+    ItineraryQualitySeverity,
+    ItineraryQualityStatus,
+    ItineraryQualitySummary,
     ItineraryResult,
 )
 from app.models.place import Place, PlaceCategory, PlaceSource
@@ -441,6 +446,59 @@ def test_supplement_dates_include_sparse_game_and_free_days() -> None:
     assert ItineraryGenerationService._recommendation_supplement_dates(
         result
     ) == [START_AT.date(), START_AT.date() + timedelta(days=1)]
+
+
+def test_missing_meal_marks_otherwise_full_day_for_supplement() -> None:
+    base = ItineraryItem(
+        type=ItineraryItemType.PLACE,
+        sequence=1,
+        place_id="tour_full_day",
+        name="관광지",
+        address="서울특별시",
+        latitude=37.5,
+        longitude=127.0,
+        scheduled_start_at=datetime.fromisoformat("2026-08-16T09:00:00+09:00"),
+        scheduled_end_at=datetime.fromisoformat("2026-08-16T10:00:00+09:00"),
+        added_by=ItineraryItemAddedBy.ALGORITHM,
+    )
+    items = [
+        base.model_copy(
+            update={
+                "sequence": index,
+                "place_id": f"tour_full_day_{index}",
+                "scheduled_start_at": base.scheduled_start_at
+                + timedelta(minutes=(index - 1) * 75),
+                "scheduled_end_at": base.scheduled_end_at
+                + timedelta(minutes=(index - 1) * 75),
+            }
+        )
+        for index in range(1, 5)
+    ]
+    target_date = base.scheduled_start_at.date()
+    result = ItineraryResult(
+        trip_id=TRIP_ID,
+        algorithm_version="test",
+        total_travel_minutes=0,
+        days=[ItineraryDay(date=target_date, day_type=DayType.NON_GAME_DAY, items=items)],
+        quality_summary=ItineraryQualitySummary(
+            status=ItineraryQualityStatus.WARNING,
+            score=96,
+            warning_count=1,
+            issues=[
+                ItineraryQualityIssue(
+                    code=ItineraryQualityCode.MEAL_MISSING,
+                    severity=ItineraryQualitySeverity.WARNING,
+                    message="점심 누락",
+                    date=target_date,
+                    meal_period="LUNCH",
+                )
+            ],
+        ),
+    )
+
+    assert ItineraryGenerationService._recommendation_supplement_dates(result) == [
+        target_date
+    ]
 
 
 def test_long_gap_is_selected_for_supplement_even_with_enough_items() -> None:

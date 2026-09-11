@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from enum import Enum
 
@@ -14,7 +16,7 @@ from pydantic import (
 )
 
 from app.core.time import to_korea_datetime
-from app.models.place import PlaceCategory
+from app.models.place import BusinessRuleStatus, PlaceCategory
 from app.models.travel_preferences import (
     PreferredCategory,
     ScheduleDensity,
@@ -98,6 +100,28 @@ class TravelTimeSource(str, Enum):
 class ItineraryItemAddedBy(str, Enum):
     USER = "USER"
     ALGORITHM = "ALGORITHM"
+
+
+class ItineraryQualityStatus(str, Enum):
+    PASS = "PASS"
+    WARNING = "WARNING"
+    FAIL = "FAIL"
+
+
+class ItineraryQualitySeverity(str, Enum):
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class ItineraryQualityCode(str, Enum):
+    ITEM_OUTSIDE_TRIP_PERIOD = "ITEM_OUTSIDE_TRIP_PERIOD"
+    ITEM_TIME_OVERLAP = "ITEM_TIME_OVERLAP"
+    REQUIRED_ANCHOR_MISSING = "REQUIRED_ANCHOR_MISSING"
+    STADIUM_ARRIVAL_TIME_INVALID = "STADIUM_ARRIVAL_TIME_INVALID"
+    MEAL_MISSING = "MEAL_MISSING"
+    BUSINESS_HOURS_UNVERIFIED = "BUSINESS_HOURS_UNVERIFIED"
+    LONG_IDLE_GAP = "LONG_IDLE_GAP"
+    ESTIMATED_TRAVEL_TIME = "ESTIMATED_TRAVEL_TIME"
 
 
 class ExcludedReasonCode(str, Enum):
@@ -209,6 +233,18 @@ class ItineraryItem(AlgorithmModel):
         default=None,
         description="선수 추천 설명",
     )
+    business_hours_status: BusinessRuleStatus | None = Field(
+        default=None,
+        description="장소 영업시간 해석 상태(PARSED/MISSING/UNPARSABLE/COMPLEX)",
+    )
+    business_hours_text: str | None = Field(
+        default=None,
+        description="영업시간을 확정 해석하지 못했을 때 표시할 원문",
+    )
+    closed_days_text: str | None = Field(
+        default=None,
+        description="휴무일 안내 원문",
+    )
     name: str
     address: str = Field(min_length=1)
     latitude: float = Field(ge=-90, le=90)
@@ -261,6 +297,24 @@ class RecommendationSummary(AlgorithmModel):
     )
 
 
+class ItineraryQualityIssue(AlgorithmModel):
+    code: ItineraryQualityCode
+    severity: ItineraryQualitySeverity
+    message: str
+    target_date: date | None = Field(default=None, alias="date")
+    item_id: str | None = None
+    place_id: str | None = None
+    meal_period: str | None = None
+
+
+class ItineraryQualitySummary(AlgorithmModel):
+    status: ItineraryQualityStatus = ItineraryQualityStatus.PASS
+    score: int = Field(default=100, ge=0, le=100)
+    warning_count: int = Field(default=0, ge=0)
+    error_count: int = Field(default=0, ge=0)
+    issues: list[ItineraryQualityIssue] = Field(default_factory=list)
+
+
 class ItineraryResult(AlgorithmModel):
     trip_id: str
     algorithm_version: str = "draft-v0.1"
@@ -271,6 +325,7 @@ class ItineraryResult(AlgorithmModel):
     auto_fill_applied: bool = False
     auto_recommended_place_count: int = Field(default=0, ge=0)
     recommendation_summary: RecommendationSummary | None = None
+    quality_summary: ItineraryQualitySummary | None = None
 
     @computed_field
     @property
