@@ -1,8 +1,15 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 
 import app.repositories.itinerary_plan_repository as repository_module
+from app.models.itinerary import (
+    ItineraryQualityCode,
+    ItineraryQualityIssue,
+    ItineraryQualitySeverity,
+    ItineraryQualityStatus,
+    ItineraryQualitySummary,
+)
 from app.repositories.itinerary_plan_repository import (
     ItineraryPlanRepository,
 )
@@ -234,6 +241,44 @@ def test_commit_generated_plan_saves_plan_and_updates_trip() -> None:
     assert stored_trip['activePlanId'] == result.plan_id
     assert stored_trip['rejectedRecommendationPlaceIds'] == ['tour_rejected']
     assert stored_trip['updatedAt'] == NOW
+
+
+def test_commit_generated_plan_serializes_nested_quality_issue_date() -> None:
+    client = FakeClient()
+    client.collection('trips').documents['trip_001'] = {
+        'status': 'GENERATING',
+        'activePlanId': None,
+        'generationLeaseId': 'test-generation-lease-001',
+    }
+    repository = ItineraryPlanRepository(client=client)
+    plan = make_plan().model_copy(
+        update={
+            'quality_summary': ItineraryQualitySummary(
+                status=ItineraryQualityStatus.WARNING,
+                score=90,
+                warning_count=1,
+                error_count=0,
+                issues=[ItineraryQualityIssue(
+                    code=ItineraryQualityCode.LONG_IDLE_GAP,
+                    severity=ItineraryQualitySeverity.WARNING,
+                    message='긴 공백이 있습니다.',
+                    date=date(2026, 9, 9),
+                )],
+            )
+        }
+    )
+
+    result = repository.commit_generated_plan(
+        trip_id='trip_001',
+        plan=plan,
+        previous_plan_id=None,
+        rejected_recommendation_place_ids=[],
+        generation_lease_id='test-generation-lease-001',
+    )
+
+    stored = client.collection('itineraryPlans').documents[result.plan_id]
+    assert stored['qualitySummary']['issues'][0]['date'] == '2026-09-09'
+    assert isinstance(stored['createdAt'], datetime)
 
 
 
