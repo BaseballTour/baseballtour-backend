@@ -286,6 +286,11 @@ async def _inspect_region(
             item.model_dump(by_alias=True, mode="json")
             for item in itinerary.excluded_places
         ],
+        "qualitySummary": (
+            itinerary.quality_summary.model_dump(by_alias=True, mode="json")
+            if itinerary.quality_summary is not None
+            else None
+        ),
         "candidates": [
             {
                 "placeId": item.place_id,

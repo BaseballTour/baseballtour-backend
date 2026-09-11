@@ -190,6 +190,7 @@ def to_itinerary_plan_response(
         days=plan.days,
         excluded_places=plan.excluded_places,
         recommendation_summary=plan.recommendation_summary,
+        quality_summary=plan.quality_summary,
     )
 
 

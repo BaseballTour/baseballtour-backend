@@ -11,6 +11,7 @@ from fastapi import status
 from pydantic import ValidationError
 
 from app.algorithms.itinerary_generator import generate_itinerary
+from app.algorithms.itinerary_quality import evaluate_itinerary_quality
 from app.algorithms.travel_time import (
     TravelTimeMatrix,
     TravelTimeProvider,
@@ -28,6 +29,8 @@ from app.models.itinerary import (
     GeoPoint,
     DayType,
     ItineraryItemAddedBy,
+    ItineraryQualityCode,
+    ItineraryQualityStatus,
     ItineraryItemType,
     ItineraryResult,
     RecommendationSummary,
@@ -557,6 +560,41 @@ class ItineraryGenerationService:
                 plan=plan,
                 fixed_items=fixed_items,
             )
+            final_quality = (
+                evaluate_itinerary_quality(
+                    trip_input,
+                    result.model_copy(update={"days": plan.days}),
+                )
+                if result.quality_summary is not None
+                else None
+            )
+            if (
+                final_quality is not None
+                and final_quality.status == ItineraryQualityStatus.FAIL
+            ):
+                logger.error(
+                    "일정 품질 게이트 실패: trip_id=%s issues=%s",
+                    trip_id,
+                    [
+                        issue.model_dump(by_alias=True, mode="json")
+                        for issue in final_quality.issues
+                        if issue.severity.value == "ERROR"
+                    ],
+                )
+                raise AppException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    code="ITINERARY_QUALITY_FAILED",
+                    message="안전한 일정 생성 조건을 충족하지 못했습니다.",
+                    details=[
+                        issue.model_dump(by_alias=True, mode="json")
+                        for issue in final_quality.issues
+                        if issue.severity.value == "ERROR"
+                    ],
+                )
+            if final_quality is not None:
+                plan = plan.model_copy(
+                    update={"quality_summary": final_quality}
+                )
 
             if target_date is not None and previous_plan is not None:
                 regenerated_day = next(
@@ -571,6 +609,7 @@ class ItineraryGenerationService:
                     plan_id=previous_plan.plan_id,
                     days=merged_days,
                     updated_at=now,
+                    quality_summary=final_quality,
                     generation_lease_id=generation_lease_id,
                 )
                 _log_generation_memory("PLAN_SAVED", trip_id=trip_id)
@@ -629,7 +668,16 @@ class ItineraryGenerationService:
                 item.added_by == ItineraryItemAddedBy.ALGORITHM
                 for item in day.items
             )
-            if automatic_count < minimum or (
+            missing_meal = any(
+                issue.code == ItineraryQualityCode.MEAL_MISSING
+                and issue.target_date == day.date
+                for issue in (
+                    result.quality_summary.issues
+                    if result.quality_summary is not None
+                    else []
+                )
+            )
+            if automatic_count < minimum or missing_meal or (
                 ItineraryGenerationService._has_supplementable_gap(day)
             ):
                 targets.append(day.date)
@@ -1427,6 +1475,7 @@ class ItineraryGenerationService:
             days=stored_days,
             excluded_places=result.excluded_places,
             recommendation_summary=result.recommendation_summary,
+            quality_summary=result.quality_summary,
             created_at=now,
             updated_at=now,
         )

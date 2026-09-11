@@ -5,6 +5,7 @@ import logging
 from collections import Counter
 
 from app.algorithms.day_type import classify_day
+from app.algorithms.itinerary_quality import evaluate_itinerary_quality
 from app.algorithms.travel_time import TravelTimeMatrix
 from app.algorithms.route_optimizer import (
     improve_route_2opt,
@@ -233,15 +234,18 @@ def generate_itinerary(
         for day in days
         for item in day.items
     )
-    return ItineraryResult(
+    result = ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="auto-fill-v0.6",
+        algorithm_version="auto-fill-v0.7",
         total_travel_minutes=total,
         total_travel_distance_meters=total_distance,
         days=days,
         excluded_places=excluded,
         auto_fill_applied=bool(auto_ids),
         auto_recommended_place_count=len(auto_ids),
+    )
+    return result.model_copy(
+        update={"quality_summary": evaluate_itinerary_quality(trip, result)}
     )
 
 
@@ -327,6 +331,9 @@ def _schedule_day(
                 is_player_pick=place.is_player_pick,
                 recommended_by_players=place.recommended_by_players,
                 recommendation_note=place.recommendation_note,
+                business_hours_status=place.business_hours_status,
+                business_hours_text=place.business_hours_text,
+                closed_days_text=place.closed_days_text,
                 name=place.name,
                 address=place.address or place.name,
                 latitude=place.latitude,
@@ -752,9 +759,10 @@ def _fill_routes_with_recommendations(
                         item.category == place.category for item in current
                     )
                     score = (
+                        -meal_gain,
                         scheduled_per_day[target_date],
                         day_fill_priority,
-                        -meal_gain,
+                        _business_hours_rank(place),
                         _preference_rank(place, trip.preferred_categories),
                         same_category_count,
                         _meal_time_category_priority(
@@ -880,9 +888,21 @@ def _meal_period(visit_time: time) -> str | None:
 
 MEAL_WINDOWS = (
     ("BREAKFAST", time(7, 0), time(10, 30)),
-    ("LUNCH", time(11, 0), time(14, 0)),
-    ("DINNER", time(17, 0), time(20, 0)),
+    ("LUNCH", time(11, 30), time(14, 0)),
+    ("DINNER", time(17, 30), time(20, 30)),
 )
+
+
+def _business_hours_rank(place: Place) -> int:
+    """확정 영업시간을 우선하고 불확실 장소는 후보가 부족할 때 사용한다."""
+
+    ranks = {
+        BusinessRuleStatus.PARSED: 0,
+        BusinessRuleStatus.MISSING: 1,
+        BusinessRuleStatus.COMPLEX: 2,
+        BusinessRuleStatus.UNPARSABLE: 3,
+    }
+    return ranks[place.business_hours_status]
 
 
 def _place_for_next_meal_period(

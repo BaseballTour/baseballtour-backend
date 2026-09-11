@@ -14,6 +14,7 @@ from app.models.itinerary import (
     GeoPoint,
     ItineraryItemAddedBy,
     ItineraryItemType,
+    ItineraryQualityCode,
     SelectedPlaceInput,
     TripInput,
     ItineraryResult,
@@ -361,6 +362,66 @@ def test_departure_day_prioritizes_breakfast_lunch_and_dinner() -> None:
     assert breakfast_item.place_id == breakfast.place_id
 
 
+def test_quality_summary_reports_missing_meal_and_uncertain_hours() -> None:
+    uncertain = place(
+        "uncertain_attraction",
+        business_hours_status=BusinessRuleStatus.UNPARSABLE,
+        business_hours_text="주말 운영시간은 현장 확인",
+    )
+    result = generate_itinerary(
+        trip([SelectedPlaceInput(place_id=uncertain.place_id)]),
+        [uncertain],
+        matrix(uncertain.place_id),
+    )
+
+    assert result.quality_summary is not None
+    codes = {issue.code for issue in result.quality_summary.issues}
+    assert ItineraryQualityCode.BUSINESS_HOURS_UNVERIFIED in codes
+    assert ItineraryQualityCode.MEAL_MISSING in codes
+    uncertain_item = next(
+        item
+        for day in result.days
+        for item in day.items
+        if item.place_id == uncertain.place_id
+    )
+    assert uncertain_item.business_hours_status == BusinessRuleStatus.UNPARSABLE
+    assert uncertain_item.business_hours_text == "주말 운영시간은 현장 확인"
+
+
+def test_parsed_hours_are_preferred_for_equivalent_auto_candidates() -> None:
+    parsed = place(
+        "z_parsed",
+        business_hours_status=BusinessRuleStatus.PARSED,
+        business_hours_rules=[
+            BusinessHoursRule(
+                weekdays=list(Weekday),
+                open_time="09:00",
+                close_time="21:00",
+            )
+        ],
+        default_stay_minutes=600,
+    )
+    unknown = place(
+        "a_unknown",
+        business_hours_status=BusinessRuleStatus.MISSING,
+        default_stay_minutes=600,
+    )
+    result = generate_itinerary(
+        same_day_arrival_game_trip(),
+        [],
+        matrix(parsed.place_id, unknown.place_id),
+        recommended_places=[unknown, parsed],
+    )
+
+    scheduled = {
+        item.place_id
+        for day in result.days
+        for item in day.items
+        if item.item_type == ItineraryItemType.PLACE
+    }
+    assert parsed.place_id in scheduled
+
+
 def test_user_place_is_kept_and_marked_as_user() -> None:
     selected = place("selected", default_stay_minutes=600)
     recommendation = place("recommendation", default_stay_minutes=600)
@@ -641,7 +702,7 @@ def test_meeting_auto_fill_result_sample_is_valid() -> None:
         )
     )
 
-    assert result.algorithm_version == "auto-fill-v0.6"
+    assert result.algorithm_version == "auto-fill-v0.7"
     assert result.auto_fill_applied is True
     assert result.auto_recommended_place_count == 3
     assert sum(
