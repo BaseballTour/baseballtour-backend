@@ -327,6 +327,33 @@ class FavoriteCollectionRepository:
             .exists
         )
 
+    def has_item_in_any_collection(
+        self,
+        *,
+        user_id: str,
+        place_id: str,
+    ) -> bool:
+        return any(
+            self.has_item(
+                user_id=user_id,
+                collection_id=collection.collection_id,
+                place_id=place_id,
+            )
+            for collection in self.get_all(user_id=user_id)
+        )
+
+    def get_unique_place_ids(self, *, user_id: str) -> set[str]:
+        place_ids: set[str] = set()
+        for collection in self.get_all(user_id=user_id):
+            place_ids.update(
+                item.place_id
+                for item in self.get_items(
+                    user_id=user_id,
+                    collection_id=collection.collection_id,
+                )
+            )
+        return place_ids
+
     def delete_item(
         self,
         *,

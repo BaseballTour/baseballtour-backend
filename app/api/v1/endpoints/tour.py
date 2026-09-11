@@ -10,13 +10,16 @@ from app.external.tour_api.filters import (
     TourFilterId,
 )
 from app.models.place import Place
+from app.repositories.place_favorite_stats_repository import (
+    PlaceFavoriteStatsRepository,
+)
 from app.schemas.player_pick import PlayerPickResponse
 from app.schemas.response import (
     ListMeta,
     ListSuccessResponse,
     SuccessResponse,
 )
-from app.schemas.tour import TourFilterOption
+from app.schemas.tour import PlaceFavoriteCount, TourFilterOption
 from app.services.place_enrichment import (
     enrich_place_with_kakao,
 )
@@ -28,6 +31,35 @@ router = APIRouter(
     tags=["TourAPI"],
     responses=TOUR_API_ERROR_RESPONSES,
 )
+
+
+@router.get(
+    "/favorite-counts",
+    response_model=ListSuccessResponse[PlaceFavoriteCount],
+    summary="장소별 찜 사용자 수 조회",
+    description="같은 사용자가 여러 컬렉션에 저장해도 한 명으로 집계합니다.",
+)
+async def read_place_favorite_counts(
+    place_ids: list[str] = Query(
+        alias="placeId",
+        min_length=1,
+        max_length=50,
+        description="집계할 내부 장소 ID. 최대 50개를 반복 전달할 수 있습니다.",
+        examples=[["tour_1603175", "player_pick_001"]],
+    ),
+) -> ListSuccessResponse[PlaceFavoriteCount]:
+    counts = PlaceFavoriteStatsRepository().get_counts(place_ids)
+    data = [
+        PlaceFavoriteCount(
+            place_id=place_id,
+            favorite_count=counts.get(place_id, 0),
+        )
+        for place_id in dict.fromkeys(place_ids)
+    ]
+    return ListSuccessResponse(
+        data=data,
+        meta=ListMeta(count=len(data), next_page_token=None),
+    )
 
 
 def _parse_page_token(

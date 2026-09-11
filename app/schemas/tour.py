@@ -35,3 +35,11 @@ class TourFilterOption(ApiModel):
     classification_codes: list[str] = Field(
         description="백엔드가 조합하는 TourAPI 신분류 코드"
     )
+
+
+class PlaceFavoriteCount(ApiModel):
+    place_id: str = Field(description="내부 장소 ID")
+    favorite_count: int = Field(
+        ge=0,
+        description="이 장소를 한 번 이상 찜한 고유 사용자 수",
+    )

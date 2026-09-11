@@ -39,6 +39,7 @@ def make_service(*, storage_service=None):
     favorite_collection_repository = Mock(
         spec=FavoriteCollectionRepository
     )
+    favorite_collection_repository.get_unique_place_ids.return_value = set()
     attendance_log_repository = Mock(
         spec=AttendanceLogRepository
     )

@@ -349,6 +349,9 @@ SUCCESS_EXAMPLES = {
     ("patch", "/api/v1/users/me/support-team", "200"): _success(USER),
     ("post", "/api/v1/users/me/term-agreements", "200"): _success({"agreements": [{"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True, "agreedAt": "2026-08-15T10:00:00+09:00"}]}),
     ("get", "/api/v1/tour/nearby", "200"): _list([PLACE]),
+    ("get", "/api/v1/tour/favorite-counts", "200"): _list([
+        {"placeId": PLACE["placeId"], "favoriteCount": 12}
+    ]),
     ("get", "/api/v1/tour/places/{placeId}", "200"): _success(PLACE),
     ("get", "/api/v1/tour/search", "200"): _list([PLACE]),
     ("get", "/api/v1/tour/player-picks", "200"): _list([{

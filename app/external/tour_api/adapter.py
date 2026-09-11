@@ -215,9 +215,11 @@ class TourApiAdapter:
 
             raw_items = extract_items(raw)
 
-            places = deduplicate_places(
-                tour_api_items_to_places(
-                    raw_items
+            places = _without_accommodations(
+                deduplicate_places(
+                    tour_api_items_to_places(
+                        raw_items
+                    )
                 )
             )
 
@@ -362,7 +364,9 @@ class TourApiAdapter:
                 client=client,
             )
             raw_items = extract_items(raw)
-            places = deduplicate_places(tour_api_items_to_places(raw_items))
+            places = _without_accommodations(
+                deduplicate_places(tour_api_items_to_places(raw_items))
+            )
             body = raw.get("response", {}).get("body", {})
             try:
                 total_count = int(body.get("totalCount"))
@@ -564,6 +568,15 @@ def _first_non_empty(
         if value is not None:
             return value
     return None
+
+
+def _without_accommodations(places: list[Place]) -> list[Place]:
+    """일반 관광 장소 목록에서는 숙박 콘텐츠를 노출하지 않습니다."""
+    return [
+        place
+        for place in places
+        if place.category != PlaceCategory.ACCOMMODATION
+    ]
 
 
 def _normalize_intro(item: dict[str, Any]) -> dict[str, Any]:
