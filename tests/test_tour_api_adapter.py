@@ -272,6 +272,58 @@ async def test_nearby_page_uses_category_pagination_and_cache(
 
 
 @pytest.mark.anyio
+async def test_nearby_page_excludes_accommodations(monkeypatch) -> None:
+    async def nearby(**kwargs):
+        return response_with(
+            [
+                {
+                    "contentid": "hotel-1",
+                    "contenttypeid": "32",
+                    "title": "테스트 호텔",
+                    "mapx": "127.0",
+                    "mapy": "37.5",
+                },
+                {
+                    "contentid": "food-1",
+                    "contenttypeid": "39",
+                    "title": "테스트 식당",
+                    "mapx": "127.01",
+                    "mapy": "37.51",
+                },
+            ]
+        )
+
+    monkeypatch.setattr(adapter_module, "get_nearby_places", nearby)
+
+    page = await TourApiAdapter().get_nearby_place_page(
+        longitude=127.0,
+        latitude=37.5,
+    )
+
+    assert [place.place_id for place in page.places] == ["tour_food-1"]
+
+
+@pytest.mark.anyio
+async def test_keyword_page_excludes_accommodations(monkeypatch) -> None:
+    async def search(*args, **kwargs):
+        return response_with(
+            {
+                "contentid": "hotel-1",
+                "contenttypeid": "32",
+                "title": "검색된 호텔",
+                "mapx": "127.0",
+                "mapy": "37.5",
+            }
+        )
+
+    monkeypatch.setattr(adapter_module, "search_places_by_keyword", search)
+
+    page = await TourApiAdapter().search_place_page("호텔")
+
+    assert page.places == []
+
+
+@pytest.mark.anyio
 async def test_compound_filter_merges_and_deduplicates_classification_pages(
     monkeypatch,
 ) -> None:

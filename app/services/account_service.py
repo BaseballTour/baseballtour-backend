@@ -15,6 +15,9 @@ from app.repositories.itinerary_plan_repository import (
 from app.repositories.place_selection_repository import (
     PlaceSelectionRepository,
 )
+from app.repositories.place_favorite_stats_repository import (
+    PlaceFavoriteStatsRepository,
+)
 from app.repositories.trip_repository import TripRepository
 from app.repositories.user_repository import UserRepository
 from app.services.storage_service import StorageService
@@ -38,6 +41,9 @@ class AccountService:
         ) = None,
         attendance_log_repository: (
             AttendanceLogRepository | None
+        ) = None,
+        favorite_stats_repository: (
+            PlaceFavoriteStatsRepository | None
         ) = None,
         storage_service: (
             StorageService | None
@@ -67,6 +73,7 @@ class AccountService:
             attendance_log_repository
             or AttendanceLogRepository()
         )
+        self._favorite_stats_repository = favorite_stats_repository
 
         # 회원탈퇴 시에만 필요하므로 lazy 생성합니다.
         self._storage_service = storage_service
@@ -78,6 +85,13 @@ class AccountService:
             self._storage_service = StorageService()
 
         return self._storage_service
+
+    def _get_favorite_stats_repository(
+        self,
+    ) -> PlaceFavoriteStatsRepository:
+        if self._favorite_stats_repository is None:
+            self._favorite_stats_repository = PlaceFavoriteStatsRepository()
+        return self._favorite_stats_repository
 
     def withdraw_user(
         self,
@@ -113,9 +127,20 @@ class AccountService:
                 trip.trip_id
             )
 
+        favorite_place_ids = (
+            self._favorite_collection_repository.get_unique_place_ids(
+                user_id=user_id,
+            )
+        )
         self._favorite_collection_repository.delete_all_by_user_id(
             user_id=user_id,
         )
+        for place_id in favorite_place_ids:
+            self._get_favorite_stats_repository().remove_user(
+                place_id=place_id,
+                user_id=user_id,
+                updated_at=deleted_at,
+            )
 
         self._attendance_log_repository.soft_delete_all_by_user_id(
             user_id,

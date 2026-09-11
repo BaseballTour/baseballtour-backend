@@ -11,6 +11,9 @@ from app.repositories.favorite_collection_repository import (
     FavoriteCollectionRepository,
 )
 from app.repositories.player_pick_repository import PlayerPickRepository
+from app.repositories.place_favorite_stats_repository import (
+    PlaceFavoriteStatsRepository,
+)
 from app.schemas.favorite_collection import (
     FavoriteCollectionCreateRequest,
     FavoriteCollectionDocument,
@@ -36,6 +39,9 @@ class FavoriteCollectionService:
         repository: FavoriteCollectionRepository | None = None,
         place_adapter: TourApiAdapter | None = None,
         player_pick_repository: PlayerPickRepository | None = None,
+        favorite_stats_repository: (
+            PlaceFavoriteStatsRepository | None
+        ) = None,
     ) -> None:
         self._repository = (
             repository
@@ -43,6 +49,14 @@ class FavoriteCollectionService:
         )
         self._place_adapter = place_adapter or tour_api_adapter
         self._player_pick_repository = player_pick_repository
+        self._favorite_stats_repository = favorite_stats_repository
+
+    def _get_favorite_stats_repository(
+        self,
+    ) -> PlaceFavoriteStatsRepository:
+        if self._favorite_stats_repository is None:
+            self._favorite_stats_repository = PlaceFavoriteStatsRepository()
+        return self._favorite_stats_repository
 
     def _get_player_pick_repository(self) -> PlayerPickRepository:
         if self._player_pick_repository is None:
@@ -302,10 +316,28 @@ class FavoriteCollectionService:
         ):
             self._raise_default_collection_immutable()
 
+        place_ids = {
+            item.place_id
+            for item in self._repository.get_items(
+                user_id=user_id,
+                collection_id=collection_id,
+            )
+        }
         self._repository.delete(
             user_id=user_id,
             collection_id=collection_id,
         )
+        now = datetime.now(timezone.utc)
+        for place_id in place_ids:
+            if not self._repository.has_item_in_any_collection(
+                user_id=user_id,
+                place_id=place_id,
+            ):
+                self._get_favorite_stats_repository().remove_user(
+                    place_id=place_id,
+                    user_id=user_id,
+                    updated_at=now,
+                )
 
     async def save_item(
         self,
@@ -342,11 +374,18 @@ class FavoriteCollectionService:
             created_at=datetime.now(timezone.utc),
         )
 
-        return self._repository.save_item(
+        saved = self._repository.save_item(
             user_id=user_id,
             collection_id=collection_id,
             item=item,
         )
+        # 사용자 표식 기반 트랜잭션이므로 재시도해도 중복 증가하지 않습니다.
+        self._get_favorite_stats_repository().add_user(
+            place_id=place_id,
+            user_id=user_id,
+            updated_at=item.created_at,
+        )
+        return saved
 
     def delete_item(
         self,
@@ -373,6 +412,15 @@ class FavoriteCollectionService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 code="FAVORITE_COLLECTION_ITEM_NOT_FOUND",
                 message="찜한 장소를 찾을 수 없습니다.",
+            )
+        if not self._repository.has_item_in_any_collection(
+            user_id=user_id,
+            place_id=place_id,
+        ):
+            self._get_favorite_stats_repository().remove_user(
+                place_id=place_id,
+                user_id=user_id,
+                updated_at=datetime.now(timezone.utc),
             )
 
     def get_collections_for_place(

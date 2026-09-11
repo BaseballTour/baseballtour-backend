@@ -227,6 +227,27 @@ class StubFavoriteCollectionRepository:
         del self.items[key]
         return True
 
+    def has_item_in_any_collection(self, *, user_id: str, place_id: str) -> bool:
+        return any(
+            item_user_id == user_id and item_place_id == place_id
+            for item_user_id, _, item_place_id in self.items
+        )
+
+
+class StubPlaceFavoriteStatsRepository:
+    def __init__(self) -> None:
+        self.users_by_place: dict[str, set[str]] = {}
+
+    def add_user(self, *, place_id: str, user_id: str, updated_at) -> int:
+        users = self.users_by_place.setdefault(place_id, set())
+        users.add(user_id)
+        return len(users)
+
+    def remove_user(self, *, place_id: str, user_id: str, updated_at) -> int:
+        users = self.users_by_place.setdefault(place_id, set())
+        users.discard(user_id)
+        return len(users)
+
 
 def create_service() -> tuple[
     FavoriteCollectionService,
@@ -250,6 +271,7 @@ def create_service() -> tuple[
     service = FavoriteCollectionService(
         repository=repository,
         place_adapter=place_adapter,
+        favorite_stats_repository=StubPlaceFavoriteStatsRepository(),
     )
 
     return service, repository

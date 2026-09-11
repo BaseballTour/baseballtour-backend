@@ -9,6 +9,33 @@ from app.main import app
 client = TestClient(app)
 
 
+def test_favorite_counts_returns_unique_place_counts(monkeypatch) -> None:
+    class StubStatsRepository:
+        def get_counts(self, place_ids):
+            assert place_ids == ["tour_1", "player_pick_2"]
+            return {"tour_1": 12, "player_pick_2": 3}
+
+    monkeypatch.setattr(
+        tour_endpoint,
+        "PlaceFavoriteStatsRepository",
+        StubStatsRepository,
+    )
+
+    response = client.get(
+        "/api/v1/tour/favorite-counts",
+        params=[
+            ("placeId", "tour_1"),
+            ("placeId", "player_pick_2"),
+        ],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == [
+        {"placeId": "tour_1", "favoriteCount": 12},
+        {"placeId": "player_pick_2", "favoriteCount": 3},
+    ]
+
+
 def test_search_forwards_new_classification_filters(monkeypatch) -> None:
     received: dict[str, object] = {}
 
