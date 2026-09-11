@@ -56,13 +56,38 @@ def test_player_pick_service_resolves_kakao_live_without_hours() -> None:
     assert result.place.is_player_pick is True
 
 
-def test_player_pick_service_omits_unlinked_record() -> None:
+def test_player_pick_service_matches_name_and_address_without_kakao_id() -> None:
     class UnlinkedRepository(FakeRepository):
         def get_all(self, **kwargs):
             return [make_record(None)]
 
     service = PlayerPickService(repository=UnlinkedRepository(), searcher=fake_searcher)
-    assert asyncio.run(service.get_player_picks(stadium_id="gocheok")) == []
+    [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
+    assert result.place.name == "테스트 음식점"
+    assert result.place.kakao_place_id == "123"
+
+
+def test_player_pick_service_geocodes_address_as_last_fallback() -> None:
+    class UnlinkedRepository(FakeRepository):
+        def get_all(self, **kwargs):
+            return [make_record(None)]
+
+    async def empty_searcher(query: str, **kwargs):
+        return KakaoPlacePage(documents=[], is_end=True)
+
+    async def fake_geocoder(address: str):
+        assert address == "서울특별시 구로구 테스트로 1"
+        return [{"x": "126.8", "y": "37.5"}]
+
+    service = PlayerPickService(
+        repository=UnlinkedRepository(),
+        searcher=empty_searcher,
+        geocoder=fake_geocoder,
+    )
+    [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
+    assert result.place.latitude == 37.5
+    assert result.place.kakao_place_id is None
+    assert result.place.telephone is None
 
 
 def test_resolve_place_uses_player_pick_as_canonical_id() -> None:

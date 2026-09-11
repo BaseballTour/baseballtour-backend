@@ -1,11 +1,12 @@
 import asyncio
 import logging
+import re
 from typing import Any, Awaitable, Callable
 
-from app.external.kakao.client import search_place_page
+from app.external.kakao.client import geocode_address, search_place_page
 from app.external.kakao.mapper import kakao_address
-from app.repositories.player_pick_repository import PlayerPickRepository
 from app.models.place import Place, PlaceSource
+from app.repositories.player_pick_repository import PlayerPickRepository
 from app.schemas.player_pick import PlayerPickRecord, PlayerPickResponse
 
 
@@ -19,9 +20,11 @@ class PlayerPickService:
         self,
         repository: PlayerPickRepository | None = None,
         searcher: Callable[..., Awaitable[Any]] = search_place_page,
+        geocoder: Callable[..., Awaitable[Any]] = geocode_address,
     ) -> None:
         self._repository = repository or PlayerPickRepository()
         self._searcher = searcher
+        self._geocoder = geocoder
         self._lookup_semaphore = asyncio.Semaphore(5)
 
     async def resolve_place(self, player_pick_id: str) -> Place | None:
@@ -45,13 +48,6 @@ class PlayerPickService:
     async def _resolve_record_place(
         self, record: PlayerPickRecord
     ) -> Place | None:
-        if not record.kakao_place_id:
-            logger.warning(
-                "선수추천 장소 Kakao 연결 누락: player_pick_id=%s name=%s",
-                record.player_pick_id,
-                record.place_name,
-            )
-            return None
         try:
             async with self._lookup_semaphore:
                 page = await self._searcher(record.place_name, size=15)
@@ -63,34 +59,93 @@ class PlayerPickService:
                 type(error).__name__,
             )
             return None
-        item = next(
-            (
-                candidate
-                for candidate in page.documents
-                if str(candidate.get("id") or "") == record.kakao_place_id
-            ),
-            None,
-        )
+        item = self._select_kakao_item(record, page.documents)
         if item is None:
+            return await self._resolve_by_address(record)
+        return self._place_from_kakao_item(record, item)
+
+    @classmethod
+    def _select_kakao_item(
+        cls,
+        record: PlayerPickRecord,
+        documents: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if record.kakao_place_id:
+            exact = next(
+                (
+                    item for item in documents
+                    if str(item.get("id") or "") == record.kakao_place_id
+                ),
+                None,
+            )
+            if exact is not None:
+                return exact
+        expected_name = cls._normalize(record.place_name)
+        expected_address = cls._normalize(record.address)
+        matches = [
+            item for item in documents
+            if cls._normalize(str(item.get("place_name") or "")) == expected_name
+            and (
+                expected_address in cls._normalize(kakao_address(item))
+                or cls._normalize(kakao_address(item)) in expected_address
+            )
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    async def _resolve_by_address(
+        self,
+        record: PlayerPickRecord,
+    ) -> Place | None:
+        try:
+            async with self._lookup_semaphore:
+                documents = await self._geocoder(record.address)
+        except Exception as error:
             logger.warning(
-                "선수추천 Kakao 장소 ID 불일치: player_pick_id=%s "
-                "kakao_place_id=%s",
+                "선수추천 주소 좌표 조회 실패: player_pick_id=%s error_type=%s",
                 record.player_pick_id,
-                record.kakao_place_id,
+                type(error).__name__,
             )
             return None
+        if not documents:
+            logger.warning(
+                "선수추천 장소 확인 실패: player_pick_id=%s name=%s",
+                record.player_pick_id,
+                record.place_name,
+            )
+            return None
+        return self._place_from_kakao_item(record, documents[0])
+
+    @staticmethod
+    def _normalize(value: str) -> str:
+        aliases = {
+            "서울특별시": "서울", "부산광역시": "부산",
+            "대구광역시": "대구", "대전광역시": "대전",
+            "인천광역시": "인천", "광주광역시": "광주",
+            "경기도": "경기", "경상남도": "경남",
+        }
+        normalized = value.casefold()
+        for source, target in aliases.items():
+            normalized = normalized.replace(source, target)
+        return re.sub(r"[^0-9a-z가-힣]", "", normalized)
+
+    @staticmethod
+    def _place_from_kakao_item(
+        record: PlayerPickRecord,
+        item: dict[str, Any],
+    ) -> Place | None:
         try:
+            resolved_kakao_id = str(item.get("id") or "").strip() or None
             return Place(
                 place_id=record.player_pick_id,
                 name=record.place_name,
                 category=record.category,
                 latitude=round(float(item.get("y")), 6),
                 longitude=round(float(item.get("x")), 6),
-                address=record.address or kakao_address(item),
+                address=record.address,
                 telephone=str(item.get("phone") or "").strip() or None,
                 place_url=str(item.get("place_url") or "").strip() or None,
                 source=PlaceSource.LOCAL_DATA,
-                kakao_place_id=record.kakao_place_id,
+                kakao_place_id=resolved_kakao_id or record.kakao_place_id,
                 enriched_by=[PlaceSource.KAKAO],
             )
         except (TypeError, ValueError):
