@@ -85,6 +85,34 @@ async def test_fastest_route_compares_transit_and_walk(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
+async def test_fastest_route_keeps_each_provider_failure_reason(monkeypatch) -> None:
+    monkeypatch.setattr(
+        routing,
+        "get_settings",
+        lambda: SimpleNamespace(kakao_rest_api_key="test-key"),
+    )
+    monkeypatch.setattr(
+        routing,
+        "_fetch_route",
+        AsyncMock(
+            side_effect=[
+                RuntimeError("status=403 errorType=AccessDenied"),
+                RuntimeError("status=429 errorType=QuotaExceeded"),
+            ]
+        ),
+    )
+
+    with pytest.raises(RuntimeError) as error:
+        await routing.get_fastest_route(
+            127.0, 37.5, 127.1, 37.6, client=AsyncMock()
+        )
+
+    message = str(error.value)
+    assert "TRANSIT=RuntimeError: status=403" in message
+    assert "WALK=RuntimeError: status=429" in message
+
+
+@pytest.mark.anyio
 async def test_route_cache_avoids_duplicate_pair(monkeypatch) -> None:
     routing._route_cache.clear()
     getter = AsyncMock(

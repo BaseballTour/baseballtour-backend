@@ -16,6 +16,7 @@ from app.algorithms.travel_time import (
     TravelTimeMatrix,
     TravelTimeProvider,
     build_itinerary_travel_time_matrix,
+    scheduled_itinerary_provider_route_keys,
 )
 from app.core.generation import GENERATION_STALE_AFTER
 from app.core.exceptions import AppException
@@ -411,12 +412,18 @@ class ItineraryGenerationService:
                 }.values()
             )
 
-            matrix = (
-                await build_itinerary_travel_time_matrix(
-                    trip_input,
-                    matrix_places,
-                    provider=self._travel_time_provider,
-                )
+            generator_kwargs = (
+                {"target_dates": {target_date}}
+                if target_date is not None
+                else {}
+            )
+            matrix, result = await self._generate_with_refined_routes(
+                trip_input=trip_input,
+                selected_places=places,
+                matrix_places=matrix_places,
+                recommended_places=recommended_places,
+                recommendation_diagnostics=recommendation_diagnostics,
+                generator_kwargs=generator_kwargs,
             )
             _log_generation_memory(
                 "MATRIX_COMPLETED",
@@ -425,18 +432,6 @@ class ItineraryGenerationService:
                 matrix_node_count=len(matrix_places) + 4,
             )
 
-            result = self._generator(
-                trip_input,
-                places,
-                matrix,
-                recommended_places=recommended_places,
-                recommendation_diagnostics=recommendation_diagnostics,
-                **(
-                    {"target_dates": {target_date}}
-                    if target_date is not None
-                    else {}
-                ),
-            )
             supplement_dates = self._recommendation_supplement_dates(result)
             if supplement_dates:
                 supplemental_diagnostics: dict[str, object] = {}
@@ -476,16 +471,24 @@ class ItineraryGenerationService:
 
                 if supplemental_places:
                     matrix_places.extend(supplemental_places)
-                    matrix = await build_itinerary_travel_time_matrix(
-                        trip_input,
-                        list(
+                    matrix, result = await self._generate_with_refined_routes(
+                        trip_input=trip_input,
+                        selected_places=places,
+                        matrix_places=list(
                             {
                                 place.place_id: place
                                 for place in matrix_places
                             }.values()
                         ),
-                        provider=self._travel_time_provider,
-                        existing_matrix=matrix,
+                        recommended_places=recommended_places,
+                        recommendation_diagnostics=recommendation_diagnostics,
+                        generator_kwargs={
+                            "supplemental_recommendations_by_date": {
+                                supplement_date: supplemental_places
+                                for supplement_date in supplement_dates
+                            },
+                            **generator_kwargs,
+                        },
                     )
                     _log_generation_memory(
                         "SUPPLEMENT_MATRIX_COMPLETED",
@@ -494,22 +497,6 @@ class ItineraryGenerationService:
                             len(recommended_places) + len(supplemental_places)
                         ),
                         matrix_node_count=len(matrix_places) + 4,
-                    )
-                    result = self._generator(
-                        trip_input,
-                        places,
-                        matrix,
-                        recommended_places=recommended_places,
-                        supplemental_recommendations_by_date={
-                            target_date: supplemental_places
-                            for target_date in supplement_dates
-                        },
-                        recommendation_diagnostics=recommendation_diagnostics,
-                        **(
-                            {"target_dates": {target_date}}
-                            if target_date is not None
-                            else {}
-                        ),
                     )
                     self._merge_recommendation_fetch_diagnostics(
                         recommendation_diagnostics,
@@ -646,6 +633,84 @@ class ItineraryGenerationService:
                     generation_lease_id=generation_lease_id,
                 )
             raise
+
+    async def _generate_with_refined_routes(
+        self,
+        *,
+        trip_input: TripInput,
+        selected_places: list[Place],
+        matrix_places: list[Place],
+        recommended_places: list[Place],
+        recommendation_diagnostics: dict[str, object],
+        generator_kwargs: dict[str, object],
+    ) -> tuple[TravelTimeMatrix, ItineraryResult]:
+        """추정거리로 초안을 만든 뒤 실제 사용 구간만 Kakao로 보정한다."""
+        estimated_matrix = await build_itinerary_travel_time_matrix(
+            trip_input,
+            matrix_places,
+            provider=None,
+        )
+        preliminary_diagnostics: dict[str, object] = {}
+        preliminary = self._generator(
+            trip_input,
+            selected_places,
+            estimated_matrix,
+            recommended_places=recommended_places,
+            recommendation_diagnostics=preliminary_diagnostics,
+            **generator_kwargs,
+        )
+        provider_route_keys = scheduled_itinerary_provider_route_keys(
+            preliminary,
+            has_accommodation=trip_input.accommodation is not None,
+        )
+        if not provider_route_keys:
+            preliminary_diagnostics.update(recommendation_diagnostics)
+            recommendation_diagnostics.update(preliminary_diagnostics)
+            return estimated_matrix, preliminary
+        logger.info(
+            "Kakao 경로 조회 최적화: candidate_nodes=%s scheduled_routes=%s",
+            len(matrix_places) + 4,
+            len(provider_route_keys),
+        )
+        refined_matrix = await build_itinerary_travel_time_matrix(
+            trip_input,
+            matrix_places,
+            provider=self._travel_time_provider,
+            provider_route_keys=provider_route_keys,
+        )
+        refined_diagnostics: dict[str, object] = {}
+        result = self._generator(
+            trip_input,
+            selected_places,
+            refined_matrix,
+            recommended_places=recommended_places,
+            recommendation_diagnostics=refined_diagnostics,
+            **generator_kwargs,
+        )
+        final_route_keys = scheduled_itinerary_provider_route_keys(
+            result,
+            has_accommodation=trip_input.accommodation is not None,
+        )
+        missing_route_keys = final_route_keys - provider_route_keys
+        if missing_route_keys:
+            provider_route_keys.update(missing_route_keys)
+            refined_matrix = await build_itinerary_travel_time_matrix(
+                trip_input,
+                matrix_places,
+                provider=self._travel_time_provider,
+                provider_route_keys=provider_route_keys,
+            )
+            refined_diagnostics = {}
+            result = self._generator(
+                trip_input,
+                selected_places,
+                refined_matrix,
+                recommended_places=recommended_places,
+                recommendation_diagnostics=refined_diagnostics,
+                **generator_kwargs,
+            )
+        recommendation_diagnostics.update(refined_diagnostics)
+        return refined_matrix, result
 
     @staticmethod
     def _recommendation_supplement_dates(
