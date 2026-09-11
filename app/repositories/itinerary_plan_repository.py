@@ -15,6 +15,22 @@ from app.models.itinerary import ItineraryQualitySummary
 from app.schemas.trip import TripStatus
 
 
+def _serialize_value_for_firestore(value):
+    """중첩 구조의 순수 date만 ISO 문자열로 바꾸고 datetime은 보존합니다."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {
+            key: _serialize_value_for_firestore(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_serialize_value_for_firestore(item) for item in value]
+    return value
+
+
 def _serialize_days_for_firestore(
     days: list[ItineraryPlanDay],
 ) -> list[dict]:
@@ -27,13 +43,7 @@ def _serialize_days_for_firestore(
             by_alias=True,
             exclude_none=False,
         )
-        day_date = data.get("date")
-        if isinstance(day_date, date) and not isinstance(
-            day_date,
-            datetime,
-        ):
-            data["date"] = day_date.isoformat()
-        serialized.append(data)
+        serialized.append(_serialize_value_for_firestore(data))
 
     return serialized
 
@@ -96,11 +106,12 @@ class ItineraryPlanRepository:
         )
         transaction = self._client.transaction()
 
-        plan_data = plan.model_dump(
-            by_alias=True,
-            exclude_none=False,
+        plan_data = _serialize_value_for_firestore(
+            plan.model_dump(
+                by_alias=True,
+                exclude_none=False,
+            )
         )
-        plan_data["days"] = _serialize_days_for_firestore(plan.days)
 
         @transactional
         def commit(transaction) -> None:
