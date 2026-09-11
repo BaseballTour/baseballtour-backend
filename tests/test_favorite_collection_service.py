@@ -447,13 +447,26 @@ async def test_save_item_saves_player_pick_snapshot() -> None:
                 player_pick_id=player_pick_id,
                 stadium_id="gocheok",
                 player_name="테스트 선수",
-                place_id="tour_123456",
-                place_snapshot=snapshot,
+                place_name="선수 추천 식당",
+                address="서울 구로구",
+                kakao_place_id="123456",
                 recommendation_note="선수 추천",
                 created_at=FIXED_TIME,
             )
 
     service._player_pick_repository = PlayerPickRepository()
+    class PlayerPickService:
+        async def resolve_place(self, player_pick_id):
+            return snapshot.model_copy(
+                update={
+                    "place_id": player_pick_id,
+                    "is_player_pick": True,
+                    "player_pick_id": player_pick_id,
+                    "recommended_by_players": ["테스트 선수"],
+                }
+            )
+
+    service._player_pick_service = PlayerPickService()
     item = await service.save_item(
         user_id=USER_ID,
         collection_id=COLLECTION_ID,
@@ -461,10 +474,8 @@ async def test_save_item_saves_player_pick_snapshot() -> None:
     )
 
     assert item.place_id == "player_pick_001"
-    assert item.place_snapshot is not None
-    assert item.place_snapshot.place_id == "player_pick_001"
-    assert item.place_snapshot.is_player_pick is True
-    assert item.place_snapshot.recommended_by_players == ["테스트 선수"]
+    # Kakao 응답은 찜 문서에도 영구 저장하지 않습니다.
+    assert item.place_snapshot is None
 
 
 @pytest.mark.anyio

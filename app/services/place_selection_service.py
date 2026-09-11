@@ -21,6 +21,7 @@ from app.schemas.place_selection import (
     PlaceSelectionRecord,
 )
 from app.schemas.trip import TripRecord
+from app.services.player_pick_service import PlayerPickService
 
 
 REGION_ADDRESS_PREFIXES: dict[str, tuple[str, ...]] = {
@@ -62,6 +63,7 @@ class PlaceSelectionService:
         self._game_repository = game_repository
         self._stadium_repository = stadium_repository
         self._player_pick_repository = player_pick_repository
+        self._player_pick_service: PlayerPickService | None = None
         self._place_adapter = (
             place_adapter
             or tour_api_adapter
@@ -304,9 +306,11 @@ class PlaceSelectionService:
                 place_id.removeprefix("tour_")
             )
         if place_id.startswith("player_pick_"):
-            record = self._get_player_pick_repository().get_by_id(place_id)
-            if record is not None:
-                return record.place_snapshot
+            if self._player_pick_service is None:
+                self._player_pick_service = PlayerPickService(
+                    repository=self._get_player_pick_repository()
+                )
+            return await self._player_pick_service.resolve_place(place_id)
         return None
 
     @staticmethod

@@ -28,15 +28,15 @@
 
 `jamsil`은 LG 48건과 두산 6건을 합한 수치다.
 
-### 장소 원천별 저장 건수
+### Kakao 연결 결과
 
-| Place.source | 건수 | 의미 |
+| 연결 방식 | 건수 | 의미 |
 | --- | ---: | --- |
-| `KAKAO` | 125 | Kakao 장소명·주소 또는 현재 동일 시군구 장소 확인 |
-| `LOCAL_DATA` | 59 | 관리자 원본 주소를 Kakao 주소 검색으로 좌표 검증 |
+| Kakao 장소 ID 확정 | 125 | 장소명·주소로 동일 장소를 하나로 확정 |
+| 주소 기반 보완 필요 | 59 | Kakao 장소 ID를 추가로 검수해야 하는 항목 |
 
-Kakao와 `LOCAL_DATA`는 수작업으로 확정한 선수 추천 위치를 표현하기
-위한 것이며 일반 장소 자동 추천 후보 풀에는 넣지 않는다.
+위 수치는 2026-09-02 당시 입력 결과다. 현재 저장 정책은 장소명·주소와
+`kakaoPlaceId`만 영구 저장하고 Kakao 응답 본문은 저장하지 않는다.
 
 ## 저장하지 않은 항목
 
@@ -49,18 +49,16 @@ Kakao와 `LOCAL_DATA`는 수작업으로 확정한 선수 추천 위치를 표�
 
 ## 현재 운영 방식
 
-선수 추천 장소는 요청 시 TourAPI에서 상세정보를 다시 조회하지 않는다.
-`playerPlaceRecommendations.placeSnapshot`을 유일한 운영 조회 원천으로
-사용하여 외부 API 장애와 장소 정보 변경이 일정 생성에 직접 영향을 주지
-않게 한다.
+선수 추천 장소는 TourAPI에서 조회하지 않는다. Firestore의 큐레이션
+장소명·주소와 `kakaoPlaceId`를 기준으로 Kakao Local을 실시간 조회해
+좌표·전화번호·지도 링크를 공통 `Place` 응답에 일시 결합한다.
 
 초기 입력과 관리자 갱신은 다음 반자동 절차를 사용한다.
 
 1. Markdown 원본을 Kakao 장소 검색 또는 주소 좌표 변환으로 한 번 확인한다.
-2. `--review-output`으로 장소 기본정보와 누락 필드가 표시된 JSON을 만든다.
-3. 영업시간·휴무일처럼 일정 계산에 필요한 값만 공식 출처로 확인해 JSON의
-   `placeSnapshot`을 보완한다.
-4. 보완한 JSON을 `seed_player_picks --write`로 upsert한다.
+2. 검수 JSON에는 큐레이션 값과 확정된 `kakaoPlaceId`만 남긴다.
+3. `seed_player_picks --write`로 최소 스키마를 upsert한다.
+4. 영업시간은 저장하지 않고 `MISSING`으로 처리한다.
 
 ```powershell
 uv run python -m scripts.import_player_pick_markdown `
@@ -72,11 +70,10 @@ uv run python -m scripts.seed_player_picks `
   --write
 ```
 
-검수 JSON에 `placeSnapshot`이 들어간 뒤에는 두 번째 명령이 TourAPI나
-Kakao를 호출하지 않는다. `review.missingFields`는 대표 이미지, 전화번호,
-요일별 영업시간, 휴무일 중 확인할 항목을 알려준다. 확인되지 않은 영업정보는
-추측해 입력하지 않고 `MISSING` 상태로 두며 화면에서 카카오맵 링크를 통해
-최신 정보를 확인하게 한다.
+입력 시 Kakao는 동일 장소의 ID를 확정하는 데만 사용한다. 운영 조회에서는
+좌표·전화번호·지도 링크를 최신 응답에서 사용하지만 Firestore로 다시
+저장하지 않는다. Kakao Local에 없는 영업시간은 `MISSING`으로 반환하고
+화면에서 `운영시간 확인 필요`와 지도 링크를 표시한다.
 
 ## 수동 보완 항목
 

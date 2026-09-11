@@ -2,7 +2,7 @@ from enum import Enum
 
 from pydantic import AwareDatetime, Field
 
-from app.models.place import Place
+from app.models.place import Place, PlaceCategory
 from app.schemas.base import ApiModel
 
 
@@ -17,7 +17,7 @@ class PlayerPosition(str, Enum):
 
 
 class PlayerPickDocument(ApiModel):
-    """Firestore에 관리자가 지정하는 선수 추천 장소."""
+    """독립적으로 큐레이션하고 Kakao에는 ID로만 연결하는 추천 장소."""
 
     stadium_id: str = Field(min_length=1)
     player_name: str = Field(min_length=1)
@@ -25,21 +25,25 @@ class PlayerPickDocument(ApiModel):
         default=None,
         description="선수 포지션 또는 추천 주체 역할. 해당 없음은 null",
     )
-    place_id: str = Field(
-        pattern=r"^(tour|kakao|player_place)_.+$",
-        description="TourAPI·Kakao 장소 ID 또는 관리자 장소 ID",
+    place_name: str = Field(
+        min_length=1,
+        description="관리자가 독립적으로 확인해 입력한 장소명",
     )
-    place_snapshot: Place | None = Field(
+    address: str = Field(
+        default="",
+        description="관리자가 독립적인 출처로 확인한 주소",
+    )
+    category: PlaceCategory = Field(
+        default=PlaceCategory.RESTAURANT,
+        description="서비스가 직접 분류한 내부 카테고리",
+    )
+    kakao_place_id: str | None = Field(
         default=None,
-        description="TourAPI 장애에도 표시할 수 있는 저장 시점 장소 정보",
+        description="실시간 Kakao Local 조회 결과를 식별할 연결 ID",
     )
     recommendation_note: str | None = Field(
         default=None,
         description="부모님 운영·선수단 공통 추천 등 관리자 설명",
-    )
-    curation_key: str | None = Field(
-        default=None,
-        description="원본 장소명·주소로 만든 재입력용 안정 식별자",
     )
     created_at: AwareDatetime
     updated_at: AwareDatetime | None = None

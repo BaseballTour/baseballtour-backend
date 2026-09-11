@@ -10,10 +10,10 @@ from app.models.place import Place
 from app.repositories.favorite_collection_repository import (
     FavoriteCollectionRepository,
 )
-from app.repositories.player_pick_repository import PlayerPickRepository
 from app.repositories.place_favorite_stats_repository import (
     PlaceFavoriteStatsRepository,
 )
+from app.repositories.player_pick_repository import PlayerPickRepository
 from app.schemas.favorite_collection import (
     FavoriteCollectionCreateRequest,
     FavoriteCollectionDocument,
@@ -23,6 +23,7 @@ from app.schemas.favorite_collection import (
     FavoriteCollectionUpdateRequest,
     FavoritePlaceCollectionsResponse,
 )
+from app.services.player_pick_service import PlayerPickService
 
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ class FavoriteCollectionService:
         )
         self._place_adapter = place_adapter or tour_api_adapter
         self._player_pick_repository = player_pick_repository
+        self._player_pick_service: PlayerPickService | None = None
         self._favorite_stats_repository = favorite_stats_repository
 
     def _get_favorite_stats_repository(
@@ -69,18 +71,11 @@ class FavoriteCollectionService:
                 place_id.removeprefix("tour_")
             )
         if place_id.startswith("player_pick_"):
-            record = self._get_player_pick_repository().get_by_id(place_id)
-            if record is None or record.place_snapshot is None:
-                return None
-            return record.place_snapshot.model_copy(
-                update={
-                    "place_id": record.player_pick_id,
-                    "is_player_pick": True,
-                    "player_pick_id": record.player_pick_id,
-                    "recommended_by_players": [record.player_name],
-                    "recommendation_note": record.recommendation_note,
-                }
-            )
+            if self._player_pick_service is None:
+                self._player_pick_service = PlayerPickService(
+                    repository=self._get_player_pick_repository()
+                )
+            return await self._player_pick_service.resolve_place(place_id)
         return None
 
     def create_collection(
@@ -157,12 +152,13 @@ class FavoriteCollectionService:
                     place = await self._resolve_place(first_item.place_id)
                     if place is None:
                         raise ValueError("찜 장소 snapshot을 복구할 수 없습니다.")
-                    self._repository.update_item_snapshot(
-                        user_id=user_id,
-                        collection_id=collection.collection_id,
-                        place_id=first_item.place_id,
-                        place_snapshot=place,
-                    )
+                    if not first_item.place_id.startswith("player_pick_"):
+                        self._repository.update_item_snapshot(
+                            user_id=user_id,
+                            collection_id=collection.collection_id,
+                            place_id=first_item.place_id,
+                            place_snapshot=place,
+                        )
                 except (AppException, ValueError):
                     place = None
 
@@ -241,12 +237,13 @@ class FavoriteCollectionService:
                 place = await self._resolve_place(item.place_id)
                 if place is None:
                     return None
-                self._repository.update_item_snapshot(
-                    user_id=user_id,
-                    collection_id=collection_id,
-                    place_id=item.place_id,
-                    place_snapshot=place,
-                )
+                if not item.place_id.startswith("player_pick_"):
+                    self._repository.update_item_snapshot(
+                        user_id=user_id,
+                        collection_id=collection_id,
+                        place_id=item.place_id,
+                        place_snapshot=place,
+                    )
                 return place
             except (AppException, ValueError) as error:
                 logger.warning(
@@ -370,7 +367,10 @@ class FavoriteCollectionService:
 
         item = FavoriteCollectionItemDocument(
             place_id=place_id,
-            place_snapshot=place,
+            # Kakao 응답은 영구 snapshot으로 저장하지 않고 조회 때 갱신한다.
+            place_snapshot=(
+                None if place_id.startswith("player_pick_") else place
+            ),
             created_at=datetime.now(timezone.utc),
         )
 
