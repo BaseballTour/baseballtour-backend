@@ -16,6 +16,7 @@ from app.algorithms.travel_time import (
     TravelTimeProvider,
     build_itinerary_travel_time_matrix,
 )
+from app.core.generation import GENERATION_STALE_AFTER
 from app.core.exceptions import AppException
 from app.external.kakao.routing import get_cached_fastest_route
 from app.external.tour_api.adapter import (
@@ -63,7 +64,6 @@ from app.services.player_pick_service import PlayerPickService
 ItineraryGenerator = Callable[..., ItineraryResult]
 RECOMMENDATION_TIMEOUT_SECONDS = 45.0
 SUPPLEMENT_GAP_MINUTES = 150
-GENERATION_STALE_AFTER = timedelta(minutes=10)
 KOREA_TIMEZONE = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
 ITINERARY_GENERATION_MAX_CONCURRENCY = 2

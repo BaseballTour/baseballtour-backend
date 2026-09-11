@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 
 from fastapi import status
 from pydantic import ValidationError
 
+from app.core.generation import GENERATION_STALE_AFTER
 from app.core.accommodation_ids import is_valid_accommodation_id
 from app.core.exceptions import AppException
 from app.repositories.game_repository import GameRepository
@@ -131,6 +132,21 @@ class TripService:
                 ),
             ) from error
 
+    def _recover_stale_generation(self, trip):
+        """일반 여행 조회에서도 오래된 generation lease를 회수합니다."""
+        if trip.status != TripStatus.GENERATING:
+            return trip
+
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        recovered = self._trip_repository.recover_stale_generation(
+            trip_id=trip.trip_id,
+            stale_before=now - GENERATION_STALE_AFTER,
+            updated_at=now,
+        )
+        return recovered or trip
+
     def get_my_trips(
         self,
         *,
@@ -144,7 +160,10 @@ class TripService:
         목록에 유지합니다.
         """
 
-        trips = self._trip_repository.get_by_user_id(user_id)
+        trips = [
+            self._recover_stale_generation(trip)
+            for trip in self._trip_repository.get_by_user_id(user_id)
+        ]
 
         return [
             trip
@@ -340,7 +359,7 @@ class TripService:
                 message="해당 여행에 접근할 권한이 없습니다.",
             )
 
-        return trip
+        return self._recover_stale_generation(trip)
 
     @staticmethod
     def _validate_game_in_trip_period(
