@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,8 +11,9 @@ from app.algorithms.travel_time import (
     build_travel_time_matrix,
     estimated_walking_minutes,
     fallback_travel_minutes,
+    scheduled_itinerary_provider_route_keys,
 )
-from app.models.itinerary import TravelMode, TravelTimeSource
+from app.models.itinerary import ItineraryResult, TravelMode, TravelTimeSource
 
 
 def test_fallback_travel_time_is_positive() -> None:
@@ -180,6 +182,61 @@ def test_itinerary_provider_routes_are_reduced() -> None:
     assert len(keys) < len(nodes) * (len(nodes) - 1)
     assert ("arrival", "tour_0") in keys
     assert ("tour_0", "stadium") in keys
+
+
+def test_scheduled_routes_only_include_adjacent_itinerary_items() -> None:
+    result = ItineraryResult.model_validate(
+        {
+            "tripId": "trip_1",
+            "algorithmVersion": "test",
+            "totalTravelMinutes": 0,
+            "days": [
+                {
+                    "date": "2026-09-11",
+                    "dayType": "GAME_DAY",
+                    "items": [
+                        {
+                            "type": "ARRIVAL_POINT",
+                            "sequence": 1,
+                            "name": "도착지",
+                            "address": "서울",
+                            "latitude": 37.5,
+                            "longitude": 127.0,
+                            "scheduledStartAt": datetime.fromisoformat("2026-09-11T10:00:00+09:00"),
+                            "scheduledEndAt": datetime.fromisoformat("2026-09-11T10:20:00+09:00"),
+                        },
+                        {
+                            "type": "PLACE",
+                            "sequence": 2,
+                            "placeId": "tour_1",
+                            "name": "장소",
+                            "address": "서울",
+                            "latitude": 37.51,
+                            "longitude": 127.01,
+                            "scheduledStartAt": datetime.fromisoformat("2026-09-11T11:00:00+09:00"),
+                            "scheduledEndAt": datetime.fromisoformat("2026-09-11T12:00:00+09:00"),
+                        },
+                        {
+                            "type": "STADIUM",
+                            "sequence": 3,
+                            "name": "경기장",
+                            "address": "서울",
+                            "latitude": 37.52,
+                            "longitude": 127.02,
+                            "scheduledStartAt": datetime.fromisoformat("2026-09-11T17:20:00+09:00"),
+                            "scheduledEndAt": datetime.fromisoformat("2026-09-11T21:00:00+09:00"),
+                        },
+                    ],
+                }
+            ],
+        }
+    )
+
+    keys = scheduled_itinerary_provider_route_keys(
+        result, has_accommodation=False
+    )
+
+    assert keys == {("arrival", "tour_1"), ("tour_1", "stadium")}
 
 
 @pytest.mark.anyio

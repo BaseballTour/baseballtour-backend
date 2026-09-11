@@ -184,7 +184,12 @@ async def get_fastest_route(
         result for result in results if isinstance(result, ProviderTravelTime)
     ]
     if not valid:
-        reasons = ",".join(type(result).__name__ for result in results)
+        reasons = "; ".join(
+            f"{mode.value}={type(result).__name__}: {result}"
+            for mode, result in zip(
+                (TravelMode.TRANSIT, TravelMode.WALK), results
+            )
+        )
         raise RuntimeError(
             "Kakao 대중교통·도보 경로를 모두 조회하지 못했습니다: "
             f"reasons={reasons}"

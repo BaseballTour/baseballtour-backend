@@ -6,8 +6,13 @@ from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 from typing import Awaitable, Callable, Protocol
 
-from app.models.itinerary import TripInput
-from app.models.itinerary import TravelMode, TravelTimeSource
+from app.models.itinerary import (
+    ItineraryItemType,
+    ItineraryResult,
+    TripInput,
+    TravelMode,
+    TravelTimeSource,
+)
 from app.models.place import Place
 
 
@@ -301,6 +306,7 @@ async def build_itinerary_travel_time_matrix(
     places: list[Place],
     provider: TravelTimeProvider | None = None,
     *,
+    provider_route_keys: set[tuple[str, str]] | None = None,
     existing_matrix: TravelTimeMatrix | None = None,
 ) -> TravelTimeMatrix:
     nodes = [
@@ -336,13 +342,51 @@ async def build_itinerary_travel_time_matrix(
         )
         for place in places
     )
-    provider_route_keys = _itinerary_provider_route_keys(nodes)
+    if provider_route_keys is None:
+        provider_route_keys = _itinerary_provider_route_keys(nodes)
     return await build_travel_time_matrix(
         nodes,
         provider,
         provider_route_keys=provider_route_keys,
         existing_matrix=existing_matrix,
     )
+
+
+def scheduled_itinerary_provider_route_keys(
+    result: ItineraryResult,
+    *,
+    has_accommodation: bool,
+) -> set[tuple[str, str]]:
+    """초안 일정에서 실제로 이어지는 구간만 외부 경로 조회 대상으로 만든다."""
+
+    def node_id(item_type: ItineraryItemType, place_id: str | None) -> str | None:
+        if item_type == ItineraryItemType.ARRIVAL_POINT:
+            return "arrival"
+        if item_type == ItineraryItemType.DEPARTURE_POINT:
+            return "departure"
+        if item_type == ItineraryItemType.STADIUM:
+            return "stadium"
+        if item_type == ItineraryItemType.ACCOMMODATION:
+            return "accommodation"
+        return place_id
+
+    keys: set[tuple[str, str]] = set()
+    for day_index, day in enumerate(result.days):
+        day_nodes = [
+            resolved
+            for item in day.items
+            if (resolved := node_id(item.item_type, item.place_id)) is not None
+        ]
+        if not day_nodes:
+            continue
+
+        # 숙소가 있는 둘째 날 이후 일정은 숙소에서 출발한 것으로 계산한다.
+        if day_index > 0 and has_accommodation and day_nodes[0] != "accommodation":
+            keys.add(("accommodation", day_nodes[0]))
+        for origin, destination in zip(day_nodes, day_nodes[1:]):
+            if origin != destination:
+                keys.add((origin, destination))
+    return keys
 
 
 def _itinerary_provider_route_keys(
