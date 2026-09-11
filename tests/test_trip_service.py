@@ -140,6 +140,40 @@ class StubTripRepository:
             None,
         )
 
+    def recover_stale_generation(
+        self,
+        *,
+        trip_id: str,
+        stale_before,
+        updated_at,
+    ):
+        """실제 TripRepository의 stale generation 계약을 모사합니다."""
+        trip = self.get_by_id(trip_id)
+
+        if trip is None:
+            return None
+
+        if trip.status != TripStatus.GENERATING:
+            return trip
+
+        if trip.updated_at > stale_before:
+            return trip
+
+        restored_status = (
+            TripStatus.GENERATED
+            if trip.active_plan_id
+            else TripStatus.PLANNING
+        )
+
+        return trip.model_copy(
+            update={
+                "status": restored_status,
+                "generation_lease_id": None,
+                "updated_at": updated_at,
+            }
+        )
+
+
 
 def create_game(
     *,
