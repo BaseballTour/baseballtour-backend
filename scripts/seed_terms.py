@@ -15,13 +15,13 @@ KST = ZoneInfo("Asia/Seoul")
 EFFECTIVE_AT = datetime(
     2026,
     9,
-    12,
+    13,
     0,
     0,
     tzinfo=KST,
 )
 
-SERVICE_NAME = "KBO Travel"
+SERVICE_NAME = "야구원정대"
 
 _env = dotenv_values(".env")
 
@@ -294,7 +294,7 @@ TERMS_OF_SERVICE = dedent(
 
     ## 부칙
 
-    본 약관은 2026년 9월 12일부터 시행합니다.
+    본 약관은 2026년 9월 13일부터 시행합니다.
     """
 ).strip()
 
@@ -303,7 +303,7 @@ PRIVACY_POLICY = dedent(
     f"""
     # {SERVICE_NAME} 개인정보 수집·이용 동의
 
-    {SERVICE_NAME}은 서비스 제공을 위해 다음과 같이
+    {SERVICE_NAME}는 서비스 제공을 위해 다음과 같이
     개인정보를 수집·이용합니다.
 
     ## 1. 개인정보 수집·이용 목적
@@ -453,7 +453,7 @@ PRIVACY_POLICY = dedent(
     ## 10. 시행일
 
     본 개인정보 수집·이용 동의는
-    2026년 9월 12일부터 시행합니다.
+    2026년 9월 13일부터 시행합니다.
     """
 ).strip()
 
@@ -541,35 +541,35 @@ MARKETING = dedent(
     ## 8. 시행일
 
     본 홍보 및 마케팅 정보 수신 동의는
-    2026년 9월 12일부터 시행합니다.
+    2026년 9월 13일부터 시행합니다.
     """
 ).strip()
 
 
 TERMS: dict[str, TermDocument] = {
-    "TERMS_OF_SERVICE_1.1": TermDocument(
+    "TERMS_OF_SERVICE_1.2": TermDocument(
         term_code=TermCode.TERMS_OF_SERVICE,
         title="서비스 이용약관",
         required=True,
-        version="1.1",
+        version="1.2",
         content=TERMS_OF_SERVICE,
         effective_at=EFFECTIVE_AT,
         active=True,
     ),
-    "PRIVACY_POLICY_1.1": TermDocument(
+    "PRIVACY_POLICY_1.2": TermDocument(
         term_code=TermCode.PRIVACY_POLICY,
         title="개인정보 수집·이용 동의",
         required=True,
-        version="1.1",
+        version="1.2",
         content=PRIVACY_POLICY,
         effective_at=EFFECTIVE_AT,
         active=True,
     ),
-    "MARKETING_1.1": TermDocument(
+    "MARKETING_1.2": TermDocument(
         term_code=TermCode.MARKETING,
         title="홍보 및 마케팅 이용 동의",
         required=False,
-        version="1.1",
+        version="1.2",
         content=MARKETING,
         effective_at=EFFECTIVE_AT,
         active=True,
@@ -577,17 +577,20 @@ TERMS: dict[str, TermDocument] = {
 }
 
 
-# 기존 개발용 1.0 약관은 삭제하지 않고 기록으로 보존한 채
+# 기존 약관은 삭제하지 않고 기록으로 보존한 채
 # API에서 노출되지 않도록 비활성화합니다.
 #
 # LOCATION_BASED_SERVICE는 현재 서비스가 기기 GPS나 현재 위치정보를
 # 수집·이용하지 않으므로 새 버전을 생성하지 않습니다.
 INACTIVE_TERM_IDS = (
     "TERMS_OF_SERVICE_1.0",
+    "TERMS_OF_SERVICE_1.1",
     "PRIVACY_POLICY_1.0",
+    "PRIVACY_POLICY_1.1",
     "LOCATION_BASED_SERVICE_1.0",
     "LOCATION_BASED_SERVICE_1.1",
     "MARKETING_1.0",
+    "MARKETING_1.1",
 )
 
 
@@ -636,7 +639,7 @@ def seed_terms() -> None:
     deactivate_old_terms()
 
     print(
-        f"\n총 {len(TERMS)}개 활성 약관 1.1 저장 완료"
+        f"\n총 {len(TERMS)}개 활성 약관 1.2 저장 완료"
     )
 
 

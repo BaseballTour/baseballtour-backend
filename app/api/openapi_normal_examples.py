@@ -163,8 +163,8 @@ REQUEST_EXAMPLES = {
     },
     ("patch", "/api/v1/users/me/support-team"): {"supportTeamId": "lg"},
     ("post", "/api/v1/users/me/term-agreements"): {"agreements": [
-        {"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True},
-        {"termCode": "PRIVACY_POLICY", "version": "1.0", "agreed": True}]},
+        {"termCode": "TERMS_OF_SERVICE", "version": "1.2", "agreed": True},
+        {"termCode": "PRIVACY_POLICY", "version": "1.2", "agreed": True}]},
 }
 COLLECTION = {"collectionId": "collection_001", "name": "고척 원정 후보", "isDefault": False,
               "thumbnailUrl": PLACE["thumbnailUrl"],
@@ -334,7 +334,7 @@ SUCCESS_EXAMPLES = {
         }
     ),
     ("get", "/api/v1/teams", "200"): _list([{"teamId": "lg", "name": "LG 트윈스", "shortName": "LG", "logoUrl": "https://example.com/lg.png", "homeRegion": "서울", "stadiumId": "jamsil"}]),
-    ("get", "/api/v1/terms", "200"): _list([{"termCode": "TERMS_OF_SERVICE", "title": "서비스 이용약관", "required": True, "version": "1.0", "content": "약관 내용", "effectiveAt": "2026-08-01T00:00:00+09:00"}]),
+    ("get", "/api/v1/terms", "200"): _list([{"termCode": "TERMS_OF_SERVICE", "title": "서비스 이용약관", "required": True, "version": "1.2", "content": "약관 내용", "effectiveAt": "2026-08-01T00:00:00+09:00"}]),
     ("post", "/api/v1/trips", "201"): _success(TRIP_SUMMARY),
     ("get", "/api/v1/trips", "200"): _list([TRIP_SUMMARY]),
     ("get", "/api/v1/trips/{tripId}", "200"): _success(TRIP_DETAIL),
@@ -356,7 +356,7 @@ SUCCESS_EXAMPLES = {
     ("get", "/api/v1/users/me", "200"): _success(USER),
     ("patch", "/api/v1/users/me", "200"): _success(USER),
     ("patch", "/api/v1/users/me/support-team", "200"): _success(USER),
-    ("post", "/api/v1/users/me/term-agreements", "200"): _success({"agreements": [{"termCode": "TERMS_OF_SERVICE", "version": "1.0", "agreed": True, "agreedAt": "2026-08-15T10:00:00+09:00"}]}),
+    ("post", "/api/v1/users/me/term-agreements", "200"): _success({"agreements": [{"termCode": "TERMS_OF_SERVICE", "version": "1.2", "agreed": True, "agreedAt": "2026-08-15T10:00:00+09:00"}]}),
     ("get", "/api/v1/tour/nearby", "200"): _list([PLACE]),
     ("get", "/api/v1/tour/favorite-counts", "200"): _list([
         {"placeId": PLACE["placeId"], "favoriteCount": 12}

@@ -5641,7 +5641,7 @@
                           "termCode": "TERMS_OF_SERVICE",
                           "title": "서비스 이용약관",
                           "required": true,
-                          "version": "1.0",
+                          "version": "1.2",
                           "content": "약관 내용",
                           "effectiveAt": "2026-08-01T00:00:00+09:00"
                         }
@@ -18364,12 +18364,12 @@
                     "agreements": [
                       {
                         "termCode": "TERMS_OF_SERVICE",
-                        "version": "1.0",
+                        "version": "1.2",
                         "agreed": true
                       },
                       {
                         "termCode": "PRIVACY_POLICY",
-                        "version": "1.0",
+                        "version": "1.2",
                         "agreed": true
                       }
                     ]
@@ -18397,7 +18397,7 @@
                         "agreements": [
                           {
                             "termCode": "TERMS_OF_SERVICE",
-                            "version": "1.0",
+                            "version": "1.2",
                             "agreed": true,
                             "agreedAt": "2026-08-15T10:00:00+09:00"
                           }
