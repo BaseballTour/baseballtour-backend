@@ -64,6 +64,22 @@
 
 ## v1.1 주요 계약 변경
 
+### 최초 사용자 프로필 생성 시 응원팀 미정 허용
+
+`POST /api/v1/users/me/bootstrap`의 `supportTeamId`는 선택 필드다.
+
+응원팀을 아직 정하지 않은 사용자는 `supportTeamId`를 생략하거나
+명시적으로 `null`을 전달할 수 있다.
+
+이 경우 사용자 문서의 `supportTeamId`는 `null`로 저장되며,
+사용자 응답의 `supportTeam`도 `null`로 반환한다.
+
+실제 `supportTeamId`가 전달된 경우에는 기존과 동일하게 구단 존재 여부를
+검증하며, 존재하지 않는 구단 ID는 `TEAM_NOT_FOUND` 오류로 처리한다.
+
+`PATCH /api/v1/users/me`의 기존 계약은 유지하므로,
+프로필 수정에서 `supportTeamId: null`로 응원팀을 해제하는 것은 허용하지 않는다.
+
 ### 사용자 프로필 통합 수정
 
 `PATCH /api/v1/users/me`에서 사용자 프로필을 통합 수정한다.

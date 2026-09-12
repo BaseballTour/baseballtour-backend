@@ -26010,16 +26010,24 @@
             "description": "휴대폰 번호"
           },
           "supportTeamId": {
-            "type": "string",
-            "title": "Supportteamid"
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supportteamid",
+            "description": "응원팀 ID. null 또는 생략 시 응원팀 미정"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "nickname",
-          "birthYear",
-          "supportTeamId"
+          "birthYear"
         ],
         "title": "UserBootstrapRequest",
         "description": "최초 사용자 프로필 생성 요청.",
@@ -26121,7 +26129,14 @@
             "title": "Profileimageurl"
           },
           "supportTeam": {
-            "$ref": "#/components/schemas/SupportTeamResponse"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportTeamResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "onboardingCompleted": {
             "type": "boolean",
