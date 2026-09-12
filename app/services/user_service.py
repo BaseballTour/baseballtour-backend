@@ -279,7 +279,13 @@ class UserService:
             )
         return self._favorite_collection_service
 
-    def _get_team_or_raise(self, team_id: str) -> TeamResponse:
+    def _get_team_or_raise(
+        self,
+        team_id: str | None,
+    ) -> TeamResponse | None:
+        if team_id is None:
+            return None
+
         team = self._team_repository.get_by_id(team_id)
 
         if team is None:
@@ -296,7 +302,7 @@ class UserService:
         *,
         user_id: str,
         user: UserDocument,
-        team: TeamResponse,
+        team: TeamResponse | None,
     ) -> UserResponse:
         return UserResponse(
             user_id=user_id,
@@ -318,10 +324,14 @@ class UserService:
                     else None
                 )
             ),
-            support_team=SupportTeamResponse(
-                team_id=team.team_id,
-                name=team.name,
-                logo_url=resolve_team_logo_url(team),
+            support_team=(
+                SupportTeamResponse(
+                    team_id=team.team_id,
+                    name=team.name,
+                    logo_url=resolve_team_logo_url(team),
+                )
+                if team is not None
+                else None
             ),
             onboarding_completed=user.onboarding_completed,
             created_at=user.created_at,

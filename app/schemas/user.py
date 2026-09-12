@@ -24,7 +24,7 @@ class UserDocument(ApiModel):
     gender: UserGender | None = None
     name: str | None = None
     phone_number: str | None = None
-    support_team_id: str
+    support_team_id: str | None = None
     profile_image_url: str | None = None
     profile_image_storage_path: str | None = None
     onboarding_completed: bool
@@ -62,7 +62,11 @@ class UserBootstrapRequest(ApiModel):
         max_length=20,
         description="휴대폰 번호",
     )
-    support_team_id: str
+    support_team_id: str | None = Field(
+        default=None,
+        min_length=1,
+        description="응원팀 ID. null 또는 생략 시 응원팀 미정",
+    )
 
 
 class UserUpdateRequest(ApiModel):
@@ -206,7 +210,7 @@ class UserResponse(ApiModel):
     name: str | None = None
     phone_number: str | None = None
     profile_image_url: str | None = None
-    support_team: SupportTeamResponse
+    support_team: SupportTeamResponse | None
     onboarding_completed: bool
     created_at: datetime
     updated_at: datetime | None = None

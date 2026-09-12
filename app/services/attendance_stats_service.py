@@ -60,7 +60,7 @@ class AttendanceStatsService:
         self,
         *,
         user_id: str,
-        current_support_team_id: str,
+        current_support_team_id: str | None,
     ) -> AttendanceStatsResponse:
         logs = (
             self._attendance_log_repository
