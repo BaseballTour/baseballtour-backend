@@ -96,3 +96,85 @@ def test_resolve_place_uses_player_pick_as_canonical_id() -> None:
     assert place is not None
     assert place.player_pick_id == place.place_id == "player_pick_001"
     assert place.recommended_by_players == ["테스트 선수"]
+
+
+def test_stadium_places_merge_aliases_resolved_to_same_kakao_place() -> None:
+    first = make_record().model_copy(
+        update={
+            "player_name": "LG 전체 선수",
+            "place_name": "잠실고박사",
+            "address": "서울 송파구 백제고분로7길 8",
+        }
+    )
+    second = make_record().model_copy(
+        update={
+            "player_pick_id": "player_pick_002",
+            "player_name": "천성호",
+            "place_name": "고박사 잠실새내점",
+            "address": "서울 송파구 백제고분로7길 8",
+        }
+    )
+
+    class DuplicateRepository(FakeRepository):
+        def get_all(self, **kwargs):
+            return [first, second]
+
+    async def duplicate_searcher(query: str, **kwargs):
+        return KakaoPlacePage(
+            documents=[{
+                "id": "123",
+                "place_name": query,
+                "road_address_name": "서울 송파구 백제고분로7길 8",
+                "address_name": "서울 송파구 잠실동",
+                "x": "127.081234",
+                "y": "37.511234",
+                "phone": "02-123-4567",
+                "place_url": "https://place.map.kakao.com/123",
+            }],
+            is_end=True,
+        )
+
+    service = PlayerPickService(
+        repository=DuplicateRepository(),
+        searcher=duplicate_searcher,
+    )
+    places = asyncio.run(service.get_places_for_stadium("jamsil"))
+
+    assert len(places) == 1
+    assert places[0].name == "잠실고박사"
+    assert places[0].recommended_by_players == ["LG 전체 선수", "천성호"]
+
+
+def test_stadium_places_merge_same_location_when_one_kakao_id_is_missing() -> None:
+    first = make_record().model_copy(
+        update={"player_name": "LG 전체 선수"}
+    )
+    second = make_record(None).model_copy(
+        update={
+            "player_pick_id": "player_pick_002",
+            "player_name": "천성호",
+            "place_name": "고박사 잠실새내점",
+        }
+    )
+
+    class DuplicateRepository(FakeRepository):
+        def get_all(self, **kwargs):
+            return [first, second]
+
+    async def mixed_searcher(query: str, **kwargs):
+        if query == "고박사 잠실새내점":
+            return KakaoPlacePage(documents=[], is_end=True)
+        return await fake_searcher(query, **kwargs)
+
+    async def same_location_geocoder(address: str):
+        return [{"x": "126.81234567", "y": "37.51234567"}]
+
+    service = PlayerPickService(
+        repository=DuplicateRepository(),
+        searcher=mixed_searcher,
+        geocoder=same_location_geocoder,
+    )
+    places = asyncio.run(service.get_places_for_stadium("jamsil"))
+
+    assert len(places) == 1
+    assert places[0].recommended_by_players == ["LG 전체 선수", "천성호"]
