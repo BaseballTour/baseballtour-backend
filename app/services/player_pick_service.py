@@ -39,11 +39,75 @@ class PlayerPickService:
         places = await asyncio.gather(
             *(self._resolve_record_place(record) for record in records)
         )
-        return [
+        tagged = [
             self._tag_place(record, place)
             for record, place in zip(records, places, strict=True)
             if place is not None
         ]
+        return self._deduplicate_resolved_places(tagged)
+
+    @classmethod
+    def _deduplicate_resolved_places(cls, places: list[Place]) -> list[Place]:
+        """같은 실제 매장의 선수별 추천 기록을 후보 한 곳으로 합친다."""
+
+        merged: list[Place] = []
+        for place in places:
+            existing_index = next(
+                (
+                    index
+                    for index, existing in enumerate(merged)
+                    if cls._same_resolved_place(existing, place)
+                ),
+                None,
+            )
+            if existing_index is None:
+                merged.append(place)
+                continue
+
+            existing = merged[existing_index]
+            players = list(
+                dict.fromkeys(
+                    [
+                        *existing.recommended_by_players,
+                        *place.recommended_by_players,
+                    ]
+                )
+            )
+            notes = list(
+                dict.fromkeys(
+                    note
+                    for note in (
+                        existing.recommendation_note,
+                        place.recommendation_note,
+                    )
+                    if note
+                )
+            )
+            merged[existing_index] = existing.model_copy(
+                update={
+                    "recommended_by_players": players,
+                    "recommendation_note": " · ".join(notes) or None,
+                }
+            )
+        return merged
+
+    @classmethod
+    def _same_resolved_place(cls, first: Place, second: Place) -> bool:
+        if (
+            first.kakao_place_id
+            and second.kakao_place_id
+            and first.kakao_place_id == second.kakao_place_id
+        ):
+            return True
+        first_address = cls._normalize(first.address)
+        second_address = cls._normalize(second.address)
+        return bool(
+            first_address
+            and first_address == second_address
+            and first.category == second.category
+            and abs(first.latitude - second.latitude) <= 0.0002
+            and abs(first.longitude - second.longitude) <= 0.0002
+        )
 
     async def _resolve_record_place(
         self, record: PlayerPickRecord
