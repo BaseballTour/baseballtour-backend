@@ -98,6 +98,45 @@ def test_player_pick_replaces_same_tour_candidate_and_gets_small_bonus() -> None
     ]
 
 
+def test_player_picks_are_mixed_with_ordinary_recommendations() -> None:
+    ordinary = [
+        Place(
+            place_id=f"tour_{index}",
+            name=f"일반 장소 {index}",
+            category=PlaceCategory.RESTAURANT,
+            latitude=37.5,
+            longitude=126.8,
+            source=PlaceSource.TOUR_API,
+            source_content_id=f"tour-source-{index}",
+            distance_meters=100 + index * 10,
+        )
+        for index in range(4)
+    ]
+    player_picks = [
+        ordinary[0].model_copy(
+            update={
+                "place_id": f"player_pick_{index}",
+                "source_content_id": f"player-source-{index}",
+                "distance_meters": 100 + index * 10,
+                "is_player_pick": True,
+                "player_pick_id": f"player_pick_{index}",
+            }
+        )
+        for index in range(4)
+    ]
+
+    merged = ItineraryGenerationService._merge_player_pick_candidates(
+        ordinary, player_picks
+    )
+
+    assert any(place.is_player_pick for place in merged[:3])
+    assert sum(place.is_player_pick for place in merged[:3]) == 1
+    assert all(
+        sum(place.is_player_pick for place in merged[index : index + 3]) <= 1
+        for index in range(0, 4)
+    )
+
+
 def make_trip(
     *,
     user_id: str = USER_ID,

@@ -1370,14 +1370,53 @@ class ItineraryGenerationService:
             if place.source_content_id not in player_source_ids
         ]
         merged.extend(player_picks)
-        return sorted(
+        ranked = sorted(
             merged,
             key=lambda place: (
                 (place.distance_meters or float("inf"))
-                - (1000 if place.is_player_pick else 0),
+                - (200 if place.is_player_pick else 0),
                 place.place_id,
             ),
         )
+        return ItineraryGenerationService._mix_player_pick_candidates(ranked)
+
+    @staticmethod
+    def _mix_player_pick_candidates(ranked: list[Place]) -> list[Place]:
+        """선수 추천을 우대하되 첫 화면을 선수 추천만으로 채우지 않는다.
+
+        거리 기반 순서는 유지하면서 최근 세 후보 중 선수 추천이 이미 있으면
+        다음 일반 후보를 먼저 꺼낸다. 일반 후보가 부족할 때는 선수 추천을
+        누락하지 않고 뒤에 이어 붙인다.
+        """
+
+        ordinary = [place for place in ranked if not place.is_player_pick]
+        player_picks = [place for place in ranked if place.is_player_pick]
+        mixed: list[Place] = []
+        while ordinary or player_picks:
+            next_ranked = next(
+                (
+                    place
+                    for place in ranked
+                    if place in ordinary or place in player_picks
+                ),
+                None,
+            )
+            player_pick_recently_shown = any(
+                place.is_player_pick for place in mixed[-2:]
+            )
+            if (
+                player_pick_recently_shown
+                and ordinary
+            ):
+                chosen = ordinary.pop(0)
+            elif next_ranked is not None and next_ranked.is_player_pick:
+                chosen = player_picks.pop(0)
+            elif ordinary:
+                chosen = ordinary.pop(0)
+            else:
+                chosen = player_picks.pop(0)
+            mixed.append(chosen)
+        return mixed
 
     @staticmethod
     def _straight_distance_meters(

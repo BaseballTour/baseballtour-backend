@@ -271,6 +271,83 @@ def test_lunch_restaurant_is_prioritized_over_non_meal_place() -> None:
     assert 11 <= first_day_places[0].scheduled_start_at.hour <= 14
 
 
+def test_selected_restaurant_uses_a_meal_window() -> None:
+    selected = place(
+        "selected_restaurant", category=PlaceCategory.RESTAURANT
+    )
+    result = generate_itinerary(
+        one_day_trip().model_copy(
+            update={
+                "selected_places": [
+                    SelectedPlaceInput(place_id=selected.place_id)
+                ]
+            }
+        ),
+        [selected],
+        matrix(selected.place_id),
+    )
+
+    item = next(
+        item
+        for item in result.days[0].items
+        if item.place_id == selected.place_id
+    )
+    assert 7 <= item.scheduled_start_at.hour <= 20
+    assert not 10 < item.scheduled_start_at.hour < 11
+    assert not 14 < item.scheduled_start_at.hour < 17
+
+
+def test_auto_fill_does_not_create_a_restaurant_chain() -> None:
+    selected = place(
+        "selected_restaurant", category=PlaceCategory.RESTAURANT
+    )
+    player_breakfast = place(
+        "player_pick_breakfast",
+        category=PlaceCategory.RESTAURANT,
+        is_player_pick=True,
+    )
+    player_dinner = place(
+        "player_pick_dinner",
+        category=PlaceCategory.RESTAURANT,
+        is_player_pick=True,
+    )
+    attraction = place("attraction")
+    current_trip = one_day_trip().model_copy(
+        update={
+            "selected_places": [
+                SelectedPlaceInput(place_id=selected.place_id)
+            ]
+        }
+    )
+    result = generate_itinerary(
+        current_trip,
+        [selected],
+        matrix(
+            selected.place_id,
+            player_breakfast.place_id,
+            player_dinner.place_id,
+            attraction.place_id,
+            default=1,
+        ),
+        recommended_places=[
+            player_breakfast,
+            player_dinner,
+            attraction,
+        ],
+    )
+
+    places = [
+        item
+        for item in result.days[0].items
+        if item.item_type == ItineraryItemType.PLACE
+    ]
+    assert not any(
+        previous.category == PlaceCategory.RESTAURANT
+        and current.category == PlaceCategory.RESTAURANT
+        for previous, current in zip(places, places[1:])
+    )
+
+
 def test_departure_day_dinner_is_filled_when_time_is_available() -> None:
     restaurant = place(
         "dinner_restaurant",
