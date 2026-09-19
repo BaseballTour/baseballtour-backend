@@ -363,6 +363,18 @@ TourAPI가 일시적으로 실패해도 큐레이션 목록을 반환할 수 있
 프론트가 중복 전송하지 않고 백엔드가 `gameId`로 조회한다. 숙소는 카카오 검색 또는
 지도 선택 결과를 사용하며 체크인·체크아웃 시각은 받지 않는다.
 
+여행 생성 화면을 다시 열 때 프론트는 기본 시간을 새로 대입하지 않고
+`GET /api/v1/trips/{tripId}`의 `tripStartAt`, `tripEndAt`을 입력값으로 복원한다.
+사용자가 시간을 변경하면 `PATCH /api/v1/trips/{tripId}`로 저장한 뒤 다음 단계로
+이동한다. 두 필드는 여행 문서에 저장되므로 별도의 로컬 임시 저장 필드는 필요 없다.
+
+`GET /api/v1/trips/{tripId}/recommendation-candidates`의 기본
+`RECOMMENDED` 정렬은 선수 추천을 가까운 일반 후보보다 조금 우대하지만, 첫 화면이
+선수 추천만으로 채워지지 않도록 최근 세 후보당 최대 한 곳으로 섞는다. 선수 추천
+장소의 실제 카테고리가 `RESTAURANT`이면 일정 생성에서도 일반 식당과 동일하게
+아침·점심·저녁 슬롯을 사용하며, 선택 식당과 연속 배치되는 자동 선수 추천 식당은
+삽입하지 않는다.
+
 숙소 검색 응답은 `accommodation_kakao_{Kakao 장소 ID}`, 지도 선택 응답은
 `accommodation_map_{hash}` 형식의 `accommodationId`를 제공한다. 프론트는 이 ID와
 이름·주소·좌표를 여행 요청에 전달하며 검색 응답의 `kakaoPlaceId`는 다시 보내지

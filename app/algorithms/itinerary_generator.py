@@ -236,7 +236,7 @@ def generate_itinerary(
     )
     result = ItineraryResult(
         trip_id=trip.trip_id,
-        algorithm_version="auto-fill-v0.7",
+        algorithm_version="auto-fill-v0.8",
         total_travel_minutes=total,
         total_travel_distance_meters=total_distance,
         days=days,
@@ -491,39 +491,56 @@ def _assign_places_to_dates(
                 target_date, day_type, trip, matrix
             )
             current = routes[target_date]
+            current_result = simulate_route_detailed(current, **args)
+            current_meals = (
+                _covered_meal_periods(current_result.visits)
+                if current_result.feasible
+                else set()
+            )
             current_cost = route_travel_minutes(
                 args["start_id"], current, args["end_id"], matrix
             )
-            for index in range(len(current) + 1):
-                proposed = [*current[:index], place, *current[index:]]
-                result = simulate_route_detailed(proposed, **args)
-                if not result.feasible:
-                    if result.failure is not None and (
-                        result.failure.place_id in {None, place.place_id}
-                    ):
-                        failure_codes.append(result.failure.reason_code)
-                    continue
-                marginal = route_travel_minutes(
-                    args["start_id"], proposed, args["end_id"], matrix
-                ) - current_cost
-                closing_slack = (
-                    result.closing_slack_minutes
-                    if result.closing_slack_minutes is not None
-                    else 24 * 60
-                )
-                anchor_slack = result.anchor_slack_minutes or 0
-                score = (
-                    _date_affinity_penalty(
-                        place, target_date, trip, matrix
-                    ),
-                    marginal,
-                    closing_slack,
-                    -anchor_slack,
-                    target_date.toordinal(),
-                    index,
-                )
-                if best is None or score < best[0]:
-                    best = (score, target_date, proposed)
+            place_variants = _places_for_open_meal_periods(
+                place,
+                current_meals,
+                target_date=target_date,
+                available_start=args["available_start"],
+                available_end=args["available_end"],
+            )
+            if not place_variants:
+                failure_codes.append(ExcludedReasonCode.INSUFFICIENT_TIME)
+                continue
+            for candidate in place_variants:
+                for index in range(len(current) + 1):
+                    proposed = [*current[:index], candidate, *current[index:]]
+                    result = simulate_route_detailed(proposed, **args)
+                    if not result.feasible:
+                        if result.failure is not None and (
+                            result.failure.place_id in {None, place.place_id}
+                        ):
+                            failure_codes.append(result.failure.reason_code)
+                        continue
+                    marginal = route_travel_minutes(
+                        args["start_id"], proposed, args["end_id"], matrix
+                    ) - current_cost
+                    closing_slack = (
+                        result.closing_slack_minutes
+                        if result.closing_slack_minutes is not None
+                        else 24 * 60
+                    )
+                    anchor_slack = result.anchor_slack_minutes or 0
+                    score = (
+                        _date_affinity_penalty(
+                            candidate, target_date, trip, matrix
+                        ),
+                        marginal,
+                        closing_slack,
+                        -anchor_slack,
+                        target_date.toordinal(),
+                        index,
+                    )
+                    if best is None or score < best[0]:
+                        best = (score, target_date, proposed)
 
         if best is None:
             failures[place.place_id] = _representative_failure(
@@ -726,7 +743,10 @@ def _fill_routes_with_recommendations(
                             "ROUTE_INEFFICIENT"
                         ] += 1
                         continue
-                    if _has_duplicate_meal_restaurants(result.visits):
+                    if (
+                        place.is_player_pick
+                        and _has_consecutive_restaurants(proposed)
+                    ):
                         rejected["CONSECUTIVE_RESTAURANT"] += 1
                         rejected_by_day[target_date][
                             "CONSECUTIVE_RESTAURANT"
@@ -915,16 +935,37 @@ def _place_for_next_meal_period(
 ) -> Place | None:
     """식당을 아직 비어 있는 다음 식사 시간대로 제한해 대기 배치한다."""
 
+    variants = _places_for_open_meal_periods(
+        place,
+        covered_periods,
+        target_date=target_date,
+        available_start=available_start,
+        available_end=available_end,
+    )
+    return variants[0] if variants else None
+
+
+def _places_for_open_meal_periods(
+    place: Place,
+    covered_periods: set[str],
+    *,
+    target_date: date,
+    available_start: datetime,
+    available_end: datetime,
+) -> list[Place]:
+    """식당을 비어 있는 식사 시간대별 후보로 변환한다."""
+
     if place.category != PlaceCategory.RESTAURANT:
-        return place
+        return [place]
     if _is_closed(place, target_date):
-        return None
+        return []
 
     weekday = list(Weekday)[target_date.weekday()]
     real_open, real_close = _hours_for_date(place, target_date)
     parsed_open = _parse_time(real_open)
     parsed_close = _parse_time(real_close)
 
+    variants: list[Place] = []
     for period, window_open, window_close in MEAL_WINDOWS:
         if period in covered_periods:
             continue
@@ -948,19 +989,21 @@ def _place_for_next_meal_period(
             )
         if open_at + timedelta(minutes=place.default_stay_minutes) > close_at:
             continue
-        return place.model_copy(
-            update={
-                "business_hours_status": BusinessRuleStatus.PARSED,
-                "business_hours_rules": [
-                    BusinessHoursRule(
-                        weekdays=[weekday],
-                        open_time=open_at.strftime("%H:%M"),
-                        close_time=close_at.strftime("%H:%M"),
-                    )
-                ],
-            }
+        variants.append(
+            place.model_copy(
+                update={
+                    "business_hours_status": BusinessRuleStatus.PARSED,
+                    "business_hours_rules": [
+                        BusinessHoursRule(
+                            weekdays=[weekday],
+                            open_time=open_at.strftime("%H:%M"),
+                            close_time=close_at.strftime("%H:%M"),
+                        )
+                    ],
+                }
+            )
         )
-    return None
+    return variants
 
 
 def _covered_meal_periods(visits) -> set[str]:

@@ -630,7 +630,9 @@ def delete_place_selection(
     description=(
         "경기장·도착지·출발지·숙소 주변의 TourAPI 및 선수 추천 장소를 "
         "중복 제거 후 반환합니다. keyword·filterId·sort는 전체 후보에 "
-        "먼저 적용되며, 그 결과를 pageSize·pageToken으로 나눕니다."
+        "먼저 적용되며, 그 결과를 pageSize·pageToken으로 나눕니다. "
+        "RECOMMENDED 정렬에서는 선수 추천 장소에 작은 우선순위를 주되 "
+        "최근 세 후보에 하나 이하가 되도록 일반 장소와 섞어 반환합니다."
     ),
 )
 async def get_recommendation_candidates(
