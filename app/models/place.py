@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from urllib.parse import quote
 
@@ -39,6 +39,12 @@ class PlaceSource(str, Enum):
     KAKAO = "KAKAO"
     LOCAL_DATA = "LOCAL_DATA"
     USER_PICK = "USER_PICK"
+
+
+class RecommendationEvidenceStatus(str, Enum):
+    UNVERIFIED = "UNVERIFIED"
+    VERIFIED = "VERIFIED"
+    DISPUTED = "DISPUTED"
 
 
 class BusinessRuleStatus(str, Enum):
@@ -255,6 +261,41 @@ class Place(BaseModel):
     recommendation_note: str | None = Field(
         default=None,
         description="선수 추천에 대한 관리자 설명",
+    )
+
+    stadium_id: str | None = Field(
+        default=None,
+        description="선수 추천 장소가 연결된 구장 ID",
+    )
+
+    recommended_by_player_positions: list[str] = Field(
+        default_factory=list,
+        description="추천 선수의 포지션 목록",
+    )
+
+    recommendation_evidence_status: RecommendationEvidenceStatus | None = Field(
+        default=None,
+        description="선수 추천 근거의 확인 상태",
+    )
+
+    recommendation_source_url: str | None = Field(
+        default=None,
+        description="선수가 해당 장소를 언급한 영상·기사·게시물 URL",
+    )
+
+    recommendation_source_title: str | None = Field(
+        default=None,
+        description="추천 근거의 영상·기사·게시물 제목",
+    )
+
+    recommendation_source_publisher: str | None = Field(
+        default=None,
+        description="추천 근거를 게시한 구단·방송사·채널명",
+    )
+
+    recommendation_verified_at: datetime | None = Field(
+        default=None,
+        description="추천 근거를 마지막으로 확인한 시각",
     )
 
     enriched_by: list[PlaceSource] = Field(

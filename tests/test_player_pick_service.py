@@ -48,12 +48,12 @@ def test_player_pick_service_resolves_kakao_live_without_hours() -> None:
     service = PlayerPickService(repository=FakeRepository(), searcher=fake_searcher)
     [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
 
-    assert result.place.place_id == "player_pick_001"
-    assert result.place.latitude == 37.512346
-    assert result.place.telephone == "02-123-4567"
-    assert result.place.business_hours_status == "MISSING"
-    assert result.place.business_hours_rules == []
-    assert result.place.is_player_pick is True
+    assert result.place_id == "player_pick_001"
+    assert result.latitude == 37.512346
+    assert result.telephone == "02-123-4567"
+    assert result.business_hours_status == "MISSING"
+    assert result.business_hours_rules == []
+    assert result.is_player_pick is True
 
 
 def test_player_pick_service_matches_name_and_address_without_kakao_id() -> None:
@@ -63,8 +63,8 @@ def test_player_pick_service_matches_name_and_address_without_kakao_id() -> None
 
     service = PlayerPickService(repository=UnlinkedRepository(), searcher=fake_searcher)
     [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
-    assert result.place.name == "테스트 음식점"
-    assert result.place.kakao_place_id == "123"
+    assert result.name == "테스트 음식점"
+    assert result.kakao_place_id == "123"
 
 
 def test_player_pick_service_geocodes_address_as_last_fallback() -> None:
@@ -85,9 +85,9 @@ def test_player_pick_service_geocodes_address_as_last_fallback() -> None:
         geocoder=fake_geocoder,
     )
     [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
-    assert result.place.latitude == 37.5
-    assert result.place.kakao_place_id is None
-    assert result.place.telephone is None
+    assert result.latitude == 37.5
+    assert result.kakao_place_id is None
+    assert result.telephone is None
 
 
 def test_resolve_place_uses_player_pick_as_canonical_id() -> None:
@@ -122,6 +122,9 @@ def test_player_pick_response_exposes_recommendation_source() -> None:
     )
     [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
 
+    assert result.stadium_id == "gocheok"
+    assert result.recommended_by_players == ["테스트 선수"]
+    assert result.recommended_by_player_positions == ["INFIELDER"]
     assert result.recommendation_evidence_status == "VERIFIED"
     assert result.recommendation_source_url.endswith("watch?v=source")
     assert result.recommendation_source_title == "선수 추천 맛집"

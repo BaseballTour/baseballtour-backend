@@ -1,3 +1,6 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from fastapi.testclient import TestClient
 
 from app.api.v1.endpoints import tour as tour_endpoint
@@ -9,7 +12,6 @@ from app.models.place import (
     PlaceCategory,
     PlaceSource,
 )
-from app.schemas.player_pick import PlayerPickResponse
 
 
 client = TestClient(app)
@@ -194,25 +196,35 @@ def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
             *,
             stadium_id: str,
             player_name: str | None = None,
-        ) -> list[PlayerPickResponse]:
+        ) -> list[Place]:
             received["stadium_id"] = stadium_id
             received["player_name"] = player_name
             return [
-                PlayerPickResponse(
-                    player_pick_id="player_pick_001",
-                    stadium_id=stadium_id,
-                    player_name=player_name or "테스트 선수",
-                    player_position="INFIELDER",
-                    place=make_place(),
-                    recommendation_note="선수 부모님이 운영하는 가게",
-                    recommendation_evidence_status="VERIFIED",
-                    recommendation_source_url=(
+                make_place().model_copy(update={
+                    "place_id": "player_pick_001",
+                    "is_player_pick": True,
+                    "player_pick_id": "player_pick_001",
+                    "stadium_id": stadium_id,
+                    "recommended_by_players": [player_name or "테스트 선수"],
+                    "recommended_by_player_positions": ["INFIELDER"],
+                    "recommendation_note": "선수 부모님이 운영하는 가게",
+                    "recommendation_evidence_status": "VERIFIED",
+                    "recommendation_source_url": (
                         "https://www.youtube.com/watch?v=source"
                     ),
-                    recommendation_source_title="선수 추천 맛집",
-                    recommendation_source_publisher="구단 공식 채널",
-                    recommendation_verified_at="2026-09-13T12:00:00+09:00",
-                )
+                    "recommendation_source_title": "선수 추천 맛집",
+                    "recommendation_source_publisher": "구단 공식 채널",
+                    "recommendation_verified_at": (
+                        datetime(
+                            2026,
+                            9,
+                            13,
+                            12,
+                            0,
+                            tzinfo=ZoneInfo("Asia/Seoul"),
+                        )
+                    ),
+                })
             ]
 
     monkeypatch.setattr(
@@ -227,11 +239,16 @@ def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["data"][0]["place"]["placeId"] == "tour_123456"
+    assert response.json()["data"][0]["placeId"] == "player_pick_001"
     assert response.json()["data"][0]["recommendationNote"] == (
         "선수 부모님이 운영하는 가게"
     )
-    assert response.json()["data"][0]["playerPosition"] == "INFIELDER"
+    assert response.json()["data"][0]["recommendedByPlayers"] == [
+        "테스트 선수"
+    ]
+    assert response.json()["data"][0]["recommendedByPlayerPositions"] == [
+        "INFIELDER"
+    ]
     assert response.json()["data"][0]["recommendationSourceUrl"] == (
         "https://www.youtube.com/watch?v=source"
     )

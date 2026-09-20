@@ -2,7 +2,7 @@ from enum import Enum
 
 from pydantic import AwareDatetime, Field
 
-from app.models.place import Place, PlaceCategory
+from app.models.place import PlaceCategory, RecommendationEvidenceStatus
 from app.schemas.base import ApiModel
 
 
@@ -14,12 +14,6 @@ class PlayerPosition(str, Enum):
     COACH = "COACH"
     STAFF = "STAFF"
     TEAM_GROUP = "TEAM_GROUP"
-
-
-class RecommendationEvidenceStatus(str, Enum):
-    UNVERIFIED = "UNVERIFIED"
-    VERIFIED = "VERIFIED"
-    DISPUTED = "DISPUTED"
 
 
 class PlayerPickDocument(ApiModel):
@@ -80,20 +74,3 @@ class PlayerPickRecord(PlayerPickDocument):
     player_pick_id: str = Field(min_length=1)
 
 
-class PlayerPickResponse(ApiModel):
-    player_pick_id: str
-    stadium_id: str
-    player_name: str
-    player_position: PlayerPosition | None = None
-    place: Place
-    recommendation_note: str | None = None
-    recommendation_evidence_status: RecommendationEvidenceStatus = (
-        RecommendationEvidenceStatus.UNVERIFIED
-    )
-    recommendation_source_url: str | None = Field(
-        default=None,
-        description="선수가 해당 장소를 언급한 영상·기사·게시물 URL",
-    )
-    recommendation_source_title: str | None = None
-    recommendation_source_publisher: str | None = None
-    recommendation_verified_at: AwareDatetime | None = None
