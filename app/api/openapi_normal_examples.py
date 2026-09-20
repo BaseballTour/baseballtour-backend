@@ -367,6 +367,11 @@ SUCCESS_EXAMPLES = {
         "playerPickId": "player_pick_001", "stadiumId": "gocheok",
         "playerName": "홍길동", "playerPosition": "INFIELDER", "place": PLACE,
         "recommendationNote": "선수 부모님이 운영하는 가게",
+        "recommendationEvidenceStatus": "VERIFIED",
+        "recommendationSourceUrl": "https://www.youtube.com/watch?v=example",
+        "recommendationSourceTitle": "선수가 추천하는 원정 맛집",
+        "recommendationSourcePublisher": "구단 공식 채널",
+        "recommendationVerifiedAt": "2026-09-13T12:00:00+09:00",
     }]),
     ("get", "/api/v1/tour/filter-options", "200"): _list([{
         "filterId": "FISHING", "label": "낚시", "group": "액티비티",

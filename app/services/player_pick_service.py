@@ -256,6 +256,17 @@ class PlayerPickService:
                     player_position=record.player_position,
                     place=self._tag_place(record, place),
                     recommendation_note=record.recommendation_note,
+                    recommendation_evidence_status=(
+                        record.recommendation_evidence_status
+                    ),
+                    recommendation_source_url=record.recommendation_source_url,
+                    recommendation_source_title=(
+                        record.recommendation_source_title
+                    ),
+                    recommendation_source_publisher=(
+                        record.recommendation_source_publisher
+                    ),
+                    recommendation_verified_at=record.recommendation_verified_at,
                 )
             )
         return responses

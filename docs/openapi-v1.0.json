@@ -11271,7 +11271,7 @@
           "Trips"
         ],
         "summary": "일정 생성 전 추천 후보 조회",
-        "description": "경기장·도착지·출발지·숙소 주변의 TourAPI 및 선수 추천 장소를 중복 제거 후 반환합니다. keyword·filterId·sort는 전체 후보에 먼저 적용되며, 그 결과를 pageSize·pageToken으로 나눕니다.",
+        "description": "경기장·도착지·출발지·숙소 주변의 TourAPI 및 선수 추천 장소를 중복 제거 후 반환합니다. keyword·filterId·sort는 전체 후보에 먼저 적용되며, 그 결과를 pageSize·pageToken으로 나눕니다. RECOMMENDED 정렬에서는 선수 추천 장소에 작은 우선순위를 주되 최근 세 후보에 하나 이하가 되도록 일반 장소와 섞어 반환합니다.",
         "operationId": "get_recommendation_candidates_api_v1_trips__tripId__recommendation_candidates_get",
         "security": [
           {
@@ -18915,6 +18915,7 @@
           "TourAPI"
         ],
         "summary": "구장·선수별 추천 장소 조회",
+        "description": "선수 추천 장소와 추천 주체를 조회합니다. 추천 근거가 확인된 경우 recommendationSourceUrl·recommendationSourceTitle·recommendationSourcePublisher·recommendationVerifiedAt을 함께 반환합니다. place.placeUrl은 추천 출처가 아니라 장소의 Kakao 지도 링크입니다.",
         "operationId": "read_player_picks_api_v1_tour_player_picks_get",
         "parameters": [
           {
@@ -19004,7 +19005,12 @@
                             "lclsSystem2": "VE01",
                             "lclsSystem3": "VE010100"
                           },
-                          "recommendationNote": "선수 부모님이 운영하는 가게"
+                          "recommendationNote": "선수 부모님이 운영하는 가게",
+                          "recommendationEvidenceStatus": "VERIFIED",
+                          "recommendationSourceUrl": "https://www.youtube.com/watch?v=example",
+                          "recommendationSourceTitle": "선수가 추천하는 원정 맛집",
+                          "recommendationSourcePublisher": "구단 공식 채널",
+                          "recommendationVerifiedAt": "2026-09-13T12:00:00+09:00"
                         }
                       ],
                       "meta": {
@@ -24020,6 +24026,56 @@
               }
             ],
             "title": "Recommendationnote"
+          },
+          "recommendationEvidenceStatus": {
+            "$ref": "#/components/schemas/RecommendationEvidenceStatus",
+            "default": "UNVERIFIED"
+          },
+          "recommendationSourceUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationsourceurl",
+            "description": "선수가 해당 장소를 언급한 영상·기사·게시물 URL"
+          },
+          "recommendationSourceTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationsourcetitle"
+          },
+          "recommendationSourcePublisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationsourcepublisher"
+          },
+          "recommendationVerifiedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationverifiedat"
           }
         },
         "additionalProperties": false,
@@ -24058,6 +24114,15 @@
           "CULTURE"
         ],
         "title": "PreferredCategory"
+      },
+      "RecommendationEvidenceStatus": {
+        "type": "string",
+        "enum": [
+          "UNVERIFIED",
+          "VERIFIED",
+          "DISPUTED"
+        ],
+        "title": "RecommendationEvidenceStatus"
       },
       "RecommendationSummary": {
         "properties": {
