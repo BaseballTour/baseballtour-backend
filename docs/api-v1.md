@@ -80,6 +80,18 @@
 `PATCH /api/v1/users/me`의 기존 계약은 유지하므로,
 프로필 수정에서 `supportTeamId: null`로 응원팀을 해제하는 것은 허용하지 않는다.
 
+### 탈퇴 후 소셜 계정 재가입
+
+`POST /api/v1/users/me/bootstrap`은 동일한 Firebase UID로 탈퇴 후 재가입할 수 있다.
+
+- 사용자 문서가 없으면 기존과 동일하게 신규 프로필을 생성한다.
+- 사용자 문서가 존재하고 `deletedAt`이 없으면 `USER_ALREADY_EXISTS`를 반환한다.
+- 사용자 문서가 존재하고 `deletedAt`이 있으면 탈퇴한 사용자로 판단하여 재가입을 허용한다.
+- 재가입 시 기존 프로필을 복원하지 않고 bootstrap 요청과 현재 Firebase 인증 정보를 기준으로 사용자 문서를 새로 생성한다.
+- 재가입된 사용자 문서의 `deletedAt`은 `null`이며 `createdAt`, `updatedAt`은 재가입 시각으로 갱신된다.
+- Firebase Authentication UID는 탈퇴 전과 동일하게 유지될 수 있다.
+- 동일 UID 재가입 시 탈퇴 전 알림 설정, 알림 설정 변경 이력, 알림함은 초기화하여 새 계정에 이전 상태가 이어지지 않도록 한다.
+
 ### 사용자 프로필 통합 수정
 
 `PATCH /api/v1/users/me`에서 사용자 프로필을 통합 수정한다.

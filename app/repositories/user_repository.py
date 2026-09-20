@@ -27,11 +27,6 @@ class UserRepository:
         data = document.to_dict() or {}
         return UserDocument.model_validate(data)
 
-    def exists(self, user_id: str) -> bool:
-        """사용자 문서가 존재하는지 확인합니다."""
-
-        return self._collection.document(user_id).get().exists
-
     def create(self, user_id: str, user: UserDocument) -> bool:
         """사용자 문서를 최초 한 번만 생성합니다."""
 
@@ -56,6 +51,29 @@ class UserRepository:
             return False
 
         return True
+
+    def replace(
+        self,
+        user_id: str,
+        user: UserDocument,
+    ) -> None:
+        """기존 사용자 문서를 새 사용자 정보로 완전히 교체합니다."""
+        payload = user.model_dump(
+            by_alias=True,
+            exclude_none=False,
+        )
+
+        if user.birth_date is not None:
+            payload["birthDate"] = (
+                user.birth_date.isoformat()
+            )
+
+        if user.gender is not None:
+            payload["gender"] = user.gender.value
+
+        self._collection.document(user_id).set(
+            payload
+        )
 
     def soft_delete(
         self,

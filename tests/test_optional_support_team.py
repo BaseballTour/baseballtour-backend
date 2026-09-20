@@ -91,7 +91,7 @@ def test_bootstrap_user_creates_profile_without_support_team() -> None:
     team_repository = Mock(spec=TeamRepository)
     favorite_collection_service = Mock()
 
-    user_repository.exists.return_value = False
+    user_repository.get_by_id.return_value = None
     user_repository.create.return_value = True
 
     service = UserService(

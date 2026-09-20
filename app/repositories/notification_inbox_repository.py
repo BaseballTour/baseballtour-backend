@@ -37,6 +37,17 @@ class NotificationInboxRepository:
             **(snapshot.to_dict() or {}),
         )
 
+    def delete_all_by_user_id(
+        self,
+        *,
+        user_id: str,
+    ) -> None:
+        """재가입 전 기존 알림함을 모두 삭제합니다."""
+        for document in self._collection(
+            user_id
+        ).stream():
+            document.reference.delete()
+
     def get_page(
         self,
         *,

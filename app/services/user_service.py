@@ -7,6 +7,12 @@ from google.api_core.exceptions import GoogleAPICallError, RetryError
 
 from app.api.dependencies.auth import AuthenticatedUser
 from app.core.exceptions import AppException
+from app.repositories.notification_inbox_repository import (
+    NotificationInboxRepository,
+)
+from app.repositories.notification_repository import (
+    NotificationRepository,
+)
 from app.repositories.team_repository import TeamRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.team import SupportTeamResponse, TeamResponse
@@ -35,11 +41,23 @@ class UserService:
         favorite_collection_service: (
             FavoriteCollectionService | None
         ) = None,
+        notification_repository: (
+            NotificationRepository | None
+        ) = None,
+        notification_inbox_repository: (
+            NotificationInboxRepository | None
+        ) = None,
     ) -> None:
         self._user_repository = user_repository or UserRepository()
         self._team_repository = team_repository or TeamRepository()
         self._favorite_collection_service = (
             favorite_collection_service
+        )
+        self._notification_repository = (
+            notification_repository
+        )
+        self._notification_inbox_repository = (
+            notification_inbox_repository
         )
 
     def bootstrap_user(
@@ -49,7 +67,14 @@ class UserService:
     ) -> UserResponse:
         """최초 사용자 프로필을 생성합니다."""
 
-        if self._user_repository.exists(authenticated_user.uid):
+        existing_user = self._user_repository.get_by_id(
+            authenticated_user.uid
+        )
+
+        if (
+            existing_user is not None
+            and existing_user.deleted_at is None
+        ):
             raise AppException(
                 status_code=status.HTTP_409_CONFLICT,
                 code="USER_ALREADY_EXISTS",
@@ -86,16 +111,34 @@ class UserService:
             updated_at=now,
         )
 
-        created = self._user_repository.create(
-            authenticated_user.uid,
-            user,
-        )
+        if existing_user is None:
+            created = self._user_repository.create(
+                authenticated_user.uid,
+                user,
+            )
 
-        if not created:
-            raise AppException(
-                status_code=status.HTTP_409_CONFLICT,
-                code="USER_ALREADY_EXISTS",
-                message="이미 생성된 사용자 프로필입니다.",
+            if not created:
+                raise AppException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="USER_ALREADY_EXISTS",
+                    message="이미 생성된 사용자 프로필입니다.",
+                )
+        else:
+            # 동일한 Firebase UID로 재가입하는 경우
+            # 탈퇴 전 알림 상태가 새 계정에 이어지지 않도록
+            # 사용자에게 노출되는 알림 데이터를 초기화합니다.
+            self._get_notification_repository().delete_all_by_user_id(
+                user_id=authenticated_user.uid,
+            )
+            (
+                self._get_notification_inbox_repository()
+                .delete_all_by_user_id(
+                    user_id=authenticated_user.uid,
+                )
+            )
+            self._user_repository.replace(
+                authenticated_user.uid,
+                user,
             )
 
         try:
@@ -269,6 +312,24 @@ class UserService:
             user=updated_user,
             team=team,
         )
+
+    def _get_notification_repository(
+        self,
+    ) -> NotificationRepository:
+        if self._notification_repository is None:
+            self._notification_repository = (
+                NotificationRepository()
+            )
+        return self._notification_repository
+
+    def _get_notification_inbox_repository(
+        self,
+    ) -> NotificationInboxRepository:
+        if self._notification_inbox_repository is None:
+            self._notification_inbox_repository = (
+                NotificationInboxRepository()
+            )
+        return self._notification_inbox_repository
 
     def _get_favorite_collection_service(
         self,
