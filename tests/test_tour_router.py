@@ -205,6 +205,13 @@ def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
                     player_position="INFIELDER",
                     place=make_place(),
                     recommendation_note="선수 부모님이 운영하는 가게",
+                    recommendation_evidence_status="VERIFIED",
+                    recommendation_source_url=(
+                        "https://www.youtube.com/watch?v=source"
+                    ),
+                    recommendation_source_title="선수 추천 맛집",
+                    recommendation_source_publisher="구단 공식 채널",
+                    recommendation_verified_at="2026-09-13T12:00:00+09:00",
                 )
             ]
 
@@ -225,6 +232,12 @@ def test_player_picks_returns_db_curated_places(monkeypatch) -> None:
         "선수 부모님이 운영하는 가게"
     )
     assert response.json()["data"][0]["playerPosition"] == "INFIELDER"
+    assert response.json()["data"][0]["recommendationSourceUrl"] == (
+        "https://www.youtube.com/watch?v=source"
+    )
+    assert response.json()["data"][0]["recommendationEvidenceStatus"] == (
+        "VERIFIED"
+    )
     assert received == {
         "stadium_id": "gocheok",
         "player_name": "테스트 선수",

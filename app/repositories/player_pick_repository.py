@@ -76,6 +76,15 @@ class PlayerPickRepository:
                 )
             ),
             "recommendationNote": data.get("recommendationNote"),
+            "recommendationEvidenceStatus": data.get(
+                "recommendationEvidenceStatus", "UNVERIFIED"
+            ),
+            "recommendationSourceUrl": data.get("recommendationSourceUrl"),
+            "recommendationSourceTitle": data.get("recommendationSourceTitle"),
+            "recommendationSourcePublisher": data.get(
+                "recommendationSourcePublisher"
+            ),
+            "recommendationVerifiedAt": data.get("recommendationVerifiedAt"),
             "createdAt": data.get("createdAt"),
             "updatedAt": data.get("updatedAt"),
         }

@@ -98,6 +98,37 @@ def test_resolve_place_uses_player_pick_as_canonical_id() -> None:
     assert place.recommended_by_players == ["테스트 선수"]
 
 
+def test_player_pick_response_exposes_recommendation_source() -> None:
+    verified_at = datetime.now(ZoneInfo("Asia/Seoul"))
+    record = make_record().model_copy(
+        update={
+            "recommendation_evidence_status": "VERIFIED",
+            "recommendation_source_url": (
+                "https://www.youtube.com/watch?v=source"
+            ),
+            "recommendation_source_title": "선수 추천 맛집",
+            "recommendation_source_publisher": "구단 공식 채널",
+            "recommendation_verified_at": verified_at,
+        }
+    )
+
+    class SourceRepository(FakeRepository):
+        def get_all(self, **kwargs):
+            return [record]
+
+    service = PlayerPickService(
+        repository=SourceRepository(),
+        searcher=fake_searcher,
+    )
+    [result] = asyncio.run(service.get_player_picks(stadium_id="gocheok"))
+
+    assert result.recommendation_evidence_status == "VERIFIED"
+    assert result.recommendation_source_url.endswith("watch?v=source")
+    assert result.recommendation_source_title == "선수 추천 맛집"
+    assert result.recommendation_source_publisher == "구단 공식 채널"
+    assert result.recommendation_verified_at == verified_at
+
+
 def test_stadium_places_merge_aliases_resolved_to_same_kakao_place() -> None:
     first = make_record().model_copy(
         update={

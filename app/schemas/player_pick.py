@@ -16,6 +16,12 @@ class PlayerPosition(str, Enum):
     TEAM_GROUP = "TEAM_GROUP"
 
 
+class RecommendationEvidenceStatus(str, Enum):
+    UNVERIFIED = "UNVERIFIED"
+    VERIFIED = "VERIFIED"
+    DISPUTED = "DISPUTED"
+
+
 class PlayerPickDocument(ApiModel):
     """독립적으로 큐레이션하고 Kakao에는 ID로만 연결하는 추천 장소."""
 
@@ -45,6 +51,27 @@ class PlayerPickDocument(ApiModel):
         default=None,
         description="부모님 운영·선수단 공통 추천 등 관리자 설명",
     )
+    recommendation_evidence_status: RecommendationEvidenceStatus = Field(
+        default=RecommendationEvidenceStatus.UNVERIFIED,
+        description="선수 추천 근거의 확인 상태",
+    )
+    recommendation_source_url: str | None = Field(
+        default=None,
+        pattern=r"^https?://",
+        description="선수가 해당 장소를 언급한 영상·기사·게시물 URL",
+    )
+    recommendation_source_title: str | None = Field(
+        default=None,
+        description="추천 출처의 영상·기사·게시물 제목",
+    )
+    recommendation_source_publisher: str | None = Field(
+        default=None,
+        description="추천 출처를 게시한 구단·방송사·채널명",
+    )
+    recommendation_verified_at: AwareDatetime | None = Field(
+        default=None,
+        description="추천 출처를 마지막으로 확인한 시각",
+    )
     created_at: AwareDatetime
     updated_at: AwareDatetime | None = None
 
@@ -60,3 +87,13 @@ class PlayerPickResponse(ApiModel):
     player_position: PlayerPosition | None = None
     place: Place
     recommendation_note: str | None = None
+    recommendation_evidence_status: RecommendationEvidenceStatus = (
+        RecommendationEvidenceStatus.UNVERIFIED
+    )
+    recommendation_source_url: str | None = Field(
+        default=None,
+        description="선수가 해당 장소를 언급한 영상·기사·게시물 URL",
+    )
+    recommendation_source_title: str | None = None
+    recommendation_source_publisher: str | None = None
+    recommendation_verified_at: AwareDatetime | None = None

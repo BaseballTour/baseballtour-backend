@@ -362,10 +362,15 @@ GET /api/v1/tour/player-picks?stadiumId=sajik&playerName=정보근
 ```
 
 `stadiumId`는 필수이고 `playerName`은 선택 필터다. 각 결과는
-`playerPickId`, `stadiumId`, `playerName`, `playerPosition`, `place`, `recommendationNote`를
-포함한다. `recommendationNote`는 부모님 운영 또는 선수단 공통 추천 같은
-관리자 설명이며 없으면 `null`이다. 저장된 `place` 스냅샷을 우선 사용하므로
-TourAPI가 일시적으로 실패해도 큐레이션 목록을 반환할 수 있다.
+`playerPickId`, `stadiumId`, `playerName`, `playerPosition`, `place`,
+`recommendationNote`, `recommendationEvidenceStatus`,
+`recommendationSourceUrl`, `recommendationSourceTitle`,
+`recommendationSourcePublisher`, `recommendationVerifiedAt`을 포함한다.
+`recommendationNote`는 부모님 운영 또는 선수단 공통 추천 같은 관리자 설명이며
+없으면 `null`이다. `recommendationSourceUrl`은 선수가 해당 장소를 추천한 영상·기사·
+게시물 출처이고, `place.placeUrl`은 최신 장소 정보를 확인하는 Kakao 지도 링크다.
+출처를 확인하지 못한 기록은 `recommendationEvidenceStatus=UNVERIFIED`이며 출처 관련
+필드가 `null`일 수 있다.
 
 ### 숙소를 포함한 여행 생성
 

@@ -171,6 +171,12 @@ async def read_filter_options() -> ListSuccessResponse[TourFilterOption]:
     "/player-picks",
     response_model=ListSuccessResponse[PlayerPickResponse],
     summary="구장·선수별 추천 장소 조회",
+    description=(
+        "선수 추천 장소와 추천 주체를 조회합니다. 추천 근거가 확인된 경우 "
+        "recommendationSourceUrl·recommendationSourceTitle·"
+        "recommendationSourcePublisher·recommendationVerifiedAt을 함께 반환합니다. "
+        "place.placeUrl은 추천 출처가 아니라 장소의 Kakao 지도 링크입니다."
+    ),
 )
 async def read_player_picks(
     stadium_id: str = Query(alias="stadiumId", min_length=1),
