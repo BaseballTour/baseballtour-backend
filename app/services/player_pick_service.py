@@ -7,7 +7,7 @@ from app.external.kakao.client import geocode_address, search_place_page
 from app.external.kakao.mapper import kakao_address
 from app.models.place import Place, PlaceSource
 from app.repositories.player_pick_repository import PlayerPickRepository
-from app.schemas.player_pick import PlayerPickRecord, PlayerPickResponse
+from app.schemas.player_pick import PlayerPickRecord
 
 
 logger = logging.getLogger(__name__)
@@ -86,6 +86,14 @@ class PlayerPickService:
             merged[existing_index] = existing.model_copy(
                 update={
                     "recommended_by_players": players,
+                    "recommended_by_player_positions": list(
+                        dict.fromkeys(
+                            [
+                                *existing.recommended_by_player_positions,
+                                *place.recommended_by_player_positions,
+                            ]
+                        )
+                    ),
                     "recommendation_note": " · ".join(notes) or None,
                 }
             )
@@ -227,7 +235,24 @@ class PlayerPickService:
                 "is_player_pick": True,
                 "player_pick_id": record.player_pick_id,
                 "recommended_by_players": [record.player_name],
+                "recommended_by_player_positions": (
+                    [record.player_position.value]
+                    if record.player_position is not None
+                    else []
+                ),
+                "stadium_id": record.stadium_id,
                 "recommendation_note": record.recommendation_note,
+                "recommendation_evidence_status": (
+                    record.recommendation_evidence_status
+                ),
+                "recommendation_source_url": record.recommendation_source_url,
+                "recommendation_source_title": (
+                    record.recommendation_source_title
+                ),
+                "recommendation_source_publisher": (
+                    record.recommendation_source_publisher
+                ),
+                "recommendation_verified_at": record.recommendation_verified_at,
             }
         )
 
@@ -236,7 +261,7 @@ class PlayerPickService:
         *,
         stadium_id: str,
         player_name: str | None = None,
-    ) -> list[PlayerPickResponse]:
+    ) -> list[Place]:
         records = self._repository.get_all(
             stadium_id=stadium_id,
             player_name=player_name,
@@ -244,29 +269,9 @@ class PlayerPickService:
         places = await asyncio.gather(
             *(self._resolve_record_place(record) for record in records)
         )
-        responses: list[PlayerPickResponse] = []
+        responses: list[Place] = []
         for record, place in zip(records, places, strict=True):
             if place is None:
                 continue
-            responses.append(
-                PlayerPickResponse(
-                    player_pick_id=record.player_pick_id,
-                    stadium_id=record.stadium_id,
-                    player_name=record.player_name,
-                    player_position=record.player_position,
-                    place=self._tag_place(record, place),
-                    recommendation_note=record.recommendation_note,
-                    recommendation_evidence_status=(
-                        record.recommendation_evidence_status
-                    ),
-                    recommendation_source_url=record.recommendation_source_url,
-                    recommendation_source_title=(
-                        record.recommendation_source_title
-                    ),
-                    recommendation_source_publisher=(
-                        record.recommendation_source_publisher
-                    ),
-                    recommendation_verified_at=record.recommendation_verified_at,
-                )
-            )
+            responses.append(self._tag_place(record, place))
         return responses

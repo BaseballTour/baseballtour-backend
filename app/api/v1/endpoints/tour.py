@@ -13,7 +13,6 @@ from app.models.place import Place
 from app.repositories.place_favorite_stats_repository import (
     PlaceFavoriteStatsRepository,
 )
-from app.schemas.player_pick import PlayerPickResponse
 from app.schemas.response import (
     ListMeta,
     ListSuccessResponse,
@@ -169,13 +168,14 @@ async def read_filter_options() -> ListSuccessResponse[TourFilterOption]:
 
 @router.get(
     "/player-picks",
-    response_model=ListSuccessResponse[PlayerPickResponse],
+    response_model=ListSuccessResponse[Place],
     summary="구장·선수별 추천 장소 조회",
     description=(
         "선수 추천 장소와 추천 주체를 조회합니다. 추천 근거가 확인된 경우 "
         "recommendationSourceUrl·recommendationSourceTitle·"
-        "recommendationSourcePublisher·recommendationVerifiedAt을 함께 반환합니다. "
-        "place.placeUrl은 추천 출처가 아니라 장소의 Kakao 지도 링크입니다."
+        "recommendationSourcePublisher·recommendationVerifiedAt을 Place 안에 "
+        "함께 반환합니다. placeUrl은 추천 출처가 아니라 장소의 Kakao 지도 "
+        "링크입니다."
     ),
 )
 async def read_player_picks(
@@ -185,7 +185,7 @@ async def read_player_picks(
         alias="playerName",
         min_length=1,
     ),
-) -> ListSuccessResponse[PlayerPickResponse]:
+) -> ListSuccessResponse[Place]:
     picks = await PlayerPickService().get_player_picks(
         stadium_id=stadium_id,
         player_name=player_name,

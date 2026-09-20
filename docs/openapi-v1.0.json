@@ -18915,7 +18915,7 @@
           "TourAPI"
         ],
         "summary": "구장·선수별 추천 장소 조회",
-        "description": "선수 추천 장소와 추천 주체를 조회합니다. 추천 근거가 확인된 경우 recommendationSourceUrl·recommendationSourceTitle·recommendationSourcePublisher·recommendationVerifiedAt을 함께 반환합니다. place.placeUrl은 추천 출처가 아니라 장소의 Kakao 지도 링크입니다.",
+        "description": "선수 추천 장소와 추천 주체를 조회합니다. 추천 근거가 확인된 경우 recommendationSourceUrl·recommendationSourceTitle·recommendationSourcePublisher·recommendationVerifiedAt을 Place 안에 함께 반환합니다. placeUrl은 추천 출처가 아니라 장소의 Kakao 지도 링크입니다.",
         "operationId": "read_player_picks_api_v1_tour_player_picks_get",
         "parameters": [
           {
@@ -18956,7 +18956,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListSuccessResponse_PlayerPickResponse_"
+                  "$ref": "#/components/schemas/ListSuccessResponse_Place_"
                 },
                 "examples": {
                   "normal": {
@@ -18965,46 +18965,49 @@
                       "success": true,
                       "data": [
                         {
+                          "placeId": "player_pick_001",
+                          "name": "아시아공원",
+                          "category": "TOURIST_SPOT",
+                          "latitude": 37.510082,
+                          "longitude": 127.076703,
+                          "address": "서울특별시 송파구 올림픽로 44",
+                          "postalCode": "05572",
+                          "telephone": null,
+                          "thumbnailUrl": "https://example.com/asia-park.jpg",
+                          "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
+                          "openTime": null,
+                          "closeTime": null,
+                          "businessHoursStatus": "MISSING",
+                          "businessHoursText": null,
+                          "businessHoursRules": [],
+                          "admissionDeadlineTime": null,
+                          "admissionDeadlineStatus": "MISSING",
+                          "admissionDeadlineText": null,
+                          "closedDaysText": null,
+                          "closedDaysStatus": "MISSING",
+                          "closedWeekdays": [],
+                          "eventStartDate": null,
+                          "eventEndDate": null,
+                          "defaultStayMinutes": 60,
+                          "distanceMeters": 487.4,
+                          "source": "LOCAL_DATA",
+                          "sourceContentId": null,
+                          "kakaoPlaceId": null,
+                          "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
+                          "enrichedBy": [],
+                          "contentTypeId": "12",
+                          "lclsSystem1": "VE",
+                          "lclsSystem2": "VE01",
+                          "lclsSystem3": "VE010100",
+                          "isPlayerPick": true,
                           "playerPickId": "player_pick_001",
                           "stadiumId": "gocheok",
-                          "playerName": "홍길동",
-                          "playerPosition": "INFIELDER",
-                          "place": {
-                            "placeId": "tour_1603175",
-                            "name": "아시아공원",
-                            "category": "TOURIST_SPOT",
-                            "latitude": 37.510082,
-                            "longitude": 127.076703,
-                            "address": "서울특별시 송파구 올림픽로 44",
-                            "postalCode": "05572",
-                            "telephone": null,
-                            "thumbnailUrl": "https://example.com/asia-park.jpg",
-                            "overview": "잠실종합운동장 인근에서 산책하기 좋은 공원입니다.",
-                            "openTime": null,
-                            "closeTime": null,
-                            "businessHoursStatus": "MISSING",
-                            "businessHoursText": null,
-                            "businessHoursRules": [],
-                            "admissionDeadlineTime": null,
-                            "admissionDeadlineStatus": "MISSING",
-                            "admissionDeadlineText": null,
-                            "closedDaysText": null,
-                            "closedDaysStatus": "MISSING",
-                            "closedWeekdays": [],
-                            "eventStartDate": null,
-                            "eventEndDate": null,
-                            "defaultStayMinutes": 60,
-                            "distanceMeters": 487.4,
-                            "source": "TOUR_API",
-                            "sourceContentId": "1603175",
-                            "kakaoPlaceId": null,
-                            "placeUrl": "https://map.kakao.com/link/map/%EC%95%84%EC%8B%9C%EC%95%84%EA%B3%B5%EC%9B%90,37.510082,127.076703",
-                            "enrichedBy": [],
-                            "contentTypeId": "12",
-                            "lclsSystem1": "VE",
-                            "lclsSystem2": "VE01",
-                            "lclsSystem3": "VE010100"
-                          },
+                          "recommendedByPlayers": [
+                            "홍길동"
+                          ],
+                          "recommendedByPlayerPositions": [
+                            "INFIELDER"
+                          ],
                           "recommendationNote": "선수 부모님이 운영하는 가게",
                           "recommendationEvidenceStatus": "VERIFIED",
                           "recommendationSourceUrl": "https://www.youtube.com/watch?v=example",
@@ -22527,33 +22530,6 @@
         ],
         "title": "ListSuccessResponse[Place]"
       },
-      "ListSuccessResponse_PlayerPickResponse_": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "const": true,
-            "title": "Success",
-            "default": true
-          },
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/PlayerPickResponse"
-            },
-            "type": "array",
-            "title": "Data"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/ListMeta"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "data",
-          "meta"
-        ],
-        "title": "ListSuccessResponse[PlayerPickResponse]"
-      },
       "ListSuccessResponse_TeamResponse_": {
         "properties": {
           "success": {
@@ -23766,6 +23742,86 @@
             "title": "Recommendationnote",
             "description": "선수 추천에 대한 관리자 설명"
           },
+          "stadiumId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stadiumid",
+            "description": "선수 추천 장소가 연결된 구장 ID"
+          },
+          "recommendedByPlayerPositions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendedbyplayerpositions",
+            "description": "추천 선수의 포지션 목록"
+          },
+          "recommendationEvidenceStatus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendationEvidenceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "선수 추천 근거의 확인 상태"
+          },
+          "recommendationSourceUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationsourceurl",
+            "description": "선수가 해당 장소를 언급한 영상·기사·게시물 URL"
+          },
+          "recommendationSourceTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationsourcetitle",
+            "description": "추천 근거의 영상·기사·게시물 제목"
+          },
+          "recommendationSourcePublisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationsourcepublisher",
+            "description": "추천 근거를 게시한 구단·방송사·채널명"
+          },
+          "recommendationVerifiedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendationverifiedat",
+            "description": "추천 근거를 마지막으로 확인한 시각"
+          },
           "enrichedBy": {
             "items": {
               "$ref": "#/components/schemas/PlaceSource"
@@ -23988,118 +24044,6 @@
           "USER_PICK"
         ],
         "title": "PlaceSource"
-      },
-      "PlayerPickResponse": {
-        "properties": {
-          "playerPickId": {
-            "type": "string",
-            "title": "Playerpickid"
-          },
-          "stadiumId": {
-            "type": "string",
-            "title": "Stadiumid"
-          },
-          "playerName": {
-            "type": "string",
-            "title": "Playername"
-          },
-          "playerPosition": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PlayerPosition"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "place": {
-            "$ref": "#/components/schemas/Place"
-          },
-          "recommendationNote": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recommendationnote"
-          },
-          "recommendationEvidenceStatus": {
-            "$ref": "#/components/schemas/RecommendationEvidenceStatus",
-            "default": "UNVERIFIED"
-          },
-          "recommendationSourceUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recommendationsourceurl",
-            "description": "선수가 해당 장소를 언급한 영상·기사·게시물 URL"
-          },
-          "recommendationSourceTitle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recommendationsourcetitle"
-          },
-          "recommendationSourcePublisher": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recommendationsourcepublisher"
-          },
-          "recommendationVerifiedAt": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recommendationverifiedat"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "playerPickId",
-          "stadiumId",
-          "playerName",
-          "place"
-        ],
-        "title": "PlayerPickResponse"
-      },
-      "PlayerPosition": {
-        "type": "string",
-        "enum": [
-          "PITCHER",
-          "CATCHER",
-          "INFIELDER",
-          "OUTFIELDER",
-          "COACH",
-          "STAFF",
-          "TEAM_GROUP"
-        ],
-        "title": "PlayerPosition"
       },
       "PreferredCategory": {
         "type": "string",
