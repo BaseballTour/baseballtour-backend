@@ -6,6 +6,12 @@ from fastapi import status
 
 from app.api.dependencies.auth import AuthenticatedUser
 from app.core.exceptions import AppException
+from app.repositories.notification_inbox_repository import (
+    NotificationInboxRepository,
+)
+from app.repositories.notification_repository import (
+    NotificationRepository,
+)
 from app.repositories.team_repository import TeamRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.team import TeamResponse
@@ -69,7 +75,7 @@ def test_bootstrap_user_creates_profile(
 ) -> None:
     user_repository, team_repository = repositories
 
-    user_repository.exists.return_value = False
+    user_repository.get_by_id.return_value = None
     user_repository.create.return_value = True
     team_repository.get_by_id.return_value = make_team()
 
@@ -120,7 +126,7 @@ def test_bootstrap_user_rejects_existing_user(
     repositories: tuple[Mock, Mock],
 ) -> None:
     user_repository, team_repository = repositories
-    user_repository.exists.return_value = True
+    user_repository.get_by_id.return_value = make_user()
 
     service = UserService(
         user_repository=user_repository,
@@ -152,7 +158,7 @@ def test_bootstrap_user_rejects_unknown_team(
 ) -> None:
     user_repository, team_repository = repositories
 
-    user_repository.exists.return_value = False
+    user_repository.get_by_id.return_value = None
     team_repository.get_by_id.return_value = None
 
     service = UserService(
@@ -573,7 +579,7 @@ def test_bootstrap_user_tolerates_default_collection_storage_failure(
 
     user_repository, team_repository = repositories
 
-    user_repository.exists.return_value = False
+    user_repository.get_by_id.return_value = None
     user_repository.create.return_value = True
     team_repository.get_by_id.return_value = make_team()
 
@@ -635,7 +641,7 @@ def test_bootstrap_name_precedence(
     expected: str | None,
 ) -> None:
     user_repository, team_repository = repositories
-    user_repository.exists.return_value = False
+    user_repository.get_by_id.return_value = None
     user_repository.create.return_value = True
     team_repository.get_by_id.return_value = make_team()
 
@@ -662,3 +668,94 @@ def test_bootstrap_name_precedence(
     created_user = user_repository.create.call_args.args[1]
     assert created_user.name == expected
     assert result.name == expected
+
+
+def test_bootstrap_user_recreates_soft_deleted_user(
+    repositories: tuple[Mock, Mock],
+) -> None:
+    user_repository, team_repository = repositories
+
+    deleted_user = make_user().model_copy(
+        update={
+            "deleted_at": FIXED_TIME,
+        }
+    )
+
+    user_repository.get_by_id.return_value = deleted_user
+    team_repository.get_by_id.return_value = make_team()
+
+    favorite_collection_service = Mock()
+    notification_repository = Mock(
+        spec=NotificationRepository
+    )
+    notification_inbox_repository = Mock(
+        spec=NotificationInboxRepository
+    )
+
+    service = UserService(
+        user_repository=user_repository,
+        team_repository=team_repository,
+        favorite_collection_service=(
+            favorite_collection_service
+        ),
+        notification_repository=(
+            notification_repository
+        ),
+        notification_inbox_repository=(
+            notification_inbox_repository
+        ),
+    )
+
+    result = service.bootstrap_user(
+        authenticated_user=AuthenticatedUser(
+            uid="firebase-user-123",
+            email="rejoin@example.com",
+            display_name="재가입 사용자",
+        ),
+        request=UserBootstrapRequest(
+            nickname="새닉네임",
+            birth_year=2003,
+            support_team_id="doosan",
+        ),
+    )
+
+    assert result.user_id == "firebase-user-123"
+    assert result.email == "rejoin@example.com"
+    assert result.nickname == "새닉네임"
+    assert result.birth_year == 2003
+
+    user_repository.create.assert_not_called()
+
+    notification_repository.delete_all_by_user_id.assert_called_once_with(
+        user_id="firebase-user-123"
+    )
+    (
+        notification_inbox_repository
+        .delete_all_by_user_id
+        .assert_called_once_with(
+            user_id="firebase-user-123"
+        )
+    )
+
+    user_repository.replace.assert_called_once()
+
+    replace_args = user_repository.replace.call_args.args
+
+    assert replace_args[0] == "firebase-user-123"
+
+    replaced_user = replace_args[1]
+
+    assert replaced_user.email == "rejoin@example.com"
+    assert replaced_user.nickname == "새닉네임"
+    assert replaced_user.birth_year == 2003
+    assert replaced_user.deleted_at is None
+    assert replaced_user.profile_image_url is None
+    assert replaced_user.profile_image_storage_path is None
+
+    (
+        favorite_collection_service
+        .ensure_default_collection
+        .assert_called_once_with(
+            user_id="firebase-user-123"
+        )
+    )

@@ -105,6 +105,19 @@ class NotificationRepository:
 
         batch.commit()
 
+    def delete_all_by_user_id(
+        self,
+        *,
+        user_id: str,
+    ) -> None:
+        """재가입 전 기존 알림 설정과 동의 변경 이력을 삭제합니다."""
+        self._settings_document(user_id).delete()
+
+        for document in self._history_collection(
+            user_id
+        ).stream():
+            document.reference.delete()
+
     def get_history(
         self,
         user_id: str,
