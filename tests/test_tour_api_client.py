@@ -195,7 +195,9 @@ async def test_http_rate_limit_is_mapped(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
-async def test_rate_limit_fails_over_to_secondary_key(monkeypatch) -> None:
+async def test_rate_limit_does_not_fail_over_to_secondary_key(
+    monkeypatch,
+) -> None:
     from app.external.tour_api import client as client_module
 
     monkeypatch.setattr(
@@ -233,12 +235,13 @@ async def test_rate_limit_fails_over_to_secondary_key(monkeypatch) -> None:
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(limited_then_success)
     ) as client:
-        result = await client_module._request_tour_api(
-            "locationBasedList2", {}, client=client
-        )
+        with pytest.raises(AppException) as exc_info:
+            await client_module._request_tour_api(
+                "locationBasedList2", {}, client=client
+            )
 
-    assert used_keys == ["primary-key", "fallback-key"]
-    assert result["response"]["header"]["resultCode"] == "0000"
+    assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
+    assert used_keys == ["primary-key"]
 
 
 @pytest.mark.anyio
@@ -273,7 +276,9 @@ async def test_timeout_does_not_fail_over_to_secondary_key(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
-async def test_all_keys_rate_limited_returns_combined_error(monkeypatch) -> None:
+async def test_rate_limited_response_does_not_report_key_attempts(
+    monkeypatch,
+) -> None:
     from app.external.tour_api import client as client_module
 
     monkeypatch.setattr(
@@ -299,7 +304,7 @@ async def test_all_keys_rate_limited_returns_combined_error(monkeypatch) -> None
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.code == "EXTERNAL_API_RATE_LIMITED"
-    assert exc_info.value.details["attemptedKeyCount"] == 2
+    assert "attemptedKeyCount" not in exc_info.value.details
 
 
 @pytest.mark.anyio
